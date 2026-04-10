@@ -8,7 +8,9 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
+import LocationTracker from '@/components/LocationTracker';
 import { Bilty } from '@/lib/types';
+import { DriverLocation } from '@/lib/locationService';
 import { formatCurrency, generateBiltyNumber, generateId, calcCommission } from '@/lib/utils';
 import { COMMISSION_UPI } from '@/lib/types';
 
@@ -18,6 +20,7 @@ export default function DriverHomeScreen() {
   const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
+  const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const myVehicles = user ? getDriverVehicles(user.id) : [];
@@ -42,9 +45,12 @@ export default function DriverHomeScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient colors={[colors.primary, colors.navy]} style={[styles.header, { paddingTop: top }]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <View style={styles.headerRow}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>नमस्ते, {currentDriver?.name || user?.name}</Text>
             <Text style={styles.subGreeting}>ड्राइवर डैशबोर्ड • Loading Fast India</Text>
+            <View style={{ marginTop: 6 }}>
+              <LocationTracker onLocationUpdate={setDriverLocation} showBadge />
+            </View>
           </View>
           <TouchableOpacity style={styles.notifBtn}>
             <Feather name="bell" size={20} color="#fff" />

@@ -8,28 +8,54 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import * as Updates from "expo-updates";
+import * as KeepAwake from "expo-keep-awake";
+import React, { useEffect, useState } from "react";
+import { Alert, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
+import NetworkBanner from "@/components/NetworkBanner";
+import { initNetworkMonitor, stopNetworkMonitor } from "@/lib/networkService";
 
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
+async function checkForUpdates() {
+  try {
+    if (__DEV__) return;
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      Alert.alert(
+        "नया Update मिला!",
+        "App update हो गई। अभी reload करें?",
+        [
+          { text: "बाद में", style: "cancel" },
+          { text: "हाँ, Reload करें", onPress: () => Updates.reloadAsync() },
+        ]
+      );
+    }
+  } catch {}
+}
+
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="driver-register" />
-      <Stack.Screen name="vyapari-register" />
-      <Stack.Screen name="(driver)" />
-      <Stack.Screen name="(vyapari)" />
-      <Stack.Screen name="admin/index" />
-      <Stack.Screen name="+not-found" />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="driver-register" />
+        <Stack.Screen name="vyapari-register" />
+        <Stack.Screen name="(driver)" />
+        <Stack.Screen name="(vyapari)" />
+        <Stack.Screen name="admin/index" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <NetworkBanner />
+    </View>
   );
 }
 
@@ -46,6 +72,16 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    KeepAwake.activateKeepAwakeAsync("lfi-main");
+    initNetworkMonitor();
+    checkForUpdates();
+    return () => {
+      KeepAwake.deactivateKeepAwake("lfi-main");
+      stopNetworkMonitor();
+    };
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 
