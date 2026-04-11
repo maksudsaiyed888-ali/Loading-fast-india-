@@ -1,16 +1,18 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
+import AppRatingModal from '@/components/AppRatingModal';
 
 export default function WelcomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, isLoading } = useApp();
+  const { user, isLoading, getAppAvgRating, appRatings } = useApp();
+  const [showRating, setShowRating] = useState(false);
 
   React.useEffect(() => {
     if (!isLoading && user) {
@@ -94,10 +96,26 @@ export default function WelcomeScreen() {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity style={styles.trustBadge} onPress={() => setShowRating(true)} activeOpacity={0.85}>
+        <Text style={styles.trustStars}>
+          {'⭐'.repeat(Math.round(getAppAvgRating() || 5))}
+        </Text>
+        <View>
+          <Text style={styles.trustScore}>
+            {getAppAvgRating() > 0 ? getAppAvgRating().toFixed(1) : '5.0'} / 5
+          </Text>
+          <Text style={styles.trustCount}>
+            {appRatings.length > 0 ? `${appRatings.length} Users ने Rate किया` : 'App को Rate करें ➜'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
       <Text style={styles.footer}>
         2% Commission • UPI: hemaksudsaiyed888@oksbi
       </Text>
       <View style={{ height: insets.bottom + 8 }} />
+
+      <AppRatingModal visible={showRating} onClose={() => setShowRating(false)} />
     </LinearGradient>
   );
 }
@@ -131,5 +149,13 @@ const styles = StyleSheet.create({
   adminBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   loginLink: { marginTop: 14, alignItems: 'center' },
   loginLinkText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
-  footer: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 20, textAlign: 'center' },
+  footer: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 8, textAlign: 'center' },
+  trustBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 18, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  trustStars: { fontSize: 16, lineHeight: 20 },
+  trustScore: { color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold', lineHeight: 18 },
+  trustCount: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Inter_400Regular' },
 });

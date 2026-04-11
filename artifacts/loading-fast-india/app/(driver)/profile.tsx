@@ -7,14 +7,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import ComplaintModal from '@/components/ComplaintModal';
+import AppRatingModal from '@/components/AppRatingModal';
 import { maskAadhaar, getInitials } from '@/lib/utils';
 import { COMMISSION_UPI, APP_NAME } from '@/lib/types';
 
 export default function DriverProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, logout, getAverageRating, getUserRatings } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, logout, getAverageRating, getUserRatings, hasRatedApp, getAppAvgRating, appRatings } = useApp();
   const [showComplaint, setShowComplaint] = useState(false);
+  const [showAppRating, setShowAppRating] = useState(false);
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const myVehicles = user ? getDriverVehicles(user.id) : [];
@@ -145,6 +147,25 @@ export default function DriverProfileScreen() {
         </View>
 
         <TouchableOpacity
+          style={[styles.appRateBtn, {
+            backgroundColor: (user && hasRatedApp(user.id)) ? '#f59e0b15' : colors.navy + '12',
+            borderColor: (user && hasRatedApp(user.id)) ? '#f59e0b' : colors.navy,
+          }]}
+          onPress={() => setShowAppRating(true)}
+        >
+          <Text style={styles.appRateEmoji}>⭐</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.appRateBtnTitle, { color: (user && hasRatedApp(user.id)) ? '#f59e0b' : colors.navy }]}>
+              {(user && hasRatedApp(user.id)) ? 'App रेटिंग दी ✓' : 'Loading Fast India को Rate करें'}
+            </Text>
+            <Text style={[styles.appRateBtnSub, { color: colors.mutedForeground }]}>
+              {getAppAvgRating() > 0 ? `${getAppAvgRating().toFixed(1)}⭐ • ${appRatings.length} रेटिंग` : 'आपकी रेटिंग जरूरी है'}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={[styles.complaintBtn, { borderColor: colors.warning }]}
           onPress={() => setShowComplaint(true)}
         >
@@ -159,6 +180,7 @@ export default function DriverProfileScreen() {
       </ScrollView>
 
       <ComplaintModal visible={showComplaint} onClose={() => setShowComplaint(false)} />
+      <AppRatingModal visible={showAppRating} onClose={() => setShowAppRating(false)} />
     </View>
   );
 }
@@ -218,6 +240,10 @@ const styles = StyleSheet.create({
   reviewFrom: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   reviewStars: { fontSize: 12 },
   reviewComment: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3, lineHeight: 18 },
+  appRateBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1.5, marginBottom: 10 },
+  appRateEmoji: { fontSize: 22 },
+  appRateBtnTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  appRateBtnSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
   role: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Inter_400Regular' },
   verifyBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   verifyText: { fontSize: 11, fontFamily: 'Inter_500Medium' },

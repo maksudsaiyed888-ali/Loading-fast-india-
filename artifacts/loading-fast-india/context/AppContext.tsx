@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating } from '@/lib/types';
 import { KEYS, addToList, getList, updateInList } from '@/lib/storage';
 
 interface AppUser {
@@ -38,6 +38,10 @@ interface AppContextType {
   getUserRatings: (userId: string) => Rating[];
   getAverageRating: (userId: string) => number;
   hasRated: (tripId: string, fromId: string) => boolean;
+  appRatings: AppRating[];
+  addAppRating: (r: AppRating) => Promise<void>;
+  getAppAvgRating: () => number;
+  hasRatedApp: (userId: string) => boolean;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -59,9 +63,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
+  const [appRatings, setAppRatings] = useState<AppRating[]>([]);
 
   const refreshAll = useCallback(async () => {
-    const [d, v, ve, t, b, c, cm, r] = await Promise.all([
+    const [d, v, ve, t, b, c, cm, r, ar] = await Promise.all([
       getList<Driver>(KEYS.DRIVERS),
       getList<Vyapari>(KEYS.VYAPARIS),
       getList<Vehicle>(KEYS.VEHICLES),
@@ -70,6 +75,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getList<Complaint>(KEYS.COMPLAINTS),
       getList<ChatMessage>(KEYS.CHAT_MESSAGES),
       getList<Rating>(KEYS.RATINGS),
+      getList<AppRating>(KEYS.APP_RATINGS),
     ]);
     setDrivers(d);
     setVyaparis(v);
@@ -79,6 +85,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setComplaints(c);
     setChatMessages(cm);
     setRatings(r);
+    setAppRatings(ar);
   }, []);
 
   useEffect(() => {
@@ -160,6 +167,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const hasRated = (tripId: string, fromId: string) =>
     ratings.some((r) => r.tripId === tripId && r.fromId === fromId);
 
+  const addAppRating = async (r: AppRating) => {
+    await addToList(KEYS.APP_RATINGS, r);
+    setAppRatings((prev) => [...prev, r]);
+  };
+
+  const getAppAvgRating = () => {
+    if (appRatings.length === 0) return 0;
+    return appRatings.reduce((sum, r) => sum + r.stars, 0) / appRatings.length;
+  };
+
+  const hasRatedApp = (userId: string) => appRatings.some((r) => r.userId === userId);
+
   const getDriverVehicles = (driverId: string) => vehicles.filter((v) => v.driverId === driverId);
   const getDriverTrips = (driverId: string) => trips.filter((t) => t.driverId === driverId);
   const getVyapariBookings = (vyapariId: string) => trips.filter((t) => t.confirmedBy === vyapariId);
@@ -176,6 +195,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addDriver, addVyapari, addVehicle, addTrip, updateTrip, addBilty, addComplaint,
         sendChatMessage, getTripMessages,
         addRating, getUserRatings, getAverageRating, hasRated,
+        appRatings, addAppRating, getAppAvgRating, hasRatedApp,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         currentDriver, currentVyapari,
       }}

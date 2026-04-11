@@ -315,6 +315,16 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface AppRating {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: 'driver' | 'vyapari';
+  stars: number;
+  comment?: string;
+  createdAt: string;
+}
+
 export const COMMISSION_PERCENT = 2;
 export const COMMISSION_UPI = 'hemaksudsaiyed888@oksbi';
 export const APP_NAME = 'Loading Fast India';
