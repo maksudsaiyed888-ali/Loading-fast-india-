@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip } from '@/lib/types';
 import { KEYS, addToList, getList, updateInList } from '@/lib/storage';
 
 interface AppUser {
@@ -46,6 +46,10 @@ interface AppContextType {
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
   getAvailableTrips: () => Trip[];
+  vyapariTrips: VyapariTrip[];
+  addVyapariTrip: (t: VyapariTrip) => Promise<void>;
+  getVyapariOwnTrips: (vyapariId: string) => VyapariTrip[];
+  getOpenVyapariTrips: () => VyapariTrip[];
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
 }
@@ -64,9 +68,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [appRatings, setAppRatings] = useState<AppRating[]>([]);
+  const [vyapariTrips, setVyapariTrips] = useState<VyapariTrip[]>([]);
 
   const refreshAll = useCallback(async () => {
-    const [d, v, ve, t, b, c, cm, r, ar] = await Promise.all([
+    const [d, v, ve, t, b, c, cm, r, ar, vt] = await Promise.all([
       getList<Driver>(KEYS.DRIVERS),
       getList<Vyapari>(KEYS.VYAPARIS),
       getList<Vehicle>(KEYS.VEHICLES),
@@ -76,6 +81,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getList<ChatMessage>(KEYS.CHAT_MESSAGES),
       getList<Rating>(KEYS.RATINGS),
       getList<AppRating>(KEYS.APP_RATINGS),
+      getList<VyapariTrip>(KEYS.VYAPARI_TRIPS),
     ]);
     setDrivers(d);
     setVyaparis(v);
@@ -86,6 +92,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setChatMessages(cm);
     setRatings(r);
     setAppRatings(ar);
+    setVyapariTrips(vt);
   }, []);
 
   useEffect(() => {
@@ -184,6 +191,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getVyapariBookings = (vyapariId: string) => trips.filter((t) => t.confirmedBy === vyapariId);
   const getAvailableTrips = () => trips.filter((t) => t.status === 'available');
 
+  const addVyapariTrip = async (t: VyapariTrip) => {
+    await addToList(KEYS.VYAPARI_TRIPS, t);
+    setVyapariTrips((prev) => [...prev, t]);
+  };
+  const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
+  const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
+
   const currentDriver = user?.role === 'driver' ? drivers.find((d) => d.id === user.id) ?? null : null;
   const currentVyapari = user?.role === 'vyapari' ? vyaparis.find((v) => v.id === user.id) ?? null : null;
 
@@ -197,6 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addRating, getUserRatings, getAverageRating, hasRated,
         appRatings, addAppRating, getAppAvgRating, hasRatedApp,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
+        vyapariTrips, addVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
         currentDriver, currentVyapari,
       }}
     >

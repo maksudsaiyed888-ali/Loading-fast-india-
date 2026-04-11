@@ -7,6 +7,7 @@ const KEYS = {
   VYAPARIS: 'lfi_vyaparis',
   VEHICLES: 'lfi_vehicles',
   TRIPS: 'lfi_trips',
+  VYAPARI_TRIPS: 'lfi_vyapari_trips',
   BILTIES: 'lfi_bilties',
   COMPLAINTS: 'lfi_complaints',
   CHAT_MESSAGES: 'lfi_chat_messages',

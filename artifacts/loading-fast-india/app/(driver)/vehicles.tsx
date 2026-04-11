@@ -10,18 +10,19 @@ import Input from '@/components/ui/Input';
 import { VEHICLE_TYPES } from '@/lib/types';
 import { generateId } from '@/lib/utils';
 
-const WHEEL_CATEGORIES = [
-  { label: '3-चक्का', icon: '🛺' },
-  { label: '4-चक्का', icon: '🚗' },
-  { label: '6-चक्का', icon: '🚛' },
-  { label: '10-चक्का', icon: '🚚' },
-  { label: '12-चक्का', icon: '🚚' },
-  { label: '14-चक्का', icon: '🚛' },
-  { label: '16-चक्का', icon: '🚛' },
-  { label: '18-चक्का', icon: '🚛' },
-  { label: '20-चक्का', icon: '🏗️' },
-  { label: '22-चक्का', icon: '🏗️' },
-  { label: 'विशेष', icon: '⭐' },
+const WEIGHT_FILTERS = [
+  { label: 'सभी',     min: 0,  max: Infinity },
+  { label: '≤5 टन',  min: 0,  max: 5 },
+  { label: '5-15 टन', min: 5, max: 15 },
+  { label: '15-30 टन', min: 15, max: 30 },
+  { label: '30+ टन',  min: 30, max: Infinity },
+];
+
+const VEHICLE_GROUPS = [
+  { key: 'chhote',  label: 'छोटे वाहन',  subtitle: '3-चक्का से 4-चक्का', icon: '🛺', categories: ['3-चक्का', '4-चक्का'] },
+  { key: 'madhyam', label: 'मध्यम वाहन', subtitle: '6-चक्का (6W)',         icon: '🚛', categories: ['6-चक्का'] },
+  { key: 'bade',    label: 'बड़े वाहन',   subtitle: '10W से 14W',          icon: '🚚', categories: ['10-चक्का', '12-चक्का', '14-चक्का'] },
+  { key: 'bhari',   label: 'भारी वाहन',  subtitle: '16W और उससे ऊपर',    icon: '🏗️', categories: ['16-चक्का', '18-चक्का', '20-चक्का', '22-चक्का', 'विशेष'] },
 ];
 
 const DEFAULT_TYPE = VEHICLE_TYPES.find((v) => v.id === 'truck-6w') ?? VEHICLE_TYPES[6];
@@ -33,7 +34,7 @@ export default function VehiclesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedType, setSelectedType] = useState(DEFAULT_TYPE);
-  const [activeCategory, setActiveCategory] = useState('6-चक्का');
+  const [weightFilter, setWeightFilter] = useState(0);
 
   const [form, setForm] = useState({
     vehicleNumber: '', model: '', year: '', rcNumber: '', rcExpiry: '', insuranceExpiry: '',
@@ -42,9 +43,20 @@ export default function VehiclesScreen() {
   const myVehicles = user ? getDriverVehicles(user.id) : [];
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const filteredTypes = useMemo(
-    () => VEHICLE_TYPES.filter((v) => (v as { category?: string }).category === activeCategory),
-    [activeCategory]
+  const activeFilter = WEIGHT_FILTERS[weightFilter];
+  const filteredByWeight = useMemo(
+    () => VEHICLE_TYPES.filter((v) => v.maxLoad > activeFilter.min && v.maxLoad <= activeFilter.max),
+    [activeFilter]
+  );
+
+  const groupedVehicles = useMemo(
+    () => VEHICLE_GROUPS.map((g) => ({
+      ...g,
+      vehicles: filteredByWeight.filter((v) =>
+        g.categories.includes((v as { category?: string }).category ?? '')
+      ),
+    })).filter((g) => g.vehicles.length > 0),
+    [filteredByWeight]
   );
 
   const handleAdd = async () => {
@@ -70,7 +82,6 @@ export default function VehiclesScreen() {
       });
       setForm({ vehicleNumber: '', model: '', year: '', rcNumber: '', rcExpiry: '', insuranceExpiry: '' });
       setSelectedType(DEFAULT_TYPE);
-      setActiveCategory('6-चक्का');
       Alert.alert(
         '✅ गाड़ी जोड़ी गई!',
         `${form.vehicleNumber.trim().toUpperCase()} सफलतापूर्वक रजिस्टर हो गई।\n\nक्या आप एक और गाड़ी जोड़ना चाहते हैं?`,
@@ -156,36 +167,33 @@ export default function VehiclesScreen() {
                 <Feather name="x" size={22} color={colors.foreground} />
               </TouchableOpacity>
             </View>
+
             <ScrollView style={styles.sheetBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-              <Text style={[styles.sectionLabel, { color: colors.secondary }]}>चक्के के अनुसार चुनें</Text>
+              <Text style={[styles.sectionLabel, { color: colors.secondary }]}>वज़न के अनुसार फ़िल्टर करें</Text>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                {WHEEL_CATEGORIES.map((cat) => {
-                  const isActive = activeCategory === cat.label;
-                  return (
-                    <TouchableOpacity
-                      key={cat.label}
-                      style={[styles.categoryTab, {
-                        backgroundColor: isActive ? colors.navy : colors.card,
-                        borderColor: isActive ? colors.navy : colors.border,
-                      }]}
-                      onPress={() => {
-                        setActiveCategory(cat.label);
-                        const first = VEHICLE_TYPES.find((v) => (v as { category?: string }).category === cat.label);
-                        if (first) setSelectedType(first);
-                      }}
-                    >
-                      <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                      <Text style={[styles.categoryLabel, { color: isActive ? '#fff' : colors.foreground }]}>{cat.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <View style={styles.weightFilterRow}>
+                {WEIGHT_FILTERS.map((f, i) => (
+                  <TouchableOpacity
+                    key={f.label}
+                    style={[styles.weightChip, {
+                      backgroundColor: weightFilter === i ? colors.primary : colors.card,
+                      borderColor: weightFilter === i ? colors.primary : colors.border,
+                    }]}
+                    onPress={() => setWeightFilter(i)}
+                  >
+                    <Text style={[styles.weightChipText, { color: weightFilter === i ? '#fff' : colors.foreground }]}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <View style={[styles.selectedInfo, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}>
                 <Text style={{ fontSize: 20 }}>
-                  {activeCategory === '3-चक्का' ? '🛺' : activeCategory === '4-चक्का' ? '🚗' : activeCategory === 'विशेष' ? '⭐' : '🚛'}
+                  {['3-चक्का', '4-चक्का'].includes((vt as { category?: string }).category ?? '') ? '🛺' :
+                   (vt as { category?: string }).category === '6-चक्का' ? '🚛' :
+                   (vt as { category?: string }).category === 'विशेष' ? '🏗️' : '🚚'}
                 </Text>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.selectedName, { color: colors.foreground }]}>{selectedType.name}</Text>
@@ -198,36 +206,49 @@ export default function VehiclesScreen() {
                 </View>
               </View>
 
-              <View style={styles.vehicleGrid}>
-                {filteredTypes.map((vt2) => {
-                  const isSelected = selectedType.id === vt2.id;
-                  return (
-                    <TouchableOpacity
-                      key={vt2.id}
-                      style={[styles.vehicleGridItem, {
-                        backgroundColor: isSelected ? colors.primary : colors.card,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                        borderWidth: isSelected ? 2 : 1,
-                      }]}
-                      onPress={() => setSelectedType(vt2)}
-                    >
-                      <Text style={[styles.vehicleGridName, { color: isSelected ? '#fff' : colors.foreground }]} numberOfLines={2}>
-                        {vt2.name}
-                      </Text>
-                      <Text style={[styles.vehicleGridLoad, { color: isSelected ? 'rgba(255,255,255,0.75)' : colors.mutedForeground }]}>
-                        {vt2.maxLoad} टन
-                      </Text>
-                      {((vt2 as { wheels?: number }).wheels ?? 0) > 0 && (
-                        <View style={[styles.wBadge, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : colors.muted }]}>
-                          <Text style={[styles.wBadgeText, { color: isSelected ? '#fff' : colors.mutedForeground }]}>
-                            {(vt2 as { wheels?: number }).wheels}W
+              {groupedVehicles.map((group) => (
+                <View key={group.key} style={styles.groupSection}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupIcon}>{group.icon}</Text>
+                    <View>
+                      <Text style={[styles.groupLabel, { color: colors.foreground }]}>{group.label}</Text>
+                      <Text style={[styles.groupSub, { color: colors.mutedForeground }]}>{group.subtitle}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.vehicleGrid}>
+                    {group.vehicles.map((vt2) => {
+                      const isSelected = selectedType.id === vt2.id;
+                      const v2 = vt2 as { wheels?: number; category?: string } & typeof vt2;
+                      return (
+                        <TouchableOpacity
+                          key={vt2.id}
+                          style={[styles.vehicleGridItem, {
+                            backgroundColor: isSelected ? colors.primary : colors.card,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                            borderWidth: isSelected ? 2 : 1,
+                          }]}
+                          onPress={() => setSelectedType(vt2)}
+                        >
+                          <Text style={[styles.vehicleGridName, { color: isSelected ? '#fff' : colors.foreground }]} numberOfLines={2}>
+                            {vt2.name}
                           </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                          <Text style={[styles.vehicleGridLoad, { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.mutedForeground }]}>
+                            {vt2.maxLoad} टन
+                          </Text>
+                          {(v2.wheels ?? 0) > 0 && (
+                            <View style={[styles.wBadge, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : colors.muted }]}>
+                              <Text style={[styles.wBadgeText, { color: isSelected ? '#fff' : colors.mutedForeground }]}>
+                                {v2.wheels}W
+                              </Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
 
               <View style={[styles.divider, { borderColor: colors.border }]} />
 
@@ -260,7 +281,7 @@ function DocChip({ label, value }: { label: string; value: string }) {
 const docStyles = StyleSheet.create({
   chip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignItems: 'center' },
   label: { fontSize: 10, fontFamily: 'Inter_400Regular' },
-  value: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  value: { fontSize: 12, fontFamily: 'Inter_500Medium' },
 });
 
 const styles = StyleSheet.create({
@@ -270,14 +291,14 @@ const styles = StyleSheet.create({
   sub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
   body: { padding: 16 },
   empty: { borderRadius: 16, padding: 40, alignItems: 'center', gap: 8, borderWidth: 1, marginTop: 20 },
-  emptyTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+  emptyTitle: { fontSize: 16, fontFamily: 'Inter_500Medium' },
   emptySub: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   vehicleCard: { borderRadius: 14, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
   vehicleHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderBottomWidth: 1 },
   vehicleTypeTag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  vehicleTypeName: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  vehicleTypeName: { fontSize: 12, fontFamily: 'Inter_500Medium' },
   activeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  activeBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  activeBadgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   vehicleNumber: { fontSize: 22, fontFamily: 'Inter_700Bold', paddingHorizontal: 12, paddingTop: 10 },
   vehicleModel: { fontSize: 13, fontFamily: 'Inter_400Regular', paddingHorizontal: 12, paddingBottom: 4 },
   docsRow: { flexDirection: 'row', gap: 8, padding: 12, flexWrap: 'wrap' },
@@ -291,20 +312,24 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
   sheetBody: { padding: 20 },
   sectionLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
-  categoryScroll: { marginBottom: 12 },
-  categoryTab: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  categoryIcon: { fontSize: 14 },
-  categoryLabel: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  selectedInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 14 },
+  weightFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  weightChip: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  weightChipText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  selectedInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 16 },
   selectedName: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   selectedMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
   wheelBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   wheelBadgeText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
-  vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  groupSection: { marginBottom: 16 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  groupIcon: { fontSize: 22 },
+  groupLabel: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  groupSub: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
+  vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   vehicleGridItem: { borderRadius: 10, padding: 10, width: '48%', alignItems: 'center', gap: 4 },
-  vehicleGridName: { fontSize: 12, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  vehicleGridName: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },
   vehicleGridLoad: { fontSize: 11, fontFamily: 'Inter_400Regular' },
   wBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 2 },
   wBadgeText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
-  divider: { borderTopWidth: 1, marginBottom: 16 },
+  divider: { borderTopWidth: 1, marginBottom: 16, marginTop: 4 },
 });

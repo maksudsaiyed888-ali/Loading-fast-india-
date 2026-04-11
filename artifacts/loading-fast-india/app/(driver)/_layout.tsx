@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { Tabs, router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -16,7 +15,6 @@ export default function DriverTabLayout() {
     }
   }, [user]);
 
-  const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
 
   return (
@@ -26,19 +24,16 @@ export default function DriverTabLayout() {
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
         tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: isIOS ? 'transparent' : colors.card,
+          backgroundColor: '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: colors.border,
-          elevation: 8,
+          borderTopColor: '#e5e7eb',
+          elevation: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
           ...(isWeb ? { height: 84, paddingBottom: 30 } : { height: 62, paddingBottom: 8 }),
         },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView intensity={100} tint="light" style={StyleSheet.absoluteFill} />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
-          ),
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
     >

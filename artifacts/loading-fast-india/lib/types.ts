@@ -178,8 +178,6 @@ export const VEHICLE_TYPES = [
 
   // ─── विशेष वाहन (Special) ───
   { id: 'crane-truck',     name: 'क्रेन ट्रक',               nameEn: 'Crane Truck',           maxLoad: 15,   wheels: 6,  category: 'विशेष' },
-  { id: 'bullock-cart',    name: 'बैलगाड़ी',                  nameEn: 'Bullock Cart',          maxLoad: 2,    wheels: 4,  category: 'विशेष' },
-  { id: 'camel-cart',      name: 'ऊंटगाड़ी',                  nameEn: 'Camel Cart',            maxLoad: 1.5,  wheels: 4,  category: 'विशेष' },
 ];
 
 export const INDIA_STATES = [
@@ -318,6 +316,25 @@ export interface ChatMessage {
   senderRole: 'driver' | 'vyapari';
   text: string;
   timestamp: string;
+}
+
+export interface VyapariTrip {
+  id: string;
+  vyapariId: string;
+  vyapariName: string;
+  vyapariPhone: string;
+  fromCity: string;
+  fromState: string;
+  toCity: string;
+  toState: string;
+  goodsCategory: string;
+  weightTons: number;
+  vehicleTypePref: string;
+  ratePerTon: number;
+  tripDate: string;
+  description: string;
+  status: 'open' | 'accepted' | 'cancelled';
+  createdAt: string;
 }
 
 export interface AppRating {
