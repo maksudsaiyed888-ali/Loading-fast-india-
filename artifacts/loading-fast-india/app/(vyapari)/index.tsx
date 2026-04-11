@@ -14,6 +14,14 @@ import { generateId } from '@/lib/utils';
 
 type Colors = ReturnType<typeof useColors>;
 
+const VEHICLE_PREFS = [
+  { label: 'कोई भी', value: '' },
+  { label: 'छोटा (≤5 टन)', value: 'small' },
+  { label: 'मध्यम (6W)', value: 'medium' },
+  { label: 'बड़ा (10W-14W)', value: 'large' },
+  { label: 'भारी (16W+)', value: 'heavy' },
+];
+
 export default function VyapariHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -25,7 +33,7 @@ export default function VyapariHomeScreen() {
 
   const [form, setForm] = useState({
     fromCity: '', fromState: '', toCity: '', toState: '',
-    goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', description: '',
+    goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '',
   });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -60,14 +68,14 @@ export default function VyapariHomeScreen() {
         toState: form.toState.trim(),
         goodsCategory: form.goodsCategory.trim(),
         weightTons: Number(form.weightTons),
-        vehicleTypePref: '',
+        vehicleTypePref: form.vehicleTypePref,
         ratePerTon: form.ratePerTon ? Number(form.ratePerTon) : 0,
         tripDate: form.tripDate.trim(),
         description: form.description.trim(),
         status: 'open',
         createdAt: new Date().toISOString(),
       });
-      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', description: '' });
+      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
       setShowPostModal(false);
       Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। ड्राइवर आपसे संपर्क करेंगे।');
     } finally {
@@ -181,6 +189,9 @@ export default function VyapariHomeScreen() {
               <Input label="वज़न (टन में)" placeholder="जैसे: 5" value={form.weightTons} onChangeText={(v) => set('weightTons', v)} keyboardType="numeric" icon="package" required />
               <Input label="रेट प्रति टन (₹, वैकल्पिक)" placeholder="जैसे: 1500" value={form.ratePerTon} onChangeText={(v) => set('ratePerTon', v)} keyboardType="numeric" icon="dollar-sign" />
               <Input label="तारीख" placeholder="DD/MM/YYYY" value={form.tripDate} onChangeText={(v) => set('tripDate', v)} icon="calendar" required />
+              <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>🚛 गाड़ी का प्रकार (वैकल्पिक)</Text>
+              <VehiclePrefPicker value={form.vehicleTypePref} onSelect={(v) => set('vehicleTypePref', v)} colors={colors} />
+
               <Input label="विशेष जानकारी (वैकल्पिक)" placeholder="कोई अतिरिक्त जानकारी..." value={form.description} onChangeText={(v) => set('description', v)} />
 
               <Button title="ट्रिप पोस्ट करें" onPress={handlePostTrip} loading={posting} />
@@ -218,6 +229,32 @@ function StateDropdown({ label, value, onSelect, colors }: { label: string; valu
           </ScrollView>
         </View>
       )}
+    </View>
+  );
+}
+
+function VehiclePrefPicker({ value, onSelect, colors }: { value: string; onSelect: (v: string) => void; colors: Colors }) {
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={gcStyles.row}>
+          {VEHICLE_PREFS.map((vp) => {
+            const isSelected = value === vp.value;
+            return (
+              <TouchableOpacity
+                key={vp.value}
+                style={[gcStyles.chip, {
+                  backgroundColor: isSelected ? colors.navy : colors.card,
+                  borderColor: isSelected ? colors.navy : colors.border,
+                }]}
+                onPress={() => onSelect(vp.value)}
+              >
+                <Text style={[gcStyles.chipText, { color: isSelected ? '#fff' : colors.foreground }]}>{vp.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 }
