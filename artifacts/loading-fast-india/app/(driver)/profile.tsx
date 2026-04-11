@@ -125,7 +125,7 @@ export default function DriverProfileScreen() {
           <InfoRow icon="percent" label="Commission" value="2% per trip" />
           <InfoRow icon="credit-card" label="UPI" value={COMMISSION_UPI} />
           <Text style={[styles.commNote, { color: colors.mutedForeground }]}>
-            Trip confirm होने के बाद 2% commission UPI पर भेजें
+            Trip confirm होने के बाद 2% commission भेजें
           </Text>
         </View>
 

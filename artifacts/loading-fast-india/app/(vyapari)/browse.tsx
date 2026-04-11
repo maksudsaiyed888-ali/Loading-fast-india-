@@ -93,7 +93,7 @@ export default function BrowseTripsScreen() {
     setSelectedBilty(bilty);
     Alert.alert(
       'बुकिंग confirmed!',
-      `ट्रिप बुक हो गई। ₹${commission} commission UPI पर भेजें: ${COMMISSION_UPI}`,
+      `ट्रिप बुक हो गई। ₹${commission} commission भेजें:\n${COMMISSION_UPI}`,
       [
         { text: 'UPI से भुगतान करें', onPress: () => Linking.openURL(`upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&am=${commission}&cu=INR`) },
         { text: 'बाद में', style: 'cancel' },

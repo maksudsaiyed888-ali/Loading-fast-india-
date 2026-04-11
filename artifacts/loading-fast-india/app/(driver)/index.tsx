@@ -101,7 +101,7 @@ export default function DriverHomeScreen() {
           style={[styles.commissionInfo, { backgroundColor: '#16a34a10', borderColor: '#16a34a40' }]}
           onPress={() => Alert.alert(
             'Commission भेजें',
-            `Loading Fast India को 2% commission UPI पर भेजें।\n\nUPI ID: ${COMMISSION_UPI}\nनाम: Loading Fast India`,
+            `Loading Fast India को 2% commission UPI पर भेजें।\n\n${COMMISSION_UPI}\nनाम: Loading Fast India`,
             [
               { text: 'UPI App खोलें', onPress: () => Linking.openURL(`upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&cu=INR`) },
               { text: 'बंद करें', style: 'cancel' },
@@ -112,7 +112,7 @@ export default function DriverHomeScreen() {
           <Feather name="credit-card" size={15} color="#16a34a" />
           <View style={{ flex: 1 }}>
             <Text style={[styles.commissionTitle, { color: '#16a34a' }]}>2% Commission — Loading Fast India</Text>
-            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>UPI: {COMMISSION_UPI}{'\n'}👆 Tap करके UPI App से भेजें</Text>
+            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>{COMMISSION_UPI}{'\n'}👆 Tap करके UPI App से भेजें</Text>
           </View>
           <Feather name="chevron-right" size={15} color="#16a34a" />
         </TouchableOpacity>

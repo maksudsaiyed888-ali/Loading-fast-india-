@@ -328,6 +328,6 @@ export interface AppRating {
 }
 
 export const COMMISSION_PERCENT = 2;
-export const COMMISSION_UPI = 'hemaksudsaiyed888@oksbi';
+export const COMMISSION_UPI = 'maksudsaiyed888@oksbi';
 export const APP_NAME = 'Loading Fast India';
 export const ADMIN_PASSWORD = 'LFI@Admin2024';

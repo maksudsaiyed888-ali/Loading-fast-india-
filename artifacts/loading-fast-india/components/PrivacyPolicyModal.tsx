@@ -34,7 +34,7 @@ const sections: Section[] = [
     items: [
       'Loading Fast India — भारत की भरोसेमंद माल ढुलाई मार्केटप्लेस।',
       'Transporter ID: 24BRLPS3959R1ZN',
-      'Admin UPI: hemaksudsaiyed888@oksbi',
+      'maksudsaiyed888@oksbi',
       'यह Privacy Policy आपके डेटा, अधिकार और सुरक्षा नियमों को बताती है।',
       'App इस्तेमाल करके आप इन नियमों से सहमत होते हैं।',
     ],
@@ -81,7 +81,7 @@ const sections: Section[] = [
     color: colors.primary,
     items: [
       'हर सफल ट्रिप पर 2% commission लिया जाता है।',
-      'UPI Payment: hemaksudsaiyed888@oksbi',
+      'Payment: maksudsaiyed888@oksbi',
       'Commission तभी लागू होता है जब ट्रिप confirm हो।',
       'Refund की स्थिति में admin से contact करें।',
       'Payment विवाद — admin 24 घंटे में resolve करेगा।',
