@@ -10,6 +10,7 @@ import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
 import ComplaintModal from '@/components/ComplaintModal';
 import ChatbotModal from '@/components/ChatbotModal';
+import RatingModal from '@/components/RatingModal';
 import { Bilty, Trip } from '@/lib/types';
 
 type Filter = 'all' | 'available' | 'confirmed' | 'completed';
@@ -25,12 +26,13 @@ export default function MyTripsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, getDriverTrips, bilties, refreshAll, updateTrip } = useApp();
+  const { user, getDriverTrips, bilties, refreshAll, updateTrip, hasRated } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
 
   const [statusModal, setStatusModal] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -188,6 +190,20 @@ export default function MyTripsScreen() {
                     <Text style={[styles.actionBtnText, { color: '#94a3b8' }]}>चैट 🔒</Text>
                   </TouchableOpacity>
                 )}
+                {trip.status === 'completed' && trip.confirmedBy && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, {
+                      backgroundColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' + '15' : '#f59e0b' + '15',
+                      borderColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b',
+                    }]}
+                    onPress={() => setRatingTrip(trip)}
+                  >
+                    <Text style={{ fontSize: 12 }}>⭐</Text>
+                    <Text style={[styles.actionBtnText, { color: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b' }]}>
+                      {(user && hasRated(trip.id, user.id)) ? 'रेटिंग दी ✓' : 'रेटिंग दें'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 {trip.confirmedBy && (
                   <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.warning + '15', borderColor: colors.warning }]} onPress={() => setShowComplaint(true)}>
                     <Feather name="alert-triangle" size={14} color={colors.warning} />
@@ -208,6 +224,16 @@ export default function MyTripsScreen() {
         <Feather name="help-circle" size={24} color="#fff" />
       </TouchableOpacity>
       <ChatbotModal visible={showChatbot} onClose={() => setShowChatbot(false)} />
+      {ratingTrip && ratingTrip.confirmedBy && (
+        <RatingModal
+          visible={!!ratingTrip}
+          onClose={() => setRatingTrip(null)}
+          tripId={ratingTrip.id}
+          toId={ratingTrip.confirmedBy}
+          toName={ratingTrip.confirmedByName || 'व्यापारी'}
+          toRole="vyapari"
+        />
+      )}
 
       <Modal visible={statusModal} transparent animationType="slide" onRequestClose={() => setStatusModal(false)}>
         <View style={styles.overlay}>

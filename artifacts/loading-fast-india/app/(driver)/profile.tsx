@@ -13,12 +13,14 @@ import { COMMISSION_UPI, APP_NAME } from '@/lib/types';
 export default function DriverProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, logout } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, logout, getAverageRating, getUserRatings } = useApp();
   const [showComplaint, setShowComplaint] = useState(false);
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const myVehicles = user ? getDriverVehicles(user.id) : [];
   const completedTrips = myTrips.filter((t) => t.status === 'completed').length;
+  const avgRating = user ? getAverageRating(user.id) : 0;
+  const myRatings = user ? getUserRatings(user.id) : [];
 
   const handleLogout = () => {
     Alert.alert('लॉगआउट', 'क्या आप लॉगआउट करना चाहते हैं?', [
@@ -54,7 +56,7 @@ export default function DriverProfileScreen() {
           <StatItem label="गाड़ियां" value={String(myVehicles.length)} />
           <StatItem label="कुल ट्रिप" value={String(myTrips.length)} />
           <StatItem label="पूर्ण" value={String(completedTrips)} />
-          <StatItem label="Rating" value={`${driver?.rating || 4.5}★`} />
+          <StatItem label="Rating" value={avgRating > 0 ? `${avgRating.toFixed(1)}⭐` : 'नई'} />
         </View>
       </LinearGradient>
 
@@ -70,6 +72,49 @@ export default function DriverProfileScreen() {
             <InfoRow icon="bell" label="Notification Range" value={`${driver.notificationRadius} km`} />
           </View>
         )}
+
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.secondary }]}>मेरी रेटिंग</Text>
+          <View style={styles.ratingOverview}>
+            <View style={styles.ratingBig}>
+              <Text style={[styles.ratingNumber, { color: colors.foreground }]}>
+                {avgRating > 0 ? avgRating.toFixed(1) : '—'}
+              </Text>
+              <Text style={styles.ratingStars}>
+                {avgRating > 0 ? '⭐'.repeat(Math.round(avgRating)) : '⭐⭐⭐⭐⭐'}
+              </Text>
+              <Text style={[styles.ratingCount, { color: colors.mutedForeground }]}>
+                {myRatings.length} रेटिंग{myRatings.length !== 1 ? 'ें' : ''}
+              </Text>
+            </View>
+            <View style={styles.ratingBars}>
+              {[5, 4, 3, 2, 1].map((s) => {
+                const cnt = myRatings.filter((r) => r.stars === s).length;
+                const pct = myRatings.length > 0 ? (cnt / myRatings.length) * 100 : 0;
+                return (
+                  <View key={s} style={styles.barRow}>
+                    <Text style={[styles.barLabel, { color: colors.mutedForeground }]}>{s}⭐</Text>
+                    <View style={[styles.barTrack, { backgroundColor: colors.muted }]}>
+                      <View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: '#f59e0b' }]} />
+                    </View>
+                    <Text style={[styles.barCount, { color: colors.mutedForeground }]}>{cnt}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+          {myRatings.slice(-3).reverse().map((r) => (
+            <View key={r.id} style={[styles.reviewItem, { borderTopColor: colors.border }]}>
+              <View style={styles.reviewHeader}>
+                <Text style={[styles.reviewFrom, { color: colors.foreground }]}>
+                  🏪 {r.fromName}
+                </Text>
+                <Text style={styles.reviewStars}>{'⭐'.repeat(r.stars)}</Text>
+              </View>
+              {r.comment ? <Text style={[styles.reviewComment, { color: colors.mutedForeground }]}>{r.comment}</Text> : null}
+            </View>
+          ))}
+        </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.secondary }]}>Commission Info</Text>
@@ -157,6 +202,22 @@ const styles = StyleSheet.create({
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 24, fontFamily: 'Inter_700Bold' },
   name: { color: '#fff', fontSize: 20, fontFamily: 'Inter_700Bold' },
+  ratingOverview: { flexDirection: 'row', gap: 16, marginBottom: 10 },
+  ratingBig: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
+  ratingNumber: { fontSize: 36, fontFamily: 'Inter_700Bold', lineHeight: 40 },
+  ratingStars: { fontSize: 14, lineHeight: 20 },
+  ratingCount: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  ratingBars: { flex: 1, gap: 4, justifyContent: 'center' },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  barLabel: { width: 28, fontSize: 11, fontFamily: 'Inter_400Regular', textAlign: 'right' },
+  barTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 3 },
+  barCount: { width: 18, fontSize: 11, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  reviewItem: { paddingTop: 10, marginTop: 8, borderTopWidth: 0.5 },
+  reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reviewFrom: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  reviewStars: { fontSize: 12 },
+  reviewComment: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3, lineHeight: 18 },
   role: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Inter_400Regular' },
   verifyBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   verifyText: { fontSize: 11, fontFamily: 'Inter_500Medium' },

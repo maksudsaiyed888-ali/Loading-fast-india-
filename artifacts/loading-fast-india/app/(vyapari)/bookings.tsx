@@ -10,17 +10,19 @@ import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
 import ComplaintModal from '@/components/ComplaintModal';
 import ChatbotModal from '@/components/ChatbotModal';
+import RatingModal from '@/components/RatingModal';
 import { Bilty, Trip } from '@/lib/types';
 
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, getVyapariBookings, bilties, refreshAll } = useApp();
+  const { user, getVyapariBookings, bilties, refreshAll, hasRated } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
   const myBookings = user ? getVyapariBookings(user.id) : [];
@@ -80,6 +82,20 @@ export default function BookingsScreen() {
                     <Text style={[styles.actionBtnText, { color: '#94a3b8' }]}>चैट 🔒</Text>
                   </TouchableOpacity>
                 )}
+                {trip.status === 'completed' && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, {
+                      backgroundColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' + '15' : '#f59e0b' + '15',
+                      borderColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b',
+                    }]}
+                    onPress={() => setRatingTrip(trip)}
+                  >
+                    <Text style={{ fontSize: 12 }}>⭐</Text>
+                    <Text style={[styles.actionBtnText, { color: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b' }]}>
+                      {(user && hasRated(trip.id, user.id)) ? 'रेटिंग दी ✓' : 'रेटिंग दें'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
                   onPress={() => { setSelectedTrip(trip); setShowComplaint(true); }}
@@ -101,6 +117,16 @@ export default function BookingsScreen() {
         <Feather name="help-circle" size={24} color="#fff" />
       </TouchableOpacity>
       <ChatbotModal visible={showChatbot} onClose={() => setShowChatbot(false)} />
+      {ratingTrip && (
+        <RatingModal
+          visible={!!ratingTrip}
+          onClose={() => setRatingTrip(null)}
+          tripId={ratingTrip.id}
+          toId={ratingTrip.driverId}
+          toName={ratingTrip.driverName}
+          toRole="driver"
+        />
+      )}
       <BiltyModal bilty={selectedBilty} visible={!!selectedBilty} onClose={() => setSelectedBilty(null)} />
       <ComplaintModal
         visible={showComplaint}

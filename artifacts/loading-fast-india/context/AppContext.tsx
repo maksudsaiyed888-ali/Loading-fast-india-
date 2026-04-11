@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating } from '@/lib/types';
 import { KEYS, addToList, getList, updateInList } from '@/lib/storage';
 
 interface AppUser {
@@ -21,6 +21,7 @@ interface AppContextType {
   bilties: Bilty[];
   complaints: Complaint[];
   chatMessages: ChatMessage[];
+  ratings: Rating[];
   login: (user: AppUser) => Promise<void>;
   logout: () => Promise<void>;
   refreshAll: () => Promise<void>;
@@ -33,6 +34,10 @@ interface AppContextType {
   addComplaint: (c: Complaint) => Promise<void>;
   sendChatMessage: (msg: ChatMessage) => Promise<void>;
   getTripMessages: (tripId: string) => ChatMessage[];
+  addRating: (r: Rating) => Promise<void>;
+  getUserRatings: (userId: string) => Rating[];
+  getAverageRating: (userId: string) => number;
+  hasRated: (tripId: string, fromId: string) => boolean;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -53,9 +58,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bilties, setBilties] = useState<Bilty[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [ratings, setRatings] = useState<Rating[]>([]);
 
   const refreshAll = useCallback(async () => {
-    const [d, v, ve, t, b, c, cm] = await Promise.all([
+    const [d, v, ve, t, b, c, cm, r] = await Promise.all([
       getList<Driver>(KEYS.DRIVERS),
       getList<Vyapari>(KEYS.VYAPARIS),
       getList<Vehicle>(KEYS.VEHICLES),
@@ -63,6 +69,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       getList<Bilty>(KEYS.BILTIES),
       getList<Complaint>(KEYS.COMPLAINTS),
       getList<ChatMessage>(KEYS.CHAT_MESSAGES),
+      getList<Rating>(KEYS.RATINGS),
     ]);
     setDrivers(d);
     setVyaparis(v);
@@ -71,6 +78,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBilties(b);
     setComplaints(c);
     setChatMessages(cm);
+    setRatings(r);
   }, []);
 
   useEffect(() => {
@@ -136,6 +144,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getTripMessages = (tripId: string) =>
     chatMessages.filter((m) => m.tripId === tripId).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
+  const addRating = async (r: Rating) => {
+    await addToList(KEYS.RATINGS, r);
+    setRatings((prev) => [...prev, r]);
+  };
+
+  const getUserRatings = (userId: string) => ratings.filter((r) => r.toId === userId);
+
+  const getAverageRating = (userId: string) => {
+    const userRatings = ratings.filter((r) => r.toId === userId);
+    if (userRatings.length === 0) return 0;
+    return userRatings.reduce((sum, r) => sum + r.stars, 0) / userRatings.length;
+  };
+
+  const hasRated = (tripId: string, fromId: string) =>
+    ratings.some((r) => r.tripId === tripId && r.fromId === fromId);
+
   const getDriverVehicles = (driverId: string) => vehicles.filter((v) => v.driverId === driverId);
   const getDriverTrips = (driverId: string) => trips.filter((t) => t.driverId === driverId);
   const getVyapariBookings = (vyapariId: string) => trips.filter((t) => t.confirmedBy === vyapariId);
@@ -147,10 +171,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        user, isLoading, drivers, vyaparis, vehicles, trips, bilties, complaints, chatMessages,
+        user, isLoading, drivers, vyaparis, vehicles, trips, bilties, complaints, chatMessages, ratings,
         login, logout, refreshAll,
         addDriver, addVyapari, addVehicle, addTrip, updateTrip, addBilty, addComplaint,
         sendChatMessage, getTripMessages,
+        addRating, getUserRatings, getAverageRating, hasRated,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         currentDriver, currentVyapari,
       }}

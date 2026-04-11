@@ -291,6 +291,20 @@ export const GOODS_CATEGORIES: GoodsCategory[] = [
   },
 ];
 
+export interface Rating {
+  id: string;
+  tripId: string;
+  fromId: string;
+  fromName: string;
+  fromRole: 'driver' | 'vyapari';
+  toId: string;
+  toName: string;
+  toRole: 'driver' | 'vyapari';
+  stars: number;
+  comment?: string;
+  createdAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   tripId: string;
