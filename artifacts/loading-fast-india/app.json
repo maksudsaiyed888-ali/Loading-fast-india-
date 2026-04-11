@@ -88,11 +88,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "loading-fast-india"
-      }
     }
   }
 }
