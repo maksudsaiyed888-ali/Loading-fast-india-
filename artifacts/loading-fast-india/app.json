@@ -62,7 +62,10 @@
               "host": "loadingfastindia.com"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -88,6 +91,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "90d24ee7-082f-4a98-b2f2-e57f8c87c9d5"
+      }
     }
   }
 }
