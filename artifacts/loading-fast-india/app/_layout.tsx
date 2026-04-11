@@ -29,14 +29,7 @@ async function checkForUpdates() {
     const update = await Updates.checkForUpdateAsync();
     if (update.isAvailable) {
       await Updates.fetchUpdateAsync();
-      Alert.alert(
-        "नया Update मिला!",
-        "App update हो गई। अभी reload करें?",
-        [
-          { text: "बाद में", style: "cancel" },
-          { text: "हाँ, Reload करें", onPress: () => Updates.reloadAsync() },
-        ]
-      );
+      await Updates.reloadAsync();
     }
   } catch {}
 }

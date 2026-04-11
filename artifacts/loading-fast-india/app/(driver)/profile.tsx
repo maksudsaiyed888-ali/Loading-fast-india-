@@ -8,6 +8,7 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import ComplaintModal from '@/components/ComplaintModal';
 import AppRatingModal from '@/components/AppRatingModal';
+import PrivacyPolicyModal from '@/components/PrivacyPolicyModal';
 import { maskAadhaar, getInitials } from '@/lib/utils';
 import { COMMISSION_UPI, APP_NAME } from '@/lib/types';
 
@@ -17,6 +18,7 @@ export default function DriverProfileScreen() {
   const { user, currentDriver, getDriverTrips, getDriverVehicles, logout, getAverageRating, getUserRatings, hasRatedApp, getAppAvgRating, appRatings } = useApp();
   const [showComplaint, setShowComplaint] = useState(false);
   const [showAppRating, setShowAppRating] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const myVehicles = user ? getDriverVehicles(user.id) : [];
@@ -127,24 +129,22 @@ export default function DriverProfileScreen() {
           </Text>
         </View>
 
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.secondary }]}>Privacy Policy</Text>
-          <Text style={[styles.policyText, { color: colors.mutedForeground }]}>
-            • आपकी सभी जानकारी Indian IT Act 2000 के तहत सुरक्षित है{'\n'}
-            • आपका Aadhaar और License नंबर किसी तीसरे पक्ष को नहीं दिया जाता{'\n'}
-            • गलत जानकारी देने पर IPC 471 लागू होगा{'\n'}
-            • {APP_NAME} आपकी जानकारी का दुरुपयोग नहीं करेगा
-          </Text>
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.destructive + '08', borderColor: colors.destructive + '30' }]}>
-          <Text style={[styles.sectionTitle, { color: colors.destructive }]}>कानूनी जानकारी</Text>
-          <Text style={[styles.policyText, { color: colors.destructive + 'cc' }]}>
-            • किराया न मिलने पर IPC 420 (धोखाधड़ी) लागू होगी{'\n'}
-            • माल नुकसान पर IPC 379 (चोरी) की कार्यवाही होगी{'\n'}
-            • झूठी शिकायत पर IPC 182 लागू होगी
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={[styles.section, { backgroundColor: '#0A254008', borderColor: '#0A254030', flexDirection: 'row', alignItems: 'center' }]}
+          onPress={() => setShowPrivacyPolicy(true)}
+          activeOpacity={0.7}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: '#0A254018', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+            <Feather name="shield" size={18} color="#0A2540" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.sectionTitle, { color: '#0A2540', marginBottom: 2 }]}>गोपनीयता नीति देखें</Text>
+            <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+              Fraud नियम • IPC धाराएं • आपके अधिकार
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color="#0A2540" />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.appRateBtn, {
@@ -181,6 +181,7 @@ export default function DriverProfileScreen() {
 
       <ComplaintModal visible={showComplaint} onClose={() => setShowComplaint(false)} />
       <AppRatingModal visible={showAppRating} onClose={() => setShowAppRating(false)} />
+      <PrivacyPolicyModal visible={showPrivacyPolicy} onClose={() => setShowPrivacyPolicy(false)} />
     </View>
   );
 }
