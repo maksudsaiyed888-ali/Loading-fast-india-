@@ -77,8 +77,8 @@ export interface Trip {
   commissionPaid: boolean;
   commissionAmount: number;
   createdAt: string;
-  driverLat?: number;
-  driverLng?: number;
+  tripStatus?: 'loading' | 'on_the_way' | 'delivered';
+  currentLocation?: string;
 }
 
 export interface Bilty {
