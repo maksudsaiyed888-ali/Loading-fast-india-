@@ -1,7 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, doc, onSnapshot, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
 import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip } from '@/lib/types';
-import { KEYS, addToList, getList, updateInList } from '@/lib/storage';
+
+const USER_KEY = '@lfi_user';
 
 interface AppUser {
   id: string;
@@ -56,6 +59,14 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+function fsSet<T extends { id: string }>(col: string, item: T) {
+  return setDoc(doc(db, col, item.id), item as Record<string, unknown>);
+}
+
+function fsUpdate(col: string, id: string, updates: Record<string, unknown>) {
+  return updateDoc(doc(db, col, id), updates);
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,113 +81,105 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [appRatings, setAppRatings] = useState<AppRating[]>([]);
   const [vyapariTrips, setVyapariTrips] = useState<VyapariTrip[]>([]);
 
-  const refreshAll = useCallback(async () => {
-    const [d, v, ve, t, b, c, cm, r, ar, vt] = await Promise.all([
-      getList<Driver>(KEYS.DRIVERS),
-      getList<Vyapari>(KEYS.VYAPARIS),
-      getList<Vehicle>(KEYS.VEHICLES),
-      getList<Trip>(KEYS.TRIPS),
-      getList<Bilty>(KEYS.BILTIES),
-      getList<Complaint>(KEYS.COMPLAINTS),
-      getList<ChatMessage>(KEYS.CHAT_MESSAGES),
-      getList<Rating>(KEYS.RATINGS),
-      getList<AppRating>(KEYS.APP_RATINGS),
-      getList<VyapariTrip>(KEYS.VYAPARI_TRIPS),
-    ]);
-    setDrivers(d);
-    setVyaparis(v);
-    setVehicles(ve);
-    setTrips(t);
-    setBilties(b);
-    setComplaints(c);
-    setChatMessages(cm);
-    setRatings(r);
-    setAppRatings(ar);
-    setVyapariTrips(vt);
+  useEffect(() => {
+    const unsubs: (() => void)[] = [];
+
+    const listen = <T,>(col: string, setter: (v: T[]) => void) => {
+      const q = query(collection(db, col), orderBy('createdAt', 'desc'));
+      const unsub = onSnapshot(q, (snap) => {
+        setter(snap.docs.map((d) => d.data() as T));
+      }, () => {
+        const fallback = onSnapshot(collection(db, col), (snap) => {
+          setter(snap.docs.map((d) => d.data() as T));
+        });
+        unsubs.push(fallback);
+      });
+      unsubs.push(unsub);
+    };
+
+    listen<Driver>('drivers', setDrivers);
+    listen<Vyapari>('vyaparis', setVyaparis);
+    listen<Vehicle>('vehicles', setVehicles);
+    listen<Trip>('trips', setTrips);
+    listen<Bilty>('bilties', setBilties);
+    listen<Complaint>('complaints', setComplaints);
+    listen<ChatMessage>('chatMessages', setChatMessages);
+    listen<Rating>('ratings', setRatings);
+    listen<AppRating>('appRatings', setAppRatings);
+    listen<VyapariTrip>('vyapariTrips', setVyapariTrips);
+
+    AsyncStorage.getItem(USER_KEY).then((saved) => {
+      if (saved) setUser(JSON.parse(saved));
+      setIsLoading(false);
+    });
+
+    return () => unsubs.forEach((u) => u());
   }, []);
 
-  useEffect(() => {
-    const init = async () => {
-      const saved = await AsyncStorage.getItem(KEYS.USER);
-      if (saved) setUser(JSON.parse(saved));
-      await refreshAll();
-      setIsLoading(false);
-    };
-    init();
-  }, [refreshAll]);
+  const refreshAll = useCallback(async () => {}, []);
 
   const login = async (u: AppUser) => {
-    await AsyncStorage.setItem(KEYS.USER, JSON.stringify(u));
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     setUser(u);
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem(KEYS.USER);
+    await AsyncStorage.removeItem(USER_KEY);
     setUser(null);
   };
 
   const addDriver = async (d: Driver) => {
-    await addToList(KEYS.DRIVERS, d);
-    setDrivers((prev) => [...prev, d]);
+    await fsSet('drivers', d);
   };
 
   const addVyapari = async (v: Vyapari) => {
-    await addToList(KEYS.VYAPARIS, v);
-    setVyaparis((prev) => [...prev, v]);
+    await fsSet('vyaparis', v);
   };
 
   const addVehicle = async (v: Vehicle) => {
-    await addToList(KEYS.VEHICLES, v);
-    setVehicles((prev) => [...prev, v]);
+    await fsSet('vehicles', v);
   };
 
   const addTrip = async (t: Trip) => {
-    await addToList(KEYS.TRIPS, t);
-    setTrips((prev) => [...prev, t]);
+    await fsSet('trips', t);
   };
 
   const updateTrip = async (id: string, updates: Partial<Trip>) => {
-    await updateInList<Trip>(KEYS.TRIPS, id, updates);
-    setTrips((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+    await fsUpdate('trips', id, updates as Record<string, unknown>);
   };
 
   const addBilty = async (b: Bilty) => {
-    await addToList(KEYS.BILTIES, b);
-    setBilties((prev) => [...prev, b]);
+    await fsSet('bilties', b);
   };
 
   const addComplaint = async (c: Complaint) => {
-    await addToList(KEYS.COMPLAINTS, c);
-    setComplaints((prev) => [...prev, c]);
+    await fsSet('complaints', c);
   };
 
   const sendChatMessage = async (msg: ChatMessage) => {
-    await addToList(KEYS.CHAT_MESSAGES, msg);
-    setChatMessages((prev) => [...prev, msg]);
+    await fsSet('chatMessages', msg);
   };
 
   const getTripMessages = (tripId: string) =>
     chatMessages.filter((m) => m.tripId === tripId).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
   const addRating = async (r: Rating) => {
-    await addToList(KEYS.RATINGS, r);
-    setRatings((prev) => [...prev, r]);
+    await fsSet('ratings', r);
   };
 
   const getUserRatings = (userId: string) => ratings.filter((r) => r.toId === userId);
 
   const getAverageRating = (userId: string) => {
-    const userRatings = ratings.filter((r) => r.toId === userId);
-    if (userRatings.length === 0) return 0;
-    return userRatings.reduce((sum, r) => sum + r.stars, 0) / userRatings.length;
+    const ur = ratings.filter((r) => r.toId === userId);
+    if (ur.length === 0) return 0;
+    return ur.reduce((sum, r) => sum + r.stars, 0) / ur.length;
   };
 
   const hasRated = (tripId: string, fromId: string) =>
     ratings.some((r) => r.tripId === tripId && r.fromId === fromId);
 
   const addAppRating = async (r: AppRating) => {
-    await addToList(KEYS.APP_RATINGS, r);
-    setAppRatings((prev) => [...prev, r]);
+    await fsSet('appRatings', r);
   };
 
   const getAppAvgRating = () => {
@@ -192,8 +195,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getAvailableTrips = () => trips.filter((t) => t.status === 'available');
 
   const addVyapariTrip = async (t: VyapariTrip) => {
-    await addToList(KEYS.VYAPARI_TRIPS, t);
-    setVyapariTrips((prev) => [...prev, t]);
+    await fsSet('vyapariTrips', t);
   };
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');

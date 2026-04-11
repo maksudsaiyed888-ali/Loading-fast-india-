@@ -9,9 +9,17 @@
 
 ### Tech Stack
 - **Mobile App**: Expo SDK 54, React Native, Expo Router (file-based routing)
-- **State & Storage**: React Context API + AsyncStorage (local), Firebase ready
+- **State & Storage**: React Context API + **Firebase Firestore** (real-time, multi-device); AsyncStorage for user session only
+- **Backend**: Firebase project `loding-fast` (Firestore); no API server needed for data
 - **UI**: Custom components with Inter font, LinearGradient, Expo Vector Icons
 - **Fonts**: Inter (400/500/600/700)
+
+### Firebase Setup
+- Project: `loding-fast` (loding-fast.firebaseapp.com)
+- Config: hardcoded in `lib/firebase.ts` (standard for mobile apps)
+- Firestore security rules: `firestore.rules` — currently open (allow all read/write)
+- Collections: drivers, vyaparis, vehicles, trips, bilties, complaints, chatMessages, ratings, appRatings, vyapariTrips
+- Real-time listeners via `onSnapshot` in AppContext — live updates across all devices
 
 ## Mobile App — Loading Fast India
 
