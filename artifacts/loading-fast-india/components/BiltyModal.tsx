@@ -31,6 +31,7 @@ export default function BiltyModal({ bilty, visible, onClose }: Props) {
           <LinearGradient colors={[colors.navy, colors.primary]} style={styles.header} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
             <View style={styles.headerContent}>
               <Text style={styles.appName}>{APP_NAME}</Text>
+              <Text style={styles.transporterId}>Transporter ID: 24BRLPS3959R1ZN</Text>
               <Text style={styles.biltyTitle}>DIGITAL BILTY / ई-बिलटी</Text>
               <Text style={styles.biltyNum}>{bilty.biltyNumber}</Text>
             </View>
@@ -119,6 +120,7 @@ const styles = StyleSheet.create({
   header: { padding: 20, paddingTop: 24, flexDirection: 'row', justifyContent: 'space-between' },
   headerContent: { flex: 1 },
   appName: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Inter_500Medium', letterSpacing: 2 },
+  transporterId: { color: 'rgba(255,255,255,0.9)', fontSize: 11, fontFamily: 'Inter_500Medium', letterSpacing: 0.5, marginTop: 2 },
   biltyTitle: { color: '#fff', fontSize: 18, fontFamily: 'Inter_700Bold', marginTop: 4 },
   biltyNum: { color: 'rgba(255,255,255,0.85)', fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 2 },
   closeBtn: { padding: 4 },
