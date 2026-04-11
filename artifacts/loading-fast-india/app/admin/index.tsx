@@ -31,9 +31,8 @@ export default function AdminScreen() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/');
+  const handleLogout = () => {
+    logout().then(() => router.replace('/')).catch(() => router.replace('/'));
   };
 
   if (!isAdmin) {

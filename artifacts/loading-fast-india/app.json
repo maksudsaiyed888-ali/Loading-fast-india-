@@ -47,33 +47,16 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.INTERNET",
         "android.permission.WAKE_LOCK",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.INTERNET",
-        "android.permission.WAKE_LOCK"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "softwareKeyboardLayoutMode": "resize",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA"
       ],
       "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "loadingfastindia.com"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
         {
           "action": "VIEW",
           "autoVerify": true,
@@ -106,6 +89,15 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Loading Fast India को GPS की जरूरत है ताकि नज़दीकी ट्रिप की notification मिले।"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0A2540",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Loading Fast India"
         }
       ]
     ],
