@@ -264,7 +264,7 @@ function GoodsCategoryPicker({ value, onSelect, colors }: { value: string; onSel
   return (
     <View style={{ marginBottom: 12 }}>
       <Text style={{ fontSize: 13, fontFamily: 'Inter_500Medium', color: colors.foreground, marginBottom: 6 }}>माल का प्रकार *</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={[gcStyles.bracket, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={gcStyles.row}>
           {GOODS_CATEGORIES.map((g) => {
             const isSelected = value === g.name;
@@ -272,7 +272,7 @@ function GoodsCategoryPicker({ value, onSelect, colors }: { value: string; onSel
               <TouchableOpacity
                 key={g.id}
                 style={[gcStyles.chip, {
-                  backgroundColor: isSelected ? colors.primary : colors.card,
+                  backgroundColor: isSelected ? colors.primary : colors.background,
                   borderColor: isSelected ? colors.primary : colors.border,
                 }]}
                 onPress={() => onSelect(g.name)}
@@ -283,7 +283,7 @@ function GoodsCategoryPicker({ value, onSelect, colors }: { value: string; onSel
             );
           })}
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -297,7 +297,8 @@ const ddStyles = StyleSheet.create({
 });
 
 const gcStyles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8 },
+  bracket: { borderRadius: 14, borderWidth: 1, padding: 10 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
   icon: { fontSize: 14 },
   chipText: { fontSize: 12, fontFamily: 'Inter_500Medium' },

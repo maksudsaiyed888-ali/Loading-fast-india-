@@ -18,12 +18,15 @@ const WEIGHT_FILTERS = [
   { label: '30+ टन',  min: 30, max: Infinity },
 ];
 
-const VEHICLE_GROUPS = [
-  { key: 'chhote',  label: 'छोटे वाहन',  subtitle: '3-चक्का से 4-चक्का', icon: '🛺', categories: ['3-चक्का', '4-चक्का'] },
-  { key: 'madhyam', label: 'मध्यम वाहन', subtitle: '6-चक्का (6W)',         icon: '🚛', categories: ['6-चक्का'] },
-  { key: 'bade',    label: 'बड़े वाहन',   subtitle: '10W से 14W',          icon: '🚚', categories: ['10-चक्का', '12-चक्का', '14-चक्का'] },
-  { key: 'bhari',   label: 'भारी वाहन',  subtitle: '16W और उससे ऊपर',    icon: '🏗️', categories: ['16-चक्का', '18-चक्का', '20-चक्का', '22-चक्का', 'विशेष'] },
-];
+const OTHER_VEHICLE = {
+  id: 'other-vehicle',
+  name: 'अन्य वाहन',
+  nameEn: 'Other Vehicle',
+  maxLoad: 0,
+  icon: '🚗',
+  category: 'अन्य',
+  wheels: 0,
+};
 
 const DEFAULT_TYPE = VEHICLE_TYPES.find((v) => v.id === 'truck-6w') ?? VEHICLE_TYPES[6];
 
@@ -44,20 +47,10 @@ export default function VehiclesScreen() {
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   const activeFilter = WEIGHT_FILTERS[weightFilter];
-  const filteredByWeight = useMemo(
-    () => VEHICLE_TYPES.filter((v) => v.maxLoad > activeFilter.min && v.maxLoad <= activeFilter.max),
-    [activeFilter]
-  );
-
-  const groupedVehicles = useMemo(
-    () => VEHICLE_GROUPS.map((g) => ({
-      ...g,
-      vehicles: filteredByWeight.filter((v) =>
-        g.categories.includes((v as { category?: string }).category ?? '')
-      ),
-    })).filter((g) => g.vehicles.length > 0),
-    [filteredByWeight]
-  );
+  const filteredVehicles = useMemo(() => {
+    if (weightFilter === 0) return VEHICLE_TYPES;
+    return VEHICLE_TYPES.filter((v) => v.maxLoad > activeFilter.min && v.maxLoad <= activeFilter.max);
+  }, [activeFilter, weightFilter]);
 
   const handleAdd = async () => {
     if (!form.vehicleNumber.trim()) { Alert.alert('त्रुटि', 'गाड़ी नंबर जरूरी है'); return; }
@@ -206,49 +199,57 @@ export default function VehiclesScreen() {
                 </View>
               </View>
 
-              {groupedVehicles.map((group) => (
-                <View key={group.key} style={styles.groupSection}>
-                  <View style={styles.groupHeader}>
-                    <Text style={styles.groupIcon}>{group.icon}</Text>
-                    <View>
-                      <Text style={[styles.groupLabel, { color: colors.foreground }]}>{group.label}</Text>
-                      <Text style={[styles.groupSub, { color: colors.mutedForeground }]}>{group.subtitle}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.vehicleGrid}>
-                    {group.vehicles.map((vt2) => {
-                      const isSelected = selectedType.id === vt2.id;
-                      const v2 = vt2 as { wheels?: number; category?: string } & typeof vt2;
-                      return (
-                        <TouchableOpacity
-                          key={vt2.id}
-                          style={[styles.vehicleGridItem, {
-                            backgroundColor: isSelected ? colors.primary : colors.card,
-                            borderColor: isSelected ? colors.primary : colors.border,
-                            borderWidth: isSelected ? 2 : 1,
-                          }]}
-                          onPress={() => setSelectedType(vt2)}
-                        >
-                          <Text style={[styles.vehicleGridName, { color: isSelected ? '#fff' : colors.foreground }]} numberOfLines={2}>
-                            {vt2.name}
-                          </Text>
-                          <Text style={[styles.vehicleGridLoad, { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.mutedForeground }]}>
-                            {vt2.maxLoad} टन
-                          </Text>
-                          {(v2.wheels ?? 0) > 0 && (
-                            <View style={[styles.wBadge, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : colors.muted }]}>
-                              <Text style={[styles.wBadgeText, { color: isSelected ? '#fff' : colors.mutedForeground }]}>
-                                {v2.wheels}W
-                              </Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+              <Text style={[styles.sectionLabel, { color: colors.secondary, marginBottom: 10 }]}>वाहन चुनें</Text>
+              <View style={[styles.vehicleBracket, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.vehicleGrid}>
+                  {filteredVehicles.map((vt2) => {
+                    const isSelected = selectedType.id === vt2.id;
+                    const v2 = vt2 as { wheels?: number; category?: string } & typeof vt2;
+                    return (
+                      <TouchableOpacity
+                        key={vt2.id}
+                        style={[styles.vehicleGridItem, {
+                          backgroundColor: isSelected ? colors.primary : colors.background,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                          borderWidth: isSelected ? 2 : 1,
+                        }]}
+                        onPress={() => setSelectedType(vt2)}
+                      >
+                        <Text style={[styles.vehicleGridName, { color: isSelected ? '#fff' : colors.foreground }]} numberOfLines={2}>
+                          {vt2.name}
+                        </Text>
+                        <Text style={[styles.vehicleGridLoad, { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.mutedForeground }]}>
+                          {vt2.maxLoad} टन
+                        </Text>
+                        {(v2.wheels ?? 0) > 0 && (
+                          <View style={[styles.wBadge, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : colors.muted }]}>
+                            <Text style={[styles.wBadgeText, { color: isSelected ? '#fff' : colors.mutedForeground }]}>
+                              {v2.wheels}W
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity
+                    key="other-vehicle"
+                    style={[styles.vehicleGridItem, {
+                      backgroundColor: selectedType.id === 'other-vehicle' ? colors.navy : colors.background,
+                      borderColor: selectedType.id === 'other-vehicle' ? colors.navy : colors.border,
+                      borderWidth: selectedType.id === 'other-vehicle' ? 2 : 1,
+                    }]}
+                    onPress={() => setSelectedType(OTHER_VEHICLE as typeof VEHICLE_TYPES[0])}
+                  >
+                    <Text style={{ fontSize: 18 }}>🚗</Text>
+                    <Text style={[styles.vehicleGridName, { color: selectedType.id === 'other-vehicle' ? '#fff' : colors.foreground }]} numberOfLines={2}>
+                      अन्य वाहन
+                    </Text>
+                    <Text style={[styles.vehicleGridLoad, { color: selectedType.id === 'other-vehicle' ? 'rgba(255,255,255,0.8)' : colors.mutedForeground }]}>
+                      Other
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              ))}
+              </View>
 
               <View style={[styles.divider, { borderColor: colors.border }]} />
 
@@ -320,11 +321,7 @@ const styles = StyleSheet.create({
   selectedMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
   wheelBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
   wheelBadgeText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
-  groupSection: { marginBottom: 16 },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  groupIcon: { fontSize: 22 },
-  groupLabel: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  groupSub: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
+  vehicleBracket: { borderRadius: 14, borderWidth: 1, padding: 10, marginBottom: 16 },
   vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   vehicleGridItem: { borderRadius: 10, padding: 10, width: '48%', alignItems: 'center', gap: 4 },
   vehicleGridName: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },

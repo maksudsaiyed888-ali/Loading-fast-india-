@@ -28,7 +28,7 @@ export default function VyapariProfileScreen() {
   const handleLogout = () => {
     Alert.alert('लॉगआउट', 'क्या आप लॉगआउट करना चाहते हैं?', [
       { text: 'नहीं', style: 'cancel' },
-      { text: 'हाँ', style: 'destructive', onPress: async () => { await logout(); router.replace('/'); } },
+      { text: 'हाँ', style: 'destructive', onPress: () => { logout().then(() => router.replace('/')).catch(() => router.replace('/')); } },
     ]);
   };
 
