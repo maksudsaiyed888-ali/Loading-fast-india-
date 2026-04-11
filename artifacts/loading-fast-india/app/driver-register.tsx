@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import TermsModal from '@/components/TermsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -17,6 +18,8 @@ export default function DriverRegisterScreen() {
   const { addDriver, login } = useApp();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const [form, setForm] = useState({
     name: '', phone: '', email: '',
@@ -53,6 +56,10 @@ export default function DriverRegisterScreen() {
     if (!validateStep2()) return;
     if (!form.city.trim() || !form.address.trim()) {
       Alert.alert('त्रुटि', 'पता और शहर आवश्यक है');
+      return;
+    }
+    if (!termsAgreed) {
+      Alert.alert('नियम एवं शर्तें', 'रजिस्ट्रेशन से पहले नियम एवं शर्तें पढ़कर सहमति दें।');
       return;
     }
     setLoading(true);
@@ -105,6 +112,7 @@ export default function DriverRegisterScreen() {
         </View>
       </LinearGradient>
 
+      <TermsModal visible={showTerms} onClose={() => setShowTerms(false)} />
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {step === 1 ? (
           <View>
@@ -150,6 +158,18 @@ export default function DriverRegisterScreen() {
               </Text>
             </View>
 
+            <TouchableOpacity style={styles.termsRow} onPress={() => setTermsAgreed(!termsAgreed)} activeOpacity={0.8}>
+              <View style={[styles.checkbox, { borderColor: termsAgreed ? colors.primary : colors.border, backgroundColor: termsAgreed ? colors.primary : 'transparent' }]}>
+                {termsAgreed && <Feather name="check" size={12} color="#fff" />}
+              </View>
+              <Text style={[styles.termsText, { color: colors.mutedForeground }]}>
+                मैं{' '}
+                <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold' }} onPress={() => setShowTerms(true)}>
+                  नियम, शर्तें एवं गोपनीयता नीति
+                </Text>
+                {' '}से सहमत हूं। धोखाधड़ी पर IPC कार्यवाही स्वीकार्य है।
+              </Text>
+            </TouchableOpacity>
             <Button title="रजिस्ट्रेशन पूरा करें" onPress={handleRegister} loading={loading} style={{ marginBottom: 8 }} />
             <Button title="← वापस" onPress={() => setStep(1)} variant="outline" />
           </View>
@@ -179,4 +199,7 @@ const styles = StyleSheet.create({
   docNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', lineHeight: 18 },
   privacyBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
   privacyText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
+  termsText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
 });

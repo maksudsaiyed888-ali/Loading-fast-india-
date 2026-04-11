@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import TermsModal from '@/components/TermsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -15,6 +16,8 @@ export default function VyapariRegisterScreen() {
   const insets = useSafeAreaInsets();
   const { addVyapari, login } = useApp();
   const [loading, setLoading] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [form, setForm] = useState({
     name: '', businessName: '', phone: '', email: '',
     aadhaarNumber: '', gstNumber: '',
@@ -35,7 +38,10 @@ export default function VyapariRegisterScreen() {
     if (!form.city.trim()) e.city = 'शहर आवश्यक है';
     setErrors(e);
     if (Object.keys(e).length > 0) return;
-
+    if (!termsAgreed) {
+      Alert.alert('नियम एवं शर्तें', 'रजिस्ट्रेशन से पहले नियम एवं शर्तें पढ़कर सहमति दें।');
+      return;
+    }
     setLoading(true);
     try {
       const id = generateId();
@@ -76,6 +82,7 @@ export default function VyapariRegisterScreen() {
         <Text style={styles.headerSub}>Vyapari Registration</Text>
       </LinearGradient>
 
+      <TermsModal visible={showTerms} onClose={() => setShowTerms(false)} />
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={[styles.sectionTitle, { color: colors.secondary }]}>व्यक्तिगत जानकारी</Text>
         <Input label="मालिक का नाम" placeholder="आपका पूरा नाम" value={form.name} onChangeText={(v) => set('name', v)} error={errors.name} icon="user" required />
@@ -110,6 +117,18 @@ export default function VyapariRegisterScreen() {
           </Text>
         </View>
 
+        <TouchableOpacity style={styles.termsRow} onPress={() => setTermsAgreed(!termsAgreed)} activeOpacity={0.8}>
+          <View style={[styles.checkbox, { borderColor: termsAgreed ? '#E07B39' : '#ccc', backgroundColor: termsAgreed ? '#E07B39' : 'transparent' }]}>
+            {termsAgreed && <Feather name="check" size={12} color="#fff" />}
+          </View>
+          <Text style={[styles.termsText, { color: '#666' }]}>
+            मैं{' '}
+            <Text style={{ color: '#E07B39', fontFamily: 'Inter_700Bold' }} onPress={() => setShowTerms(true)}>
+              नियम, शर्तें एवं गोपनीयता नीति
+            </Text>
+            {' '}से सहमत हूं। धोखाधड़ी पर IPC कार्यवाही स्वीकार्य है।
+          </Text>
+        </TouchableOpacity>
         <Button title="रजिस्ट्रेशन पूरा करें" onPress={handleRegister} loading={loading} />
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -131,4 +150,7 @@ const styles = StyleSheet.create({
   legalText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
   privacyBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
   privacyText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
+  termsText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
 });
