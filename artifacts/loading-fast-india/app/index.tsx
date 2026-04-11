@@ -110,9 +110,6 @@ export default function WelcomeScreen() {
         </View>
       </TouchableOpacity>
 
-      <Text style={styles.footer}>
-        2% Commission • UPI: hemaksudsaiyed888@oksbi
-      </Text>
       <View style={{ height: insets.bottom + 8 }} />
 
       <AppRatingModal visible={showRating} onClose={() => setShowRating(false)} />
