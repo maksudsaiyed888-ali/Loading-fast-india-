@@ -112,7 +112,7 @@ export default function DriverHomeScreen() {
           <Feather name="credit-card" size={15} color="#16a34a" />
           <View style={{ flex: 1 }}>
             <Text style={[styles.commissionTitle, { color: '#16a34a' }]}>2% Commission — Loading Fast India</Text>
-            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>{COMMISSION_UPI}{'\n'}👆 Tap करके UPI App से भेजें</Text>
+            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>{COMMISSION_UPI}</Text>
           </View>
           <Feather name="chevron-right" size={15} color="#16a34a" />
         </TouchableOpacity>
