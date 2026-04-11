@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, doc, onSnapshot, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
+import { registerForPushNotifications } from '@/lib/notifications';
 import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip } from '@/lib/types';
 
 const USER_KEY = '@lfi_user';
@@ -121,6 +122,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const login = async (u: AppUser) => {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     setUser(u);
+    if (u.role === 'driver') {
+      registerForPushNotifications(u.id).catch(() => {});
+    }
   };
 
   const logout = async () => {

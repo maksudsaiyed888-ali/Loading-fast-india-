@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { INDIA_STATES, GOODS_CATEGORIES, VEHICLE_TYPES } from '@/lib/types';
 import { generateId } from '@/lib/utils';
+import { notifyDriversOfNewTrip } from '@/lib/notifications';
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -23,7 +24,7 @@ const VEHICLE_PREFS = [
 export default function VyapariPostTripScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip } = useApp();
+  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, drivers } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [posting, setPosting] = useState(false);
 
@@ -67,9 +68,17 @@ export default function VyapariPostTripScreen() {
         status: 'open',
         createdAt: new Date().toISOString(),
       });
+      const tokens = drivers.map((d) => d.pushToken).filter(Boolean) as string[];
+      notifyDriversOfNewTrip(
+        tokens,
+        form.fromCity.trim(),
+        form.toCity.trim(),
+        form.goodsCategory.trim(),
+        currentVyapari?.name || user!.name,
+      ).catch(() => {});
       setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
       setShowModal(false);
-      Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। ड्राइवर आपसे संपर्क करेंगे।');
+      Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। सभी ड्राइवरों को notification भेजी गई।');
     } finally {
       setPosting(false);
     }

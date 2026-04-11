@@ -19,6 +19,7 @@ export interface Driver {
   isVerified: boolean;
   totalTrips: number;
   rating: number;
+  pushToken?: string;
 }
 
 export interface Vyapari {
