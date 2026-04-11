@@ -1,0 +1,72 @@
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { Picker } from '@react-native-picker/picker'; // ड्रॉपडाउन के लिए
+
+const ReportScreen = ({ route }) => {
+  const [reason, setReason] = useState('');
+  const [category, setCategory] = useState('Payment Issue');
+  const { bookingId, targetName, hasGST } = route.params; 
+
+  const handleReport = () => {
+    // यहाँ आप डेटाबेस (Replit/Firebase) में डेटा भेजेंगे
+    // इसमें हम यह भी भेजेंगे कि मर्चेंट के पास GST था या सिर्फ आधार
+    const reportData = {
+      bookingId,
+      targetName,
+      category,
+      description: reason,
+      merchantVerifiedBy: hasGST ? "GST & Aadhaar" : "Aadhaar Only",
+      timestamp: new Date().toISOString()
+    };
+
+    console.log("Report Data:", reportData);
+
+    Alert.alert(
+      "शिकायत दर्ज हुई",
+      "आपकी रिपोर्ट दर्ज कर ली गई है। चूँकि हमारे पास मर्चेंट का आधार रिकॉर्ड है, हम उचित कानूनी कार्यवाही करेंगे।",
+      [{ text: "OK" }]
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>Report Issue: {targetName}</Text>
+      <Text style={styles.subHeader}>Booking ID: {bookingId}</Text>
+      
+      <Text style={styles.label}>शिकायत का प्रकार चुनें:</Text>
+      <Picker
+        selectedValue={category}
+        onValueChange={(itemValue) => setCategory(itemValue)}
+        style={styles.picker}
+      >
+        <Picker.Item label="पैसे की धोखाधड़ी (Payment)" value="Payment Issue" />
+        <Picker.Item label="सामान की चोरी (Theft)" value="Theft" />
+        <Picker.Item label="गलत व्यवहार (Misbehavior)" value="Behavior" />
+        <Picker.Item label="गलत डॉक्यूमेंट (Fake Documents)" value="Fake Docs" />
+      </Picker>
+
+      <TextInput
+        placeholder="धोखाधड़ी का पूरा विवरण यहाँ लिखें..."
+        multiline
+        numberOfLines={4}
+        onChangeText={setReason}
+        style={styles.input}
+      />
+      
+      <View style={{ marginTop: 10 }}>
+        <Button title="शिकायत दर्ज करें" color="#d9534f" onPress={handleReport} />
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { padding: 20, backgroundColor: '#fff', flex: 1 },
+  header: { fontSize: 20, fontWeight: 'bold', color: '#333' },
+  subHeader: { fontSize: 14, color: '#666', marginBottom: 20 },
+  label: { fontSize: 16, marginBottom: 5, fontWeight: '500' },
+  picker: { height: 50, width: '100%', backgroundColor: '#f0f0f0', marginBottom: 20 },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 10, textAlignVertical: 'top', marginBottom: 20 }
+});
+
+export default ReportScreen;
