@@ -133,12 +133,14 @@ export interface Complaint {
 export const VEHICLE_TYPES = [
   // ─── 3-चक्का (3 Wheelers) ───
   { id: 'riksha-3w',       name: '3-चक्का रिक्शा (माल)',    nameEn: 'Goods Rickshaw 3W',      maxLoad: 0.3,  wheels: 3,  category: '3-चक्का' },
+  { id: 'carrier-3w',      name: '3-चक्का कैरियर (Ape/RE)', nameEn: '3W Carrier Ape/RE',      maxLoad: 0.75, wheels: 3,  category: '3-चक्का' },
   { id: 'auto-goods',      name: '3-चक्का ऑटो (माल)',       nameEn: 'Auto Goods 3W',          maxLoad: 0.5,  wheels: 3,  category: '3-चक्का' },
   { id: 'tempo-vikram',    name: '3-चक्का टेम्पो/विक्रम',   nameEn: 'Tempo Vikram 3W',        maxLoad: 1.5,  wheels: 3,  category: '3-चक्का' },
 
   // ─── 4-चक्का (4 Wheelers) ───
+  { id: 'bolero-pickup',   name: 'बोलेरो पिकअप (4-चक्का)',  nameEn: 'Bolero Pickup 4W',       maxLoad: 1.5,  wheels: 4,  category: '4-चक्का' },
   { id: 'pickup',          name: 'पिकअप (4-चक्का)',          nameEn: 'Pickup 4W',              maxLoad: 1,    wheels: 4,  category: '4-चक्का' },
-  { id: 'mini-truck',      name: 'मिनी ट्रक छोटा हाथी (4W)', nameEn: 'Mini Truck 4W',          maxLoad: 3,    wheels: 4,  category: '4-चक्का' },
+  { id: 'mini-truck',      name: 'मिनी ट्रक / छोटा हाथी (4W)', nameEn: 'Mini Truck / Chota Hathi 4W', maxLoad: 3, wheels: 4, category: '4-चक्का' },
   { id: 'tractor-trolley', name: 'ट्रैक्टर-ट्रॉली (4-चक्का)', nameEn: 'Tractor Trolley 4W',   maxLoad: 10,   wheels: 4,  category: '4-चक्का' },
 
   // ─── 6-चक्का (6 Wheelers / 2-Axle) ───
@@ -241,13 +243,6 @@ export const GOODS_CATEGORIES: GoodsCategory[] = [
     items: ['दूध', 'दही', 'पनीर', 'मक्खन', 'घी', 'खोया', 'छाछ', 'आइसक्रीम'],
   },
   {
-    id: 'masale',
-    name: 'मसाले',
-    nameEn: 'Spices',
-    icon: '🌶️',
-    items: ['लाल मिर्च', 'हल्दी', 'धनिया', 'जीरा', 'सौंफ', 'काली मिर्च', 'इलायची', 'दालचीनी', 'मिश्रित मसाले'],
-  },
-  {
     id: 'kapda',
     name: 'कपड़ा / कपास',
     nameEn: 'Textile & Cotton',
@@ -262,11 +257,11 @@ export const GOODS_CATEGORIES: GoodsCategory[] = [
     items: ['सीमेंट', 'रेत / बालू', 'बजरी / गिट्टी', 'ईंट', 'पत्थर', 'मार्बल / टाइल', 'सरिया / लोहा', 'लकड़ी', 'प्लाईवुड'],
   },
   {
-    id: 'tel',
-    name: 'तेल / द्रव पदार्थ',
-    nameEn: 'Oil & Liquids',
+    id: 'tel-masale',
+    name: 'तेल, मसाले & द्रव पदार्थ',
+    nameEn: 'Oil, Spices & Liquids',
     icon: '🛢️',
-    items: ['खाद्य तेल', 'डीजल', 'पेट्रोल', 'केरोसीन', 'केमिकल', 'पानी', 'एसिड', 'पेंट'],
+    items: ['खाद्य तेल', 'लाल मिर्च', 'हल्दी', 'धनिया', 'जीरा', 'सौंफ', 'काली मिर्च', 'इलायची', 'दालचीनी', 'मिश्रित मसाले', 'डीजल', 'पेट्रोल', 'केरोसीन', 'केमिकल', 'पानी', 'एसिड', 'पेंट'],
   },
   {
     id: 'khad',
