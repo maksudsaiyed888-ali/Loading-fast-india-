@@ -9,7 +9,8 @@ import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { VEHICLE_TYPES, COMMISSION_UPI, Trip, Bilty } from '@/lib/types';
+import { VEHICLE_TYPES, GOODS_CATEGORIES, COMMISSION_UPI, Trip, Bilty } from '@/lib/types';
+import { TextInput } from 'react-native';
 import { calcCommission, formatCurrency, generateBiltyNumber, generateId } from '@/lib/utils';
 
 export default function BrowseTripsScreen() {
@@ -23,6 +24,9 @@ export default function BrowseTripsScreen() {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [confirmModal, setConfirmModal] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
+  const [selectedGoodsCat, setSelectedGoodsCat] = useState('');
+  const [selectedGoodsItem, setSelectedGoodsItem] = useState('');
+  const [customGoods, setCustomGoods] = useState('');
 
   const availableTrips = getAvailableTrips();
 
@@ -39,8 +43,15 @@ export default function BrowseTripsScreen() {
 
   const handleConfirm = (trip: Trip) => {
     setSelectedTrip(trip);
+    setSelectedGoodsCat('');
+    setSelectedGoodsItem('');
+    setCustomGoods('');
     setConfirmModal(true);
   };
+
+  const selectedCatObj = GOODS_CATEGORIES.find(c => c.id === selectedGoodsCat);
+  const finalGoodsType = selectedGoodsCat === 'other' ? customGoods : selectedGoodsItem;
+  const finalGoodsCatName = selectedCatObj ? `${selectedCatObj.icon} ${selectedCatObj.name}` : '';
 
   const handlePayAndConfirm = async () => {
     if (!selectedTrip || !user || !currentVyapari) return;
@@ -66,6 +77,9 @@ export default function BrowseTripsScreen() {
       upiRef: COMMISSION_UPI,
       createdAt: new Date().toISOString(),
       biltyNumber: generateBiltyNumber(),
+      goodsCategory: finalGoodsCatName || undefined,
+      goodsType: finalGoodsType || undefined,
+      needsColdStorage: selectedCatObj?.needsCold || false,
     };
     await addBilty(bilty);
     await updateTrip(selectedTrip.id, {
@@ -160,6 +174,73 @@ export default function BrowseTripsScreen() {
                   <Text style={[styles.confirmType, { color: colors.mutedForeground }]}>{selectedTrip.vehicleTypeName} • {selectedTrip.loadTons} टन</Text>
                 </View>
 
+                {/* Goods Type Selector */}
+                <View style={[styles.goodsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.goodsTitle, { color: colors.secondary }]}>📦 माल का प्रकार चुनें</Text>
+                  <Text style={[styles.goodsSub, { color: colors.mutedForeground }]}>कौनसा माल भेजना है?</Text>
+
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.catScroll}>
+                    {GOODS_CATEGORIES.map((cat) => (
+                      <TouchableOpacity
+                        key={cat.id}
+                        style={[styles.catChip, {
+                          backgroundColor: selectedGoodsCat === cat.id ? colors.primary : colors.muted,
+                          borderColor: selectedGoodsCat === cat.id ? colors.primary : colors.border,
+                        }]}
+                        onPress={() => { setSelectedGoodsCat(cat.id); setSelectedGoodsItem(''); setCustomGoods(''); }}
+                      >
+                        <Text style={[styles.catChipText, { color: selectedGoodsCat === cat.id ? '#fff' : colors.foreground }]}>
+                          {cat.icon} {cat.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {selectedCatObj && selectedCatObj.needsCold && (
+                    <View style={[styles.coldWarning, { backgroundColor: '#E3F2FD', borderColor: '#1976D2' }]}>
+                      <Text style={styles.coldText}>🧊 इस माल के लिए Insulated / Refrigerated गाड़ी जरूरी है!</Text>
+                    </View>
+                  )}
+
+                  {selectedCatObj && selectedCatObj.id !== 'other' && selectedCatObj.items.length > 0 && (
+                    <View style={styles.itemsWrap}>
+                      <Text style={[styles.itemsLabel, { color: colors.mutedForeground }]}>माल चुनें:</Text>
+                      <View style={styles.itemsGrid}>
+                        {selectedCatObj.items.map((item) => (
+                          <TouchableOpacity
+                            key={item}
+                            style={[styles.itemChip, {
+                              backgroundColor: selectedGoodsItem === item ? colors.secondary : colors.muted,
+                              borderColor: selectedGoodsItem === item ? colors.secondary : colors.border,
+                            }]}
+                            onPress={() => setSelectedGoodsItem(item)}
+                          >
+                            <Text style={[styles.itemChipText, { color: selectedGoodsItem === item ? '#fff' : colors.foreground }]}>{item}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {selectedGoodsCat === 'other' && (
+                    <TextInput
+                      style={[styles.customInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.muted }]}
+                      placeholder="माल का नाम लिखें..."
+                      placeholderTextColor={colors.mutedForeground}
+                      value={customGoods}
+                      onChangeText={setCustomGoods}
+                    />
+                  )}
+
+                  {(finalGoodsType || (selectedGoodsCat && selectedGoodsCat !== 'other')) && (
+                    <View style={[styles.selectedGoods, { backgroundColor: colors.success + '15', borderColor: colors.success }]}>
+                      <Text style={[styles.selectedGoodsText, { color: colors.success }]}>
+                        ✓ {finalGoodsCatName}{finalGoodsType ? ` — ${finalGoodsType}` : ''}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
                 <View style={[styles.paymentBreakdown, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
                   <Text style={[styles.payTitle, { color: colors.secondary }]}>Payment Breakdown</Text>
                   <PayRow label="कुल किराया" value={formatCurrency(selectedTrip.totalRent)} />
@@ -234,4 +315,20 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginVertical: 8 },
   legalNote: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
   legalText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  goodsSection: { borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1 },
+  goodsTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  goodsSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 10 },
+  catScroll: { marginBottom: 10 },
+  catChip: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8, borderWidth: 1.5 },
+  catChipText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  coldWarning: { borderRadius: 8, padding: 10, borderWidth: 1, marginBottom: 10 },
+  coldText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: '#1976D2' },
+  itemsWrap: { marginBottom: 8 },
+  itemsLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 6 },
+  itemsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  itemChip: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
+  itemChipText: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  customInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 8 },
+  selectedGoods: { borderRadius: 8, padding: 10, borderWidth: 1, marginTop: 8 },
+  selectedGoodsText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
 });

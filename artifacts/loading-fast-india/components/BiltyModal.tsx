@@ -57,6 +57,13 @@ export default function BiltyModal({ bilty, visible, onClose }: Props) {
               <Row label="से (From)" value={bilty.fromCity} />
               <Row label="तक (To)" value={bilty.toCity} />
               <Row label="माल वजन" value={`${bilty.loadTons} टन`} />
+              {bilty.goodsCategory ? <Row label="माल श्रेणी" value={bilty.goodsCategory} /> : null}
+              {bilty.goodsType ? <Row label="माल प्रकार" value={bilty.goodsType} bold /> : null}
+              {bilty.needsColdStorage ? (
+                <View style={styles.coldBadge}>
+                  <Text style={styles.coldBadgeText}>🧊 Insulated / Refrigerated गाड़ी आवश्यक</Text>
+                </View>
+              ) : null}
             </Section>
 
             <Section title="भुगतान विवरण" bg={colors.accent}>
@@ -137,4 +144,6 @@ const styles = StyleSheet.create({
   legalText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
   footer: { borderTopWidth: 1, paddingTop: 12, gap: 4, marginBottom: 24 },
   footerText: { fontSize: 11, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  coldBadge: { backgroundColor: '#E3F2FD', borderRadius: 8, padding: 8, marginTop: 6, borderWidth: 1, borderColor: '#1976D2' },
+  coldBadgeText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: '#1976D2' },
 });

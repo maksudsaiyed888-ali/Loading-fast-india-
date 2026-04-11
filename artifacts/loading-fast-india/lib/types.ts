@@ -101,6 +101,9 @@ export interface Bilty {
   upiRef: string;
   createdAt: string;
   biltyNumber: string;
+  goodsCategory?: string;
+  goodsType?: string;
+  needsColdStorage?: boolean;
 }
 
 export interface Complaint {
@@ -146,6 +149,111 @@ export const INDIA_STATES = [
   'मेघालय', 'मिजोरम', 'नागालैंड', 'ओडिशा', 'पंजाब',
   'राजस्थान', 'सिक्किम', 'तमिलनाडु', 'तेलंगाना', 'त्रिपुरा',
   'उत्तर प्रदेश', 'उत्तराखंड', 'पश्चिम बंगाल', 'दिल्ली'
+];
+
+export interface GoodsCategory {
+  id: string;
+  name: string;
+  nameEn: string;
+  icon: string;
+  needsCold?: boolean;
+  items: string[];
+}
+
+export const GOODS_CATEGORIES: GoodsCategory[] = [
+  {
+    id: 'anaj',
+    name: 'अनाज / दाल',
+    nameEn: 'Grains & Pulses',
+    icon: '🌾',
+    items: ['गेहूं', 'चावल', 'मक्का', 'बाजरा', 'जवार', 'चना', 'अरहर दाल', 'मूंग दाल', 'उड़द दाल', 'सोयाबीन', 'मटर', 'राजमा'],
+  },
+  {
+    id: 'fal-sabzi',
+    name: 'फल & सब्जी',
+    nameEn: 'Fruits & Vegetables',
+    icon: '🥦',
+    items: ['आम', 'केला', 'सेब', 'अंगूर', 'संतरा', 'अनार', 'पपीता', 'तरबूज', 'टमाटर', 'प्याज', 'आलू', 'लहसुन', 'अदरक', 'गोभी', 'बैंगन', 'भिंडी', 'करेला'],
+  },
+  {
+    id: 'coconut',
+    name: 'नारियल',
+    nameEn: 'Coconut',
+    icon: '🥥',
+    items: ['नारियल (कच्चा)', 'नारियल (सूखा)', 'नारियल तेल', 'नारियल खोपरा'],
+  },
+  {
+    id: 'fish',
+    name: '🧊 मछली (Insulated)',
+    nameEn: 'Fish - Insulated Vehicle',
+    icon: '🐟',
+    needsCold: true,
+    items: ['रोहू मछली', 'कटला मछली', 'पम्पलेट', 'झींगा', 'समुद्री मछली', 'सूखी मछली', 'केकड़ा', 'तिलापिया'],
+  },
+  {
+    id: 'dairy',
+    name: 'डेयरी उत्पाद',
+    nameEn: 'Dairy Products',
+    icon: '🥛',
+    needsCold: true,
+    items: ['दूध', 'दही', 'पनीर', 'मक्खन', 'घी', 'खोया', 'छाछ', 'आइसक्रीम'],
+  },
+  {
+    id: 'masale',
+    name: 'मसाले',
+    nameEn: 'Spices',
+    icon: '🌶️',
+    items: ['लाल मिर्च', 'हल्दी', 'धनिया', 'जीरा', 'सौंफ', 'काली मिर्च', 'इलायची', 'दालचीनी', 'मिश्रित मसाले'],
+  },
+  {
+    id: 'kapda',
+    name: 'कपड़ा / कपास',
+    nameEn: 'Textile & Cotton',
+    icon: '🧵',
+    items: ['रुई / कपास', 'कपड़ा (थान)', 'धागा', 'रेडीमेड कपड़े', 'जूट बोरे', 'बिस्तर / गद्दे'],
+  },
+  {
+    id: 'nirman',
+    name: 'निर्माण सामग्री',
+    nameEn: 'Construction Material',
+    icon: '🧱',
+    items: ['सीमेंट', 'रेत / बालू', 'बजरी / गिट्टी', 'ईंट', 'पत्थर', 'मार्बल / टाइल', 'सरिया / लोहा', 'लकड़ी', 'प्लाईवुड'],
+  },
+  {
+    id: 'tel',
+    name: 'तेल / द्रव पदार्थ',
+    nameEn: 'Oil & Liquids',
+    icon: '🛢️',
+    items: ['खाद्य तेल', 'डीजल', 'पेट्रोल', 'केरोसीन', 'केमिकल', 'पानी', 'एसिड', 'पेंट'],
+  },
+  {
+    id: 'khad',
+    name: 'खाद / कृषि सामग्री',
+    nameEn: 'Fertilizer & Agriculture',
+    icon: '🌱',
+    items: ['यूरिया', 'DAP खाद', 'पोटाश', 'जैविक खाद', 'कीटनाशक', 'बीज', 'पशु चारा / भूसा'],
+  },
+  {
+    id: 'machine',
+    name: 'मशीनरी / इलेक्ट्रॉनिक्स',
+    nameEn: 'Machinery & Electronics',
+    icon: '⚙️',
+    items: ['कृषि मशीनरी', 'इलेक्ट्रिक उपकरण', 'पंप / मोटर', 'जेनरेटर', 'AC / फ्रिज', 'TV / Electronics', 'मोबाइल / कंप्यूटर'],
+  },
+  {
+    id: 'pashu',
+    name: 'पशु / जानवर',
+    nameEn: 'Livestock',
+    icon: '🐄',
+    items: ['गाय / भैंस', 'बकरी / भेड़', 'ऊंट', 'घोड़ा', 'मुर्गी / पक्षी', 'मछली (जीवित)'],
+  },
+  {
+    id: 'other',
+    name: 'अन्य (Other)',
+    nameEn: 'Other',
+    icon: '📦',
+    items: [],
+  },
 ];
 
 export const COMMISSION_PERCENT = 2;
