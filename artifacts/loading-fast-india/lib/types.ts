@@ -341,6 +341,17 @@ export interface VyapariTrip {
   createdAt: string;
 }
 
+export interface CommissionPayment {
+  id: string;
+  driverId: string;
+  driverName: string;
+  vyapariTripId: string;
+  vyapariId: string;
+  amount: number;
+  utrNumber: string;
+  paidAt: string;
+}
+
 export interface AppRating {
   id: string;
   userId: string;

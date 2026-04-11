@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -17,7 +17,7 @@ type Colors = ReturnType<typeof useColors>;
 export default function DriverHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, addCommissionPayment, hasDriverPaidCommission } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
 
@@ -85,7 +85,15 @@ export default function DriverHomeScreen() {
           <View style={{ marginBottom: 16 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📦 व्यापारी की जरूरत</Text>
             {openVyapariTrips.slice(0, 4).map((vt) => (
-              <VyapariTripCard key={vt.id} trip={vt} colors={colors} />
+              <VyapariTripCard
+                key={vt.id}
+                trip={vt}
+                colors={colors}
+                driverId={user?.id || ''}
+                driverName={currentDriver?.name || user?.name || ''}
+                hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
+                onPayCommission={addCommissionPayment}
+              />
             ))}
           </View>
         )}
@@ -169,41 +177,166 @@ const actionStyles = StyleSheet.create({
   label: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },
 });
 
-function VyapariTripCard({ trip, colors }: { trip: VyapariTrip; colors: Colors }) {
+function VyapariTripCard({
+  trip, colors, driverId, driverName, hasPaid, onPayCommission,
+}: {
+  trip: VyapariTrip;
+  colors: Colors;
+  driverId: string;
+  driverName: string;
+  hasPaid: boolean;
+  onPayCommission: (c: import('@/lib/types').CommissionPayment) => Promise<void>;
+}) {
+  const [utr, setUtr] = useState('');
+  const [paying, setPaying] = useState(false);
+  const [showUtr, setShowUtr] = useState(false);
+
+  const commissionAmt = trip.ratePerTon > 0
+    ? Math.max(50, Math.round(trip.weightTons * trip.ratePerTon * 0.02))
+    : 100;
+
+  const handleOpenUpi = () => {
+    const upiUrl = `upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&am=${commissionAmt}&cu=INR&tn=Commission-${trip.id.slice(0, 8)}`;
+    Linking.openURL(upiUrl).catch(() =>
+      Alert.alert('UPI App नहीं मिला', 'Google Pay, PhonePe या Paytm install करें।')
+    );
+    setShowUtr(true);
+  };
+
+  const handleUnlock = async () => {
+    if (!utr.trim()) {
+      Alert.alert('त्रुटि', 'UTR / Transaction ID दर्ज करें');
+      return;
+    }
+    setPaying(true);
+    try {
+      await onPayCommission({
+        id: generateId(),
+        driverId,
+        driverName,
+        vyapariTripId: trip.id,
+        vyapariId: trip.vyapariId,
+        amount: commissionAmt,
+        utrNumber: utr.trim(),
+        paidAt: new Date().toISOString(),
+      });
+    } finally {
+      setPaying(false);
+    }
+  };
+
   return (
-    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: colors.navy + '30' }]}>
+    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: hasPaid ? '#16a34a40' : colors.navy + '30' }]}>
       <View style={vtStyles.row}>
         <View style={[vtStyles.badge, { backgroundColor: colors.navy + '15' }]}>
-          <Text style={[vtStyles.badgeText, { color: colors.navy }]}>व्यापारी लोड</Text>
+          <Text style={[vtStyles.badgeText, { color: colors.navy }]}>📦 व्यापारी लोड</Text>
         </View>
         <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>{trip.tripDate}</Text>
       </View>
+
       <Text style={[vtStyles.route, { color: colors.foreground }]}>
         {trip.fromCity} ({trip.fromState}) → {trip.toCity} ({trip.toState})
       </Text>
-      <View style={vtStyles.metaRow}>
-        <Text style={[vtStyles.meta, { color: colors.mutedForeground }]}>
-          {trip.goodsCategory} • {trip.weightTons} टन
-          {trip.ratePerTon > 0 ? ` • ₹${trip.ratePerTon}/टन` : ''}
-        </Text>
-        <Text style={[vtStyles.phone, { color: colors.primary }]}>{trip.vyapariPhone}</Text>
-      </View>
-      <Text style={[vtStyles.name, { color: colors.mutedForeground }]}>📞 {trip.vyapariName}</Text>
+      <Text style={[vtStyles.meta, { color: colors.mutedForeground, marginBottom: 8 }]}>
+        {trip.goodsCategory} • {trip.weightTons} टन
+        {trip.ratePerTon > 0 ? ` • ₹${trip.ratePerTon}/टन` : ''}
+      </Text>
+
+      {hasPaid ? (
+        <View style={[vtStyles.unlocked, { backgroundColor: '#16a34a10', borderColor: '#16a34a40' }]}>
+          <Text style={[vtStyles.unlockedTitle, { color: '#16a34a' }]}>✅ Commission Paid — Contact Unlocked</Text>
+          <Text style={[vtStyles.vyapariName, { color: colors.foreground }]}>👤 {trip.vyapariName}</Text>
+          <View style={vtStyles.contactRow}>
+            <TouchableOpacity
+              style={[vtStyles.contactBtn, { backgroundColor: colors.primary }]}
+              onPress={() => Linking.openURL(`tel:${trip.vyapariPhone}`)}
+            >
+              <Feather name="phone" size={14} color="#fff" />
+              <Text style={vtStyles.contactBtnText}>Call</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[vtStyles.contactBtn, { backgroundColor: '#25D366' }]}
+              onPress={() => Linking.openURL(`whatsapp://send?phone=91${trip.vyapariPhone}`)}
+            >
+              <Feather name="message-circle" size={14} color="#fff" />
+              <Text style={vtStyles.contactBtnText}>WhatsApp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[vtStyles.contactBtn, { backgroundColor: colors.navy }]}
+              onPress={() => router.push(`/chat?tripId=${trip.id}&toId=${trip.vyapariId}&toName=${trip.vyapariName}`)}
+            >
+              <Feather name="message-square" size={14} color="#fff" />
+              <Text style={vtStyles.contactBtnText}>Chat</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={[vtStyles.locked, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '40' }]}>
+          <View style={vtStyles.lockedRow}>
+            <Feather name="lock" size={14} color={colors.warning} />
+            <Text style={[vtStyles.lockedText, { color: colors.warning }]}>
+              Contact देखने के लिए ₹{commissionAmt} commission pay करें (2%)
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[vtStyles.upiBtn, { backgroundColor: colors.primary }]}
+            onPress={handleOpenUpi}
+          >
+            <Feather name="credit-card" size={14} color="#fff" />
+            <Text style={vtStyles.upiBtnText}>UPI से Pay करें — ₹{commissionAmt}</Text>
+          </TouchableOpacity>
+          {showUtr && (
+            <>
+              <TextInput
+                style={[vtStyles.utrInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                placeholder="UTR / Transaction ID दर्ज करें"
+                placeholderTextColor={colors.mutedForeground}
+                value={utr}
+                onChangeText={setUtr}
+              />
+              <TouchableOpacity
+                style={[vtStyles.unlockBtn, { backgroundColor: '#16a34a', opacity: paying ? 0.6 : 1 }]}
+                onPress={handleUnlock}
+                disabled={paying}
+              >
+                <Feather name="unlock" size={14} color="#fff" />
+                <Text style={vtStyles.upiBtnText}>{paying ? 'Processing...' : 'Contact Unlock करें'}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {!showUtr && (
+            <TouchableOpacity onPress={() => setShowUtr(true)}>
+              <Text style={[vtStyles.alreadyPaid, { color: colors.primary }]}>पहले से pay कर दिया? UTR दर्ज करें</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 }
 
 const vtStyles = StyleSheet.create({
-  card: { borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 10 },
+  card: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   date: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   route: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  phone: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  name: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  locked: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 8 },
+  lockedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  lockedText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
+  upiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, justifyContent: 'center' },
+  upiBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  utrInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'Inter_400Regular' },
+  unlockBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, justifyContent: 'center' },
+  alreadyPaid: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 2 },
+  unlocked: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 8 },
+  unlockedTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  vyapariName: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  contactRow: { flexDirection: 'row', gap: 8 },
+  contactBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8, borderRadius: 8, justifyContent: 'center' },
+  contactBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_500Medium' },
 });
 
 const styles = StyleSheet.create({

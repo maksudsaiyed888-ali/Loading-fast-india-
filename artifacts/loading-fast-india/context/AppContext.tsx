@@ -4,7 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { db } from '@/lib/firebase';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { updateDriverLocation } from '@/lib/location';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip, CommissionPayment } from '@/lib/types';
 
 const USER_KEY = '@lfi_user';
 
@@ -47,6 +47,9 @@ interface AppContextType {
   addAppRating: (r: AppRating) => Promise<void>;
   getAppAvgRating: () => number;
   hasRatedApp: (userId: string) => boolean;
+  commissionPayments: CommissionPayment[];
+  addCommissionPayment: (c: CommissionPayment) => Promise<void>;
+  hasDriverPaidCommission: (driverId: string, vyapariTripId: string) => boolean;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -82,6 +85,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [appRatings, setAppRatings] = useState<AppRating[]>([]);
   const [vyapariTrips, setVyapariTrips] = useState<VyapariTrip[]>([]);
+  const [commissionPayments, setCommissionPayments] = useState<CommissionPayment[]>([]);
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
@@ -109,6 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     listen<Rating>('ratings', setRatings);
     listen<AppRating>('appRatings', setAppRatings);
     listen<VyapariTrip>('vyapariTrips', setVyapariTrips);
+    listen<CommissionPayment>('commissionPayments', setCommissionPayments);
 
     AsyncStorage.getItem(USER_KEY).then((saved) => {
       if (saved) setUser(JSON.parse(saved));
@@ -203,6 +208,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const addVyapariTrip = async (t: VyapariTrip) => {
     await fsSet('vyapariTrips', t);
   };
+
+  const addCommissionPayment = async (c: CommissionPayment) => {
+    await fsSet('commissionPayments', c);
+  };
+
+  const hasDriverPaidCommission = (driverId: string, vyapariTripId: string) =>
+    commissionPayments.some((c) => c.driverId === driverId && c.vyapariTripId === vyapariTripId);
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
 
@@ -220,6 +232,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         appRatings, addAppRating, getAppAvgRating, hasRatedApp,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         vyapariTrips, addVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
+        commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         currentDriver, currentVyapari,
       }}
     >
