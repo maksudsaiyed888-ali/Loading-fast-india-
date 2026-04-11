@@ -8,14 +8,16 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
-import { Bilty } from '@/lib/types';
+import { Bilty, VyapariTrip } from '@/lib/types';
 import { formatCurrency, generateBiltyNumber, generateId, calcCommission } from '@/lib/utils';
 import { COMMISSION_UPI } from '@/lib/types';
+
+type Colors = ReturnType<typeof useColors>;
 
 export default function DriverHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
 
@@ -23,6 +25,7 @@ export default function DriverHomeScreen() {
   const myVehicles = user ? getDriverVehicles(user.id) : [];
   const activeTrips = myTrips.filter((t) => t.status === 'confirmed');
   const myBilties = bilties.filter((b) => b.driverId === user?.id);
+  const openVyapariTrips = getOpenVyapariTrips();
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -76,6 +79,15 @@ export default function DriverHomeScreen() {
             </View>
             <Feather name="chevron-right" size={20} color={colors.primary} />
           </TouchableOpacity>
+        )}
+
+        {openVyapariTrips.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📦 व्यापारी की जरूरत</Text>
+            {openVyapariTrips.slice(0, 4).map((vt) => (
+              <VyapariTripCard key={vt.id} trip={vt} colors={colors} />
+            ))}
+          </View>
         )}
 
         {activeTrips.length > 0 && (
@@ -154,7 +166,44 @@ function ActionBtn({ icon, label, onPress, color }: { icon: string; label: strin
 
 const actionStyles = StyleSheet.create({
   btn: { flex: 1, minWidth: '45%', alignItems: 'center', gap: 8, padding: 16, borderRadius: 12, borderWidth: 1.5 },
-  label: { fontSize: 12, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  label: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },
+});
+
+function VyapariTripCard({ trip, colors }: { trip: VyapariTrip; colors: Colors }) {
+  return (
+    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: colors.navy + '30' }]}>
+      <View style={vtStyles.row}>
+        <View style={[vtStyles.badge, { backgroundColor: colors.navy + '15' }]}>
+          <Text style={[vtStyles.badgeText, { color: colors.navy }]}>व्यापारी लोड</Text>
+        </View>
+        <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>{trip.tripDate}</Text>
+      </View>
+      <Text style={[vtStyles.route, { color: colors.foreground }]}>
+        {trip.fromCity} ({trip.fromState}) → {trip.toCity} ({trip.toState})
+      </Text>
+      <View style={vtStyles.metaRow}>
+        <Text style={[vtStyles.meta, { color: colors.mutedForeground }]}>
+          {trip.goodsCategory} • {trip.weightTons} टन
+          {trip.ratePerTon > 0 ? ` • ₹${trip.ratePerTon}/टन` : ''}
+        </Text>
+        <Text style={[vtStyles.phone, { color: colors.primary }]}>{trip.vyapariPhone}</Text>
+      </View>
+      <Text style={[vtStyles.name, { color: colors.mutedForeground }]}>📞 {trip.vyapariName}</Text>
+    </View>
+  );
+}
+
+const vtStyles = StyleSheet.create({
+  card: { borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 10 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  date: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  route: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  phone: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  name: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
 });
 
 const styles = StyleSheet.create({
@@ -168,11 +217,11 @@ const styles = StyleSheet.create({
   body: { padding: 16 },
   sectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 12, marginTop: 4 },
   addVehicleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', marginBottom: 16 },
-  addVehicleTitle: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  addVehicleTitle: { fontSize: 15, fontFamily: 'Inter_500Medium' },
   addVehicleSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   quickActions: { marginBottom: 16 },
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   commissionInfo: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
-  commissionTitle: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 2 },
+  commissionTitle: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 2 },
   commissionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
 });

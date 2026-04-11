@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs, router } from 'expo-router';
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
 
@@ -39,8 +39,27 @@ export default function VyapariTabLayout() {
     >
       <Tabs.Screen name="index" options={{ title: 'होम', tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} /> }} />
       <Tabs.Screen name="browse" options={{ title: 'ट्रिप खोजें', tabBarIcon: ({ color }) => <Feather name="search" size={22} color={color} /> }} />
+      <Tabs.Screen name="post-trip" options={{
+        title: 'ट्रिप डालें',
+        tabBarIcon: ({ color, focused }) => (
+          <View style={[styles.addBtn, { backgroundColor: focused ? '#08203a' : colors.navy }]}>
+            <Feather name="upload" size={20} color="#fff" />
+          </View>
+        ),
+        tabBarLabel: () => null,
+      }} />
       <Tabs.Screen name="bookings" options={{ title: 'मेरी बुकिंग', tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'प्रोफाइल', tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} /> }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  addBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: -6,
+    shadowColor: '#0A2540', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 6,
+  },
+});
