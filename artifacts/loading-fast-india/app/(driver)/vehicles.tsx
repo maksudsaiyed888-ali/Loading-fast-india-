@@ -46,9 +46,16 @@ export default function VehiclesScreen() {
         isActive: true,
         createdAt: new Date().toISOString(),
       });
-      setShowModal(false);
       setForm({ vehicleNumber: '', model: '', year: '', rcNumber: '', rcExpiry: '', insuranceExpiry: '' });
-      Alert.alert('सफल!', 'गाड़ी जोड़ी गई');
+      setSelectedType(VEHICLE_TYPES[4]);
+      Alert.alert(
+        '✅ गाड़ी जोड़ी गई!',
+        `${form.vehicleNumber.trim().toUpperCase()} सफलतापूर्वक रजिस्टर हो गई।\n\nक्या आप एक और गाड़ी जोड़ना चाहते हैं?`,
+        [
+          { text: 'नहीं, बाद में', style: 'cancel', onPress: () => setShowModal(false) },
+          { text: '➕ हाँ, एक और जोड़ें', onPress: () => {} },
+        ]
+      );
     } finally {
       setLoading(false);
     }
@@ -64,11 +71,25 @@ export default function VehiclesScreen() {
       </LinearGradient>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.body, { paddingBottom: 100 }]}>
+
+        <TouchableOpacity
+          style={[styles.addMoreBanner, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '50' }]}
+          onPress={() => setShowModal(true)}
+          activeOpacity={0.8}
+        >
+          <Feather name="plus-circle" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.addMoreTitle, { color: colors.primary }]}>नई गाड़ी जोड़ें</Text>
+            <Text style={[styles.addMoreSub, { color: colors.mutedForeground }]}>एक ID से unlimited गाड़ियां रजिस्टर करें</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.primary} />
+        </TouchableOpacity>
+
         {myVehicles.length === 0 ? (
           <View style={[styles.empty, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="truck" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>कोई गाड़ी नहीं</Text>
-            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>नीचे + बटन से गाड़ी जोड़ें</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>अभी कोई गाड़ी नहीं है</Text>
+            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>ऊपर बटन से पहली गाड़ी जोड़ें</Text>
           </View>
         ) : (
           myVehicles.map((v) => (
@@ -182,6 +203,9 @@ const styles = StyleSheet.create({
   vehicleNumber: { fontSize: 22, fontFamily: 'Inter_700Bold', paddingHorizontal: 12, paddingTop: 10 },
   vehicleModel: { fontSize: 13, fontFamily: 'Inter_400Regular', paddingHorizontal: 12, paddingBottom: 4 },
   docsRow: { flexDirection: 'row', gap: 8, padding: 12, flexWrap: 'wrap' },
+  addMoreBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', marginBottom: 16 },
+  addMoreTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  addMoreSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
   fab: { position: 'absolute', bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { maxHeight: '90%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
