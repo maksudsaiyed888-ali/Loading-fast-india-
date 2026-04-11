@@ -11,6 +11,7 @@ import BiltyModal from '@/components/BiltyModal';
 import ComplaintModal from '@/components/ComplaintModal';
 import ChatbotModal from '@/components/ChatbotModal';
 import RatingModal from '@/components/RatingModal';
+import FraudAlertModal from '@/components/FraudAlertModal';
 import { Bilty, Trip } from '@/lib/types';
 
 type Filter = 'all' | 'available' | 'confirmed' | 'completed';
@@ -32,6 +33,7 @@ export default function MyTripsScreen() {
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
   const [complainTrip, setComplainTrip] = useState<Trip | null>(null);
+  const [fraudTrip, setFraudTrip] = useState<Trip | null>(null);
   const [showChatbot, setShowChatbot] = useState(false);
   const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
 
@@ -206,6 +208,15 @@ export default function MyTripsScreen() {
                   </TouchableOpacity>
                 )}
                 {trip.confirmedBy && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#dc262615', borderColor: '#dc2626' }]}
+                    onPress={() => setFraudTrip(trip)}
+                  >
+                    <Feather name="alert-octagon" size={14} color="#dc2626" />
+                    <Text style={[styles.actionBtnText, { color: '#dc2626' }]}>Fraud</Text>
+                  </TouchableOpacity>
+                )}
+                {trip.confirmedBy && (
                   <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.warning + '15', borderColor: colors.warning }]} onPress={() => { setComplainTrip(trip); setShowComplaint(true); }}>
                     <Feather name="alert-triangle" size={14} color={colors.warning} />
                     <Text style={[styles.actionBtnText, { color: colors.warning }]}>शिकायत</Text>
@@ -315,6 +326,15 @@ export default function MyTripsScreen() {
         tripId={complainTrip?.id}
         bookingId={complainTrip?.id}
         hasGST={!!vyaparis.find(v => v.id === complainTrip?.confirmedBy)?.gstNumber}
+      />
+      <FraudAlertModal
+        visible={!!fraudTrip}
+        onClose={() => setFraudTrip(null)}
+        bookingId={fraudTrip?.id}
+        targetName={fraudTrip?.confirmedByName || 'व्यापारी'}
+        targetId={fraudTrip?.confirmedBy}
+        targetRole="vyapari"
+        hasGST={!!vyaparis.find(v => v.id === fraudTrip?.confirmedBy)?.gstNumber}
       />
     </View>
   );

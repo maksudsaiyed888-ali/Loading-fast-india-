@@ -11,6 +11,7 @@ import BiltyModal from '@/components/BiltyModal';
 import ComplaintModal from '@/components/ComplaintModal';
 import ChatbotModal from '@/components/ChatbotModal';
 import RatingModal from '@/components/RatingModal';
+import FraudAlertModal from '@/components/FraudAlertModal';
 import { Bilty, Trip } from '@/lib/types';
 
 export default function BookingsScreen() {
@@ -21,6 +22,7 @@ export default function BookingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
+  const [fraudTrip, setFraudTrip] = useState<Trip | null>(null);
   const [showChatbot, setShowChatbot] = useState(false);
   const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -97,6 +99,13 @@ export default function BookingsScreen() {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: '#dc262615', borderColor: '#dc2626' }]}
+                  onPress={() => setFraudTrip(trip)}
+                >
+                  <Feather name="alert-octagon" size={14} color="#dc2626" />
+                  <Text style={[styles.actionBtnText, { color: '#dc2626' }]}>Fraud</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
                   onPress={() => { setSelectedTrip(trip); setShowComplaint(true); }}
                 >
@@ -136,6 +145,15 @@ export default function BookingsScreen() {
         againstRole="driver"
         tripId={selectedTrip?.id}
         bookingId={selectedTrip?.id}
+        hasGST={false}
+      />
+      <FraudAlertModal
+        visible={!!fraudTrip}
+        onClose={() => setFraudTrip(null)}
+        bookingId={fraudTrip?.id}
+        targetName={fraudTrip?.driverName}
+        targetId={fraudTrip?.driverId}
+        targetRole="driver"
         hasGST={false}
       />
     </View>
