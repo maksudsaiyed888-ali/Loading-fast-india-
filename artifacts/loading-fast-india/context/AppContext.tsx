@@ -64,8 +64,12 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null);
 
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
 function fsSet<T extends { id: string }>(col: string, item: T) {
-  return setDoc(doc(db, col, item.id), item as Record<string, unknown>);
+  return setDoc(doc(db, col, item.id), stripUndefined(item as Record<string, unknown>));
 }
 
 function fsUpdate(col: string, id: string, updates: Record<string, unknown>) {
