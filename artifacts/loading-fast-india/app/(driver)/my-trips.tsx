@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -12,7 +12,7 @@ import ComplaintModal from '@/components/ComplaintModal';
 import ChatbotModal from '@/components/ChatbotModal';
 import RatingModal from '@/components/RatingModal';
 import FraudAlertModal from '@/components/FraudAlertModal';
-import { Bilty, Trip } from '@/lib/types';
+import { Bilty, Trip, COMMISSION_UPI } from '@/lib/types';
 
 type Filter = 'all' | 'available' | 'confirmed' | 'completed';
 type TripStatus = 'loading' | 'on_the_way' | 'delivered';
@@ -182,6 +182,15 @@ export default function MyTripsScreen() {
                   >
                     <Feather name="message-circle" size={14} color="#0ea5e9" />
                     <Text style={[styles.actionBtnText, { color: '#0ea5e9' }]}>चैट</Text>
+                  </TouchableOpacity>
+                )}
+                {trip.status === 'confirmed' && !trip.commissionPaid && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#16a34a15', borderColor: '#16a34a' }]}
+                    onPress={() => Linking.openURL(`upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&am=${trip.commissionAmount?.toFixed(0) ?? '0'}&cu=INR`)}
+                  >
+                    <Feather name="credit-card" size={14} color="#16a34a" />
+                    <Text style={[styles.actionBtnText, { color: '#16a34a' }]}>₹{trip.commissionAmount?.toFixed(0)} Commission भेजें</Text>
                   </TouchableOpacity>
                 )}
                 {trip.status === 'confirmed' && !trip.commissionPaid && (

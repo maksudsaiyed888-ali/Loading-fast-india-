@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -97,13 +97,25 @@ export default function DriverHomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.commissionInfo, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
-          <Feather name="info" size={15} color={colors.primary} />
+        <TouchableOpacity
+          style={[styles.commissionInfo, { backgroundColor: '#16a34a10', borderColor: '#16a34a40' }]}
+          onPress={() => Alert.alert(
+            'Commission भेजें',
+            `Loading Fast India को 2% commission UPI पर भेजें।\n\nUPI ID: ${COMMISSION_UPI}\nनाम: Loading Fast India`,
+            [
+              { text: 'UPI App खोलें', onPress: () => Linking.openURL(`upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&cu=INR`) },
+              { text: 'बंद करें', style: 'cancel' },
+            ]
+          )}
+          activeOpacity={0.8}
+        >
+          <Feather name="credit-card" size={15} color="#16a34a" />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.commissionTitle, { color: colors.primary }]}>2% Commission — Loading Fast India</Text>
-            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>Trip confirm होने पर 2% commission UPI पर भेजें{'\n'}UPI: {COMMISSION_UPI}</Text>
+            <Text style={[styles.commissionTitle, { color: '#16a34a' }]}>2% Commission — Loading Fast India</Text>
+            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>UPI: {COMMISSION_UPI}{'\n'}👆 Tap करके UPI App से भेजें</Text>
           </View>
-        </View>
+          <Feather name="chevron-right" size={15} color="#16a34a" />
+        </TouchableOpacity>
 
         {myTrips.slice(-3).reverse().map((trip) => (
           <TripCard key={trip.id} trip={trip} isMyTrip onPress={() => handleViewBilty(trip.id)} />
