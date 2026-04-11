@@ -18,20 +18,27 @@ export default function VyapariRegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+
   const [form, setForm] = useState({
     name: '', businessName: '', phone: '', email: '',
+    password: '', confirmPassword: '',
     aadhaarNumber: '', gstNumber: '',
     address: '', city: '', state: 'राजस्थान', pincode: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  const clearError = (k: string) => setErrors((p) => ({ ...p, [k]: '' }));
 
   const handleRegister = async () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'नाम आवश्यक है';
     if (!form.businessName.trim()) e.businessName = 'व्यापार का नाम आवश्यक है';
     if (!form.phone || form.phone.length !== 10) e.phone = 'सही फोन नंबर दर्ज करें';
-    if (!form.email.includes('@')) e.email = 'सही ईमेल दर्ज करें';
+    if (!form.email.includes('@')) e.email = 'सही Gmail/Email दर्ज करें';
+    if (!form.password || form.password.length < 6) e.password = 'पासवर्ड कम से कम 6 अक्षर का होना चाहिए';
+    if (form.password !== form.confirmPassword) e.confirmPassword = 'पासवर्ड मेल नहीं खाता';
     if (!form.aadhaarNumber || form.aadhaarNumber.replace(/\s/g, '').length !== 12)
       e.aadhaarNumber = 'आधार 12 अंकों का होना चाहिए';
     if (!form.address.trim()) e.address = 'पता आवश्यक है';
@@ -50,7 +57,8 @@ export default function VyapariRegisterScreen() {
         name: form.name.trim(),
         businessName: form.businessName.trim(),
         phone: form.phone.trim(),
-        email: form.email.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
         aadhaarNumber: form.aadhaarNumber.trim(),
         gstNumber: form.gstNumber.trim() || undefined,
         address: form.address.trim(),
@@ -61,7 +69,7 @@ export default function VyapariRegisterScreen() {
         isVerified: false,
         totalBookings: 0,
       });
-      await login({ id, role: 'vyapari', name: form.name, phone: form.phone, email: form.email });
+      await login({ id, role: 'vyapari', name: form.name, phone: form.phone, email: form.email.toLowerCase() });
       Alert.alert('रजिस्ट्रेशन सफल!', 'आपका व्यापारी अकाउंट बन गया है।', [
         { text: 'आगे बढ़ें', onPress: () => router.replace('/(vyapari)') },
       ]);
@@ -85,22 +93,44 @@ export default function VyapariRegisterScreen() {
       <TermsModal visible={showTerms} onClose={() => setShowTerms(false)} />
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={[styles.sectionTitle, { color: colors.secondary }]}>व्यक्तिगत जानकारी</Text>
-        <Input label="मालिक का नाम" placeholder="आपका पूरा नाम" value={form.name} onChangeText={(v) => set('name', v)} error={errors.name} icon="user" required />
-        <Input label="व्यापार/दुकान का नाम" placeholder="जैसे: राम ट्रेडर्स" value={form.businessName} onChangeText={(v) => set('businessName', v)} error={errors.businessName} icon="briefcase" required />
-        <Input label="मोबाइल नंबर" placeholder="10 अंकों का नंबर" value={form.phone} onChangeText={(v) => set('phone', v)} keyboardType="phone-pad" maxLength={10} error={errors.phone} icon="phone" required />
-        <Input label="Gmail / Email" placeholder="आपका email" value={form.email} onChangeText={(v) => set('email', v)} keyboardType="email-address" autoCapitalize="none" error={errors.email} icon="mail" required />
+        <Input label="मालिक का नाम" placeholder="आपका पूरा नाम" value={form.name} onChangeText={(v) => { set('name', v); clearError('name'); }} error={errors.name} icon="user" required />
+        <Input label="व्यापार/दुकान का नाम" placeholder="जैसे: राम ट्रेडर्स" value={form.businessName} onChangeText={(v) => { set('businessName', v); clearError('businessName'); }} error={errors.businessName} icon="briefcase" required />
+        <Input label="मोबाइल नंबर" placeholder="10 अंकों का नंबर" value={form.phone} onChangeText={(v) => { set('phone', v); clearError('phone'); }} keyboardType="phone-pad" maxLength={10} error={errors.phone} icon="phone" required />
+        <Input label="Gmail / Email" placeholder="example@gmail.com" value={form.email} onChangeText={(v) => { set('email', v); clearError('email'); }} keyboardType="email-address" autoCapitalize="none" error={errors.email} icon="mail" required />
 
-        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>दस्तावेज़ जानकारी</Text>
+        <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 4 }]}>पासवर्ड बनाएं</Text>
+        <View style={{ position: 'relative' }}>
+          <Input
+            label="पासवर्ड" placeholder="कम से कम 6 अक्षर"
+            value={form.password} onChangeText={(v) => { set('password', v); clearError('password'); }}
+            secureTextEntry={!showPass} error={errors.password} icon="lock" required
+          />
+          <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPass(!showPass)}>
+            <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ position: 'relative' }}>
+          <Input
+            label="पासवर्ड confirm करें" placeholder="पासवर्ड दोबारा दर्ज करें"
+            value={form.confirmPassword} onChangeText={(v) => { set('confirmPassword', v); clearError('confirmPassword'); }}
+            secureTextEntry={!showConfirmPass} error={errors.confirmPassword} icon="lock" required
+          />
+          <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirmPass(!showConfirmPass)}>
+            <Feather name={showConfirmPass ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 4 }]}>दस्तावेज़ जानकारी</Text>
         <View style={[styles.docNote, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
           <Feather name="file-text" size={15} color={colors.primary} />
           <Text style={[styles.docNoteText, { color: colors.primary }]}>Aadhaar Card अनिवार्य • GST वैकल्पिक है</Text>
         </View>
-        <Input label="आधार कार्ड नंबर" placeholder="12 अंकों का आधार नंबर" value={form.aadhaarNumber} onChangeText={(v) => set('aadhaarNumber', v)} keyboardType="numeric" maxLength={14} error={errors.aadhaarNumber} icon="shield" required />
+        <Input label="आधार कार्ड नंबर" placeholder="12 अंकों का आधार नंबर" value={form.aadhaarNumber} onChangeText={(v) => { set('aadhaarNumber', v); clearError('aadhaarNumber'); }} keyboardType="numeric" maxLength={14} error={errors.aadhaarNumber} icon="shield" required />
         <Input label="GST नंबर (वैकल्पिक)" placeholder="GSTIN नंबर (यदि है)" value={form.gstNumber} onChangeText={(v) => set('gstNumber', v)} autoCapitalize="characters" icon="file" />
 
-        <Text style={[styles.sectionTitle, { color: colors.secondary }]}>पता</Text>
-        <Input label="पूरा पता" placeholder="गली, मोहल्ला, गांव" value={form.address} onChangeText={(v) => set('address', v)} error={errors.address} icon="map-pin" required multiline />
-        <Input label="शहर/जिला" placeholder="आपका शहर" value={form.city} onChangeText={(v) => set('city', v)} error={errors.city} icon="navigation" required />
+        <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 4 }]}>पता</Text>
+        <Input label="पूरा पता" placeholder="गली, मोहल्ला, गांव" value={form.address} onChangeText={(v) => { set('address', v); clearError('address'); }} error={errors.address} icon="map-pin" required multiline />
+        <Input label="शहर/जिला" placeholder="आपका शहर" value={form.city} onChangeText={(v) => { set('city', v); clearError('city'); }} error={errors.city} icon="navigation" required />
         <Input label="पिन कोड" placeholder="6 अंक" value={form.pincode} onChangeText={(v) => set('pincode', v)} keyboardType="numeric" maxLength={6} />
 
         <View style={[styles.legalBox, { borderColor: colors.destructive + '30', backgroundColor: colors.destructive + '08' }]}>
@@ -153,4 +183,5 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
   termsText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  eyeBtn: { position: 'absolute', right: 14, top: 38 },
 });

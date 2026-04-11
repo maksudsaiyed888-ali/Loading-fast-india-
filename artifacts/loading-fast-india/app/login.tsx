@@ -14,10 +14,12 @@ export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { drivers, vyaparis, login } = useApp();
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [adminPass, setAdminPass] = useState('');
   const [role, setRole] = useState<'driver' | 'vyapari' | 'admin'>('driver');
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -32,23 +34,32 @@ export default function LoginScreen() {
         return;
       }
 
-      if (!phone.trim() || phone.length < 10) {
-        Alert.alert('त्रुटि', 'कृपया सही फोन नंबर दर्ज करें');
+      const emailTrimmed = email.trim().toLowerCase();
+      if (!emailTrimmed.includes('@')) {
+        Alert.alert('त्रुटि', 'सही Gmail/Email दर्ज करें');
+        return;
+      }
+      if (!password.trim()) {
+        Alert.alert('त्रुटि', 'पासवर्ड दर्ज करें');
         return;
       }
 
       if (role === 'driver') {
-        const driver = drivers.find((d) => d.phone === phone.trim());
+        const driver = drivers.find(
+          (d) => d.email.toLowerCase() === emailTrimmed && d.password === password
+        );
         if (!driver) {
-          Alert.alert('नहीं मिला', 'इस फोन नंबर से कोई ड्राइवर पंजीकृत नहीं है');
+          Alert.alert('गलत जानकारी', 'Email या पासवर्ड गलत है');
           return;
         }
         await login({ id: driver.id, role: 'driver', name: driver.name, phone: driver.phone, email: driver.email });
         router.replace('/(driver)');
       } else {
-        const vyapari = vyaparis.find((v) => v.phone === phone.trim());
+        const vyapari = vyaparis.find(
+          (v) => v.email.toLowerCase() === emailTrimmed && v.password === password
+        );
         if (!vyapari) {
-          Alert.alert('नहीं मिला', 'इस फोन नंबर से कोई व्यापारी पंजीकृत नहीं है');
+          Alert.alert('गलत जानकारी', 'Email या पासवर्ड गलत है');
           return;
         }
         await login({ id: vyapari.id, role: 'vyapari', name: vyapari.name, phone: vyapari.phone, email: vyapari.email });
@@ -84,16 +95,38 @@ export default function LoginScreen() {
         </View>
 
         {role !== 'admin' ? (
-          <Input
-            label="फोन नंबर"
-            placeholder="10 अंकों का फोन नंबर"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            maxLength={10}
-            icon="phone"
-            required
-          />
+          <>
+            <Input
+              label="Gmail / Email"
+              placeholder="example@gmail.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              icon="mail"
+              required
+            />
+            <View style={{ position: 'relative' }}>
+              <Input
+                label="पासवर्ड"
+                placeholder="अपना पासवर्ड दर्ज करें"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPass}
+                icon="lock"
+                required
+              />
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPass(!showPass)}>
+                <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.rememberBox, { backgroundColor: colors.accent, borderColor: colors.border }]}>
+              <Feather name="check-circle" size={14} color={colors.primary} />
+              <Text style={[styles.rememberText, { color: colors.mutedForeground }]}>
+                लॉगिन हमेशा याद रहेगा — दोबारा login की जरूरत नहीं
+              </Text>
+            </View>
+          </>
         ) : (
           <Input
             label="Admin Password"
@@ -126,7 +159,10 @@ const styles = StyleSheet.create({
   sub: { fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 28 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1.5 },
-  tabText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  tabText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   registerLink: { marginTop: 16, alignItems: 'center' },
   registerText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  eyeBtn: { position: 'absolute', right: 14, top: 38 },
+  rememberBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16, marginTop: 4 },
+  rememberText: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_400Regular' },
 });

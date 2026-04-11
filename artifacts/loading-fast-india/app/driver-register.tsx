@@ -20,10 +20,12 @@ export default function DriverRegisterScreen() {
   const [step, setStep] = useState(1);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const [form, setForm] = useState({
-    name: '', phone: '', email: '',
-    aadhaarNumber: '', licenseNumber: '', licenseExpiry: '',
+    name: '', phone: '', email: '', password: '', confirmPassword: '',
+    aadhaarNumber: '', licenseNumber: '', licenseExpiry: '', rcBookNumber: '',
     address: '', city: '', state: 'राजस्थान', pincode: '',
     notificationRadius: '50',
   });
@@ -37,7 +39,9 @@ export default function DriverRegisterScreen() {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'नाम आवश्यक है';
     if (!form.phone || form.phone.length !== 10) e.phone = 'सही फोन नंबर दर्ज करें';
-    if (!form.email.includes('@')) e.email = 'सही ईमेल दर्ज करें';
+    if (!form.email.includes('@')) e.email = 'सही Gmail/Email दर्ज करें';
+    if (!form.password || form.password.length < 6) e.password = 'पासवर्ड कम से कम 6 अक्षर का होना चाहिए';
+    if (form.password !== form.confirmPassword) e.confirmPassword = 'पासवर्ड मेल नहीं खाता';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -48,6 +52,7 @@ export default function DriverRegisterScreen() {
       e.aadhaarNumber = 'आधार 12 अंकों का होना चाहिए';
     if (!form.licenseNumber.trim()) e.licenseNumber = 'लाइसेंस नंबर आवश्यक है';
     if (!form.licenseExpiry.trim()) e.licenseExpiry = 'लाइसेंस एक्सपायरी आवश्यक है';
+    if (!form.rcBookNumber.trim()) e.rcBookNumber = 'RC Book नंबर आवश्यक है';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -69,10 +74,12 @@ export default function DriverRegisterScreen() {
         id,
         name: form.name.trim(),
         phone: form.phone.trim(),
-        email: form.email.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
         aadhaarNumber: form.aadhaarNumber.trim(),
         licenseNumber: form.licenseNumber.trim(),
         licenseExpiry: form.licenseExpiry.trim(),
+        rcBookNumber: form.rcBookNumber.trim(),
         address: form.address.trim(),
         city: form.city.trim(),
         state: form.state,
@@ -84,7 +91,7 @@ export default function DriverRegisterScreen() {
         rating: 4.5,
       };
       await addDriver(driver);
-      await login({ id, role: 'driver', name: form.name, phone: form.phone, email: form.email });
+      await login({ id, role: 'driver', name: form.name, phone: form.phone, email: form.email.toLowerCase() });
       Alert.alert('रजिस्ट्रेशन सफल!', 'आपका ड्राइवर अकाउंट बन गया है।', [
         { text: 'आगे बढ़ें', onPress: () => router.replace('/(driver)') },
       ]);
@@ -119,14 +126,37 @@ export default function DriverRegisterScreen() {
             <Text style={[styles.sectionTitle, { color: colors.secondary }]}>व्यक्तिगत जानकारी</Text>
             <Input label="पूरा नाम" placeholder="आपका नाम" value={form.name} onChangeText={(v) => { set('name', v); clearError('name'); }} error={errors.name} icon="user" required />
             <Input label="मोबाइल नंबर" placeholder="10 अंक" value={form.phone} onChangeText={(v) => { set('phone', v); clearError('phone'); }} keyboardType="phone-pad" maxLength={10} error={errors.phone} icon="phone" required />
-            <Input label="Gmail / Email" placeholder="आपका email" value={form.email} onChangeText={(v) => { set('email', v); clearError('email'); }} keyboardType="email-address" autoCapitalize="none" error={errors.email} icon="mail" required />
+            <Input label="Gmail / Email" placeholder="example@gmail.com" value={form.email} onChangeText={(v) => { set('email', v); clearError('email'); }} keyboardType="email-address" autoCapitalize="none" error={errors.email} icon="mail" required />
+
+            <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 8 }]}>पासवर्ड बनाएं</Text>
+            <View style={{ position: 'relative' }}>
+              <Input
+                label="पासवर्ड" placeholder="कम से कम 6 अक्षर"
+                value={form.password} onChangeText={(v) => { set('password', v); clearError('password'); }}
+                secureTextEntry={!showPass} error={errors.password} icon="lock" required
+              />
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPass(!showPass)}>
+                <Feather name={showPass ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ position: 'relative' }}>
+              <Input
+                label="पासवर्ड confirm करें" placeholder="पासवर्ड दोबारा दर्ज करें"
+                value={form.confirmPassword} onChangeText={(v) => { set('confirmPassword', v); clearError('confirmPassword'); }}
+                secureTextEntry={!showConfirmPass} error={errors.confirmPassword} icon="lock" required
+              />
+              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirmPass(!showConfirmPass)}>
+                <Feather name={showConfirmPass ? 'eye-off' : 'eye'} size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 8 }]}>पता</Text>
             <Input label="पूरा पता" placeholder="गली, मोहल्ला, गांव" value={form.address} onChangeText={(v) => set('address', v)} multiline icon="map-pin" />
             <Input label="शहर/जिला" placeholder="आपका शहर" value={form.city} onChangeText={(v) => set('city', v)} icon="navigation" />
             <Input label="पिन कोड" placeholder="6 अंक" value={form.pincode} onChangeText={(v) => set('pincode', v)} keyboardType="numeric" maxLength={6} />
+
             <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 8 }]}>Notification Range</Text>
-            <Text style={[styles.rangeLabel, { color: colors.mutedForeground }]}>
-              ट्रिप notification कितनी दूर तक मिले? (किमी में)
-            </Text>
+            <Text style={[styles.rangeLabel, { color: colors.mutedForeground }]}>ट्रिप notification कितनी दूर तक मिले? (किमी में)</Text>
             <View style={styles.rangeButtons}>
               {['25', '50', '100', '200', '500'].map((r) => (
                 <TouchableOpacity
@@ -148,6 +178,7 @@ export default function DriverRegisterScreen() {
               <Text style={[styles.docNoteText, { color: colors.primary }]}>RC Book, Aadhaar Card और Driving License अनिवार्य है</Text>
             </View>
             <Input label="आधार कार्ड नंबर" placeholder="12 अंकों का आधार नंबर" value={form.aadhaarNumber} onChangeText={(v) => { set('aadhaarNumber', v); clearError('aadhaarNumber'); }} keyboardType="numeric" maxLength={14} error={errors.aadhaarNumber} icon="shield" required />
+            <Input label="RC Book नंबर" placeholder="जैसे: RJ14CA0001" value={form.rcBookNumber} onChangeText={(v) => { set('rcBookNumber', v); clearError('rcBookNumber'); }} autoCapitalize="characters" error={errors.rcBookNumber} icon="truck" required />
             <Input label="ड्राइविंग लाइसेंस नंबर" placeholder="जैसे: RJ14 20230000001" value={form.licenseNumber} onChangeText={(v) => { set('licenseNumber', v); clearError('licenseNumber'); }} autoCapitalize="characters" error={errors.licenseNumber} icon="credit-card" required />
             <Input label="लाइसेंस एक्सपायरी तारीख" placeholder="DD/MM/YYYY" value={form.licenseExpiry} onChangeText={(v) => { set('licenseExpiry', v); clearError('licenseExpiry'); }} error={errors.licenseExpiry} icon="calendar" required />
 
@@ -194,7 +225,7 @@ const styles = StyleSheet.create({
   rangeLabel: { fontSize: 13, fontFamily: 'Inter_400Regular', marginBottom: 10 },
   rangeButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   rangeBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5 },
-  rangeBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  rangeBtnText: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   docNote: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16, alignItems: 'flex-start' },
   docNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', lineHeight: 18 },
   privacyBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
@@ -202,4 +233,5 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
   termsText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  eyeBtn: { position: 'absolute', right: 14, top: 38 },
 });
