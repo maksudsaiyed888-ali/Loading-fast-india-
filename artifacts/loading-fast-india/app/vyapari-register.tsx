@@ -73,8 +73,12 @@ export default function VyapariRegisterScreen() {
       Alert.alert('रजिस्ट्रेशन सफल!', 'आपका व्यापारी अकाउंट बन गया है।', [
         { text: 'आगे बढ़ें', onPress: () => router.replace('/(vyapari)') },
       ]);
-    } catch {
-      Alert.alert('त्रुटि', 'रजिस्ट्रेशन में समस्या आई। दोबारा कोशिश करें।');
+    } catch (err: any) {
+      console.error('Vyapari register error:', err);
+      const msg = err?.code === 'permission-denied'
+        ? 'Firebase permission denied — Admin से Firebase rules update कराएं।'
+        : err?.message || 'रजिस्ट्रेशन में समस्या आई। Internet connection check करें।';
+      Alert.alert('त्रुटि', msg);
     } finally {
       setLoading(false);
     }
