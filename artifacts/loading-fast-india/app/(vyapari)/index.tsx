@@ -52,7 +52,8 @@ export default function VyapariHomeScreen() {
     if (!form.toCity.trim()) { Alert.alert('त्रुटि', 'कहाँ तक — शहर का नाम जरूरी है'); return; }
     if (!form.toState.trim()) { Alert.alert('त्रुटि', 'कहाँ तक — राज्य जरूरी है'); return; }
     if (!form.goodsCategory.trim()) { Alert.alert('त्रुटि', 'माल का प्रकार जरूरी है'); return; }
-    if (!form.weightTons.trim() || isNaN(Number(form.weightTons))) { Alert.alert('त्रुटि', 'वज़न (टन में) सही भरें'); return; }
+    if (!form.weightTons.trim() || isNaN(Number(form.weightTons)) || Number(form.weightTons) <= 0) { Alert.alert('त्रुटि', 'वज़न (टन में) 0 से अधिक सही संख्या डालें'); return; }
+    if (form.ratePerTon.trim() && (isNaN(Number(form.ratePerTon)) || Number(form.ratePerTon) < 0)) { Alert.alert('त्रुटि', 'रेट प्रति टन सही संख्या डालें'); return; }
     if (!form.tripDate.trim()) { Alert.alert('त्रुटि', 'तारीख जरूरी है'); return; }
 
     setPosting(true);

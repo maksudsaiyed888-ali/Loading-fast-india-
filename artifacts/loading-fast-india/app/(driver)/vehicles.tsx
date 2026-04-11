@@ -12,7 +12,7 @@ import { generateId } from '@/lib/utils';
 
 const WEIGHT_FILTERS = [
   { label: 'सभी',     min: 0,  max: Infinity },
-  { label: '≤5 टन',  min: 0,  max: 5 },
+  { label: '1-5 टन',  min: 0,  max: 5 },
   { label: '5-15 टन', min: 5, max: 15 },
   { label: '15-30 टन', min: 15, max: 30 },
   { label: '30+ टन',  min: 30, max: Infinity },
