@@ -12,3 +12,9 @@ id = "6qcRDZiXl659YVXtJ4YOr"
 uri = "file://artifacts/loading-fast-india/assets/images/adaptive-icon.png"
 type = "image"
 title = "loading fast india adaptive icon"
+
+[[generated]]
+id = "h2Is24qfcVh14G0pZ553-"
+uri = "file://artifacts/loading-fast-india/assets/images/splash.png"
+type = "image"
+title = "loading fast india splash screen"

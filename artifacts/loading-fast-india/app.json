@@ -9,13 +9,14 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
+      "image": "./assets/images/splash.png",
+      "resizeMode": "cover",
       "backgroundColor": "#0A2540"
     },
     "updates": {
       "fallbackToCacheTimeout": 0,
-      "checkAutomatically": "ON_LOAD"
+      "checkAutomatically": "ON_LOAD",
+      "enabled": true
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -23,9 +24,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.loadingfastindia.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Loading Fast India को GPS चाहिए ताकि ड्राइवर की location दिखाई दे",
-        "NSLocationAlwaysUsageDescription": "Loading Fast India को GPS चाहिए ताकि ट्रिप tracking हो सके"
+        "NSLocationAlwaysUsageDescription": "Loading Fast India को GPS चाहिए ताकि ट्रिप tracking हो सके",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Loading Fast India को GPS चाहिए ताकि नज़दीकी ट्रिप की notification मिले।"
       }
     },
     "android": {
@@ -34,15 +37,34 @@
         "backgroundColor": "#0A2540"
       },
       "package": "com.loadingfastindia.app",
+      "versionCode": 1,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "minSdkVersion": 24,
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.INTERNET",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.WAKE_LOCK",
-        "android.permission.FOREGROUND_SERVICE"
+        "android.permission.WAKE_LOCK"
       ],
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "loadingfastindia.com"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -66,6 +88,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "loading-fast-india"
+      }
     }
   }
 }
