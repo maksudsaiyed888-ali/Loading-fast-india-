@@ -14,6 +14,8 @@ interface Props {
   againstName?: string;
   againstRole?: 'driver' | 'vyapari';
   tripId?: string;
+  bookingId?: string;
+  hasGST?: boolean;
 }
 
 const COMPLAINT_TYPES = [
@@ -91,7 +93,7 @@ const COMPLAINT_TYPES = [
   },
 ];
 
-export default function ComplaintModal({ visible, onClose, againstId, againstName, againstRole, tripId }: Props) {
+export default function ComplaintModal({ visible, onClose, againstId, againstName, againstRole, tripId, bookingId, hasGST }: Props) {
   const colors = useColors();
   const { user, addComplaint } = useApp();
   const [selectedType, setSelectedType] = useState('');
@@ -100,6 +102,7 @@ export default function ComplaintModal({ visible, onClose, againstId, againstNam
   const [agreed, setAgreed] = useState(false);
 
   const selectedTypeObj = COMPLAINT_TYPES.find(c => c.id === selectedType);
+  const merchantVerifiedBy: 'GST & Aadhaar' | 'Aadhaar Only' = hasGST ? 'GST & Aadhaar' : 'Aadhaar Only';
 
   const handleSubmit = async () => {
     if (!selectedType) {
@@ -126,14 +129,16 @@ export default function ComplaintModal({ visible, onClose, againstId, againstNam
         againstName: againstName || '',
         againstRole: againstRole || 'driver',
         tripId,
+        bookingId: bookingId || tripId,
         subject: `${selectedTypeObj?.label} (${selectedTypeObj?.sections})`,
         description: description.trim(),
+        merchantVerifiedBy,
         status: 'pending',
         createdAt: new Date().toISOString(),
       });
       Alert.alert(
         '✅ शिकायत दर्ज हुई',
-        `आपकी शिकायत दर्ज हो गई है।\n\nधारा: ${selectedTypeObj?.sections}\n\nAdmin 24 घंटे में कार्यवाही करेगा। Aadhaar-linked record की जाँच की जाएगी।`,
+        `आपकी शिकायत दर्ज हो गई है।\n\nधारा: ${selectedTypeObj?.sections}\n\nसत्यापन: ${merchantVerifiedBy}\n\nAdmin 24 घंटे में कार्यवाही करेगा। ${hasGST ? 'GST और Aadhaar' : 'Aadhaar'}-linked record से जाँच की जाएगी।`,
         [{ text: 'ठीक है', onPress: () => { onClose(); setSelectedType(''); setDescription(''); setAgreed(false); } }]
       );
     } finally {
@@ -156,11 +161,29 @@ export default function ComplaintModal({ visible, onClose, againstId, againstNam
           </View>
 
           {againstName && (
-            <View style={[styles.againstBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-              <Feather name="user" size={14} color="#dc2626" />
-              <Text style={[styles.againstText, { color: '#dc2626' }]}>
-                {againstName} ({againstRole === 'driver' ? 'ड्राइवर' : 'व्यापारी'}) के खिलाफ शिकायत
-              </Text>
+            <View style={styles.againstArea}>
+              <View style={[styles.againstBox, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+                <Feather name="user" size={14} color="#dc2626" />
+                <Text style={[styles.againstText, { color: '#dc2626' }]}>
+                  {againstName} ({againstRole === 'driver' ? 'ड्राइवर' : 'व्यापारी'}) के खिलाफ शिकायत
+                </Text>
+              </View>
+              <View style={styles.badgeRow}>
+                <View style={[styles.verifyBadge, { backgroundColor: hasGST ? '#dcfce7' : '#fef9c3', borderColor: hasGST ? '#16a34a' : '#ca8a04' }]}>
+                  <Feather name="shield" size={11} color={hasGST ? '#16a34a' : '#ca8a04'} />
+                  <Text style={[styles.verifyBadgeText, { color: hasGST ? '#16a34a' : '#92400e' }]}>
+                    {hasGST ? '✓ GST & Aadhaar Verified' : '✓ Aadhaar Verified'}
+                  </Text>
+                </View>
+                {(bookingId || tripId) && (
+                  <View style={[styles.bookingBadge, { backgroundColor: '#eff6ff', borderColor: '#93c5fd' }]}>
+                    <Feather name="hash" size={11} color="#2563eb" />
+                    <Text style={[styles.bookingBadgeText, { color: '#1d4ed8' }]}>
+                      Booking: #{(bookingId || tripId || '').slice(-8).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
           )}
 
@@ -246,13 +269,19 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
   headerSub: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
   closeBtn: { padding: 4 },
-  againstBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 20, marginTop: 12, padding: 10, borderRadius: 8, borderWidth: 1 },
+  againstArea: { marginHorizontal: 20, marginTop: 12, gap: 8 },
+  againstBox: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, borderWidth: 1 },
   againstText: { fontSize: 13, fontFamily: 'Inter_500Medium', flex: 1 },
+  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  verifyBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+  verifyBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
+  bookingBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1 },
+  bookingBadgeText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
   body: { padding: 20 },
   sectionLabel: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 10 },
   complaintOption: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, marginBottom: 8 },
   optionIcon: { fontSize: 22 },
-  optionLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  optionLabel: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   optionSection: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
   ipcBox: { borderRadius: 10, padding: 12, borderWidth: 1, marginBottom: 14 },
   ipcTitle: { fontSize: 12, fontFamily: 'Inter_700Bold', color: '#dc2626', marginBottom: 4 },

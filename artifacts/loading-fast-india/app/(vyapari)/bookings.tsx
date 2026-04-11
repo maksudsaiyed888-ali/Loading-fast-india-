@@ -135,6 +135,8 @@ export default function BookingsScreen() {
         againstName={selectedTrip?.driverName}
         againstRole="driver"
         tripId={selectedTrip?.id}
+        bookingId={selectedTrip?.id}
+        hasGST={false}
       />
     </View>
   );

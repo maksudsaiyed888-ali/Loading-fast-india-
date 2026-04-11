@@ -115,8 +115,10 @@ export interface Complaint {
   againstName: string;
   againstRole: UserRole;
   tripId?: string;
+  bookingId?: string;
   subject: string;
   description: string;
+  merchantVerifiedBy?: 'GST & Aadhaar' | 'Aadhaar Only';
   status: 'pending' | 'resolved' | 'escalated';
   createdAt: string;
 }

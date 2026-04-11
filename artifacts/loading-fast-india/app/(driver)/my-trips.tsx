@@ -26,11 +26,12 @@ export default function MyTripsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, getDriverTrips, bilties, refreshAll, updateTrip, hasRated } = useApp();
+  const { user, getDriverTrips, bilties, refreshAll, updateTrip, hasRated, vyaparis } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
+  const [complainTrip, setComplainTrip] = useState<Trip | null>(null);
   const [showChatbot, setShowChatbot] = useState(false);
   const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
 
@@ -205,7 +206,7 @@ export default function MyTripsScreen() {
                   </TouchableOpacity>
                 )}
                 {trip.confirmedBy && (
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.warning + '15', borderColor: colors.warning }]} onPress={() => setShowComplaint(true)}>
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.warning + '15', borderColor: colors.warning }]} onPress={() => { setComplainTrip(trip); setShowComplaint(true); }}>
                     <Feather name="alert-triangle" size={14} color={colors.warning} />
                     <Text style={[styles.actionBtnText, { color: colors.warning }]}>शिकायत</Text>
                   </TouchableOpacity>
@@ -307,9 +308,13 @@ export default function MyTripsScreen() {
       <BiltyModal bilty={selectedBilty} visible={!!selectedBilty} onClose={() => setSelectedBilty(null)} />
       <ComplaintModal
         visible={showComplaint}
-        onClose={() => setShowComplaint(false)}
+        onClose={() => { setShowComplaint(false); setComplainTrip(null); }}
+        againstId={complainTrip?.confirmedBy}
+        againstName={complainTrip?.confirmedByName || 'व्यापारी'}
         againstRole="vyapari"
-        againstName="व्यापारी"
+        tripId={complainTrip?.id}
+        bookingId={complainTrip?.id}
+        hasGST={!!vyaparis.find(v => v.id === complainTrip?.confirmedBy)?.gstNumber}
       />
     </View>
   );
