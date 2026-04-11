@@ -256,6 +256,16 @@ export const GOODS_CATEGORIES: GoodsCategory[] = [
   },
 ];
 
+export interface ChatMessage {
+  id: string;
+  tripId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'driver' | 'vyapari';
+  text: string;
+  timestamp: string;
+}
+
 export const COMMISSION_PERCENT = 2;
 export const COMMISSION_UPI = 'hemaksudsaiyed888@oksbi';
 export const APP_NAME = 'Loading Fast India';

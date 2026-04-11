@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,15 +9,18 @@ import { useColors } from '@/hooks/useColors';
 import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
 import ComplaintModal from '@/components/ComplaintModal';
+import ChatbotModal from '@/components/ChatbotModal';
 import { Bilty, Trip } from '@/lib/types';
 
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, getVyapariBookings, bilties, refreshAll } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
 
   const myBookings = user ? getVyapariBookings(user.id) : [];
@@ -59,6 +63,23 @@ export default function BookingsScreen() {
                   <Feather name="file-text" size={14} color={colors.success} />
                   <Text style={[styles.actionBtnText, { color: colors.success }]}>ई-बिलटी</Text>
                 </TouchableOpacity>
+                {trip.commissionPaid ? (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#0ea5e9' + '15', borderColor: '#0ea5e9' }]}
+                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
+                  >
+                    <Feather name="message-circle" size={14} color="#0ea5e9" />
+                    <Text style={[styles.actionBtnText, { color: '#0ea5e9' }]}>ड्राइवर से चैट</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#94a3b8' + '15', borderColor: '#94a3b8' }]}
+                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
+                  >
+                    <Feather name="lock" size={14} color="#94a3b8" />
+                    <Text style={[styles.actionBtnText, { color: '#94a3b8' }]}>चैट 🔒</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
                   onPress={() => { setSelectedTrip(trip); setShowComplaint(true); }}
@@ -72,6 +93,14 @@ export default function BookingsScreen() {
         )}
       </ScrollView>
 
+      <TouchableOpacity
+        style={[styles.chatbotFab, { backgroundColor: '#E07B39' }]}
+        onPress={() => setShowChatbot(true)}
+        activeOpacity={0.85}
+      >
+        <Feather name="help-circle" size={24} color="#fff" />
+      </TouchableOpacity>
+      <ChatbotModal visible={showChatbot} onClose={() => setShowChatbot(false)} />
       <BiltyModal bilty={selectedBilty} visible={!!selectedBilty} onClose={() => setSelectedBilty(null)} />
       <ComplaintModal
         visible={showComplaint}
@@ -94,7 +123,8 @@ const styles = StyleSheet.create({
   empty: { borderRadius: 16, padding: 40, alignItems: 'center', gap: 8, borderWidth: 1, marginTop: 20 },
   emptyTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
   emptySub: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  tripActions: { flexDirection: 'row', gap: 10, marginTop: -4, marginBottom: 12 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1.5 },
-  actionBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  tripActions: { flexDirection: 'row', gap: 8, marginTop: -4, marginBottom: 12, flexWrap: 'wrap' },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
+  actionBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  chatbotFab: { position: 'absolute', bottom: 88, right: 20, width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
 });

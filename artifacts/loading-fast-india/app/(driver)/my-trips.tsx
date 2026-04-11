@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +9,7 @@ import { useColors } from '@/hooks/useColors';
 import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
 import ComplaintModal from '@/components/ComplaintModal';
+import ChatbotModal from '@/components/ChatbotModal';
 import { Bilty, Trip } from '@/lib/types';
 
 type Filter = 'all' | 'available' | 'confirmed' | 'completed';
@@ -22,11 +24,13 @@ const TRIP_STATUS_OPTIONS: { key: TripStatus; label: string; icon: string; color
 export default function MyTripsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { user, getDriverTrips, bilties, refreshAll, updateTrip } = useApp();
   const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   const [statusModal, setStatusModal] = useState(false);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -166,6 +170,24 @@ export default function MyTripsScreen() {
                     <Text style={[styles.actionBtnText, { color: colors.destructive }]}>रद्द करें</Text>
                   </TouchableOpacity>
                 )}
+                {trip.status === 'confirmed' && trip.commissionPaid && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#0ea5e9' + '15', borderColor: '#0ea5e9' }]}
+                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
+                  >
+                    <Feather name="message-circle" size={14} color="#0ea5e9" />
+                    <Text style={[styles.actionBtnText, { color: '#0ea5e9' }]}>चैट</Text>
+                  </TouchableOpacity>
+                )}
+                {trip.status === 'confirmed' && !trip.commissionPaid && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#94a3b8' + '15', borderColor: '#94a3b8' }]}
+                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
+                  >
+                    <Feather name="lock" size={14} color="#94a3b8" />
+                    <Text style={[styles.actionBtnText, { color: '#94a3b8' }]}>चैट 🔒</Text>
+                  </TouchableOpacity>
+                )}
                 {trip.confirmedBy && (
                   <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.warning + '15', borderColor: colors.warning }]} onPress={() => setShowComplaint(true)}>
                     <Feather name="alert-triangle" size={14} color={colors.warning} />
@@ -177,6 +199,15 @@ export default function MyTripsScreen() {
           ))
         )}
       </ScrollView>
+
+      <TouchableOpacity
+        style={[styles.chatbotFab, { backgroundColor: '#E07B39' }]}
+        onPress={() => setShowChatbot(true)}
+        activeOpacity={0.85}
+      >
+        <Feather name="help-circle" size={24} color="#fff" />
+      </TouchableOpacity>
+      <ChatbotModal visible={showChatbot} onClose={() => setShowChatbot(false)} />
 
       <Modal visible={statusModal} transparent animationType="slide" onRequestClose={() => setStatusModal(false)}>
         <View style={styles.overlay}>
@@ -281,6 +312,7 @@ const styles = StyleSheet.create({
   statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
   statusTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   statusBody: { padding: 20 },
+  chatbotFab: { position: 'absolute', bottom: 88, right: 20, width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
   tripInfo: { borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1 },
   tripInfoRoute: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   tripInfoSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },

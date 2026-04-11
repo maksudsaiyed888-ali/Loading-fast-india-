@@ -9,6 +9,7 @@ const KEYS = {
   TRIPS: 'lfi_trips',
   BILTIES: 'lfi_bilties',
   COMPLAINTS: 'lfi_complaints',
+  CHAT_MESSAGES: 'lfi_chat_messages',
 };
 
 export async function getData<T>(key: string): Promise<T | null> {

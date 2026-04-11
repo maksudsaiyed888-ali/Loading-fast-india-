@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage } from '@/lib/types';
 import { KEYS, addToList, getList, updateInList } from '@/lib/storage';
 
 interface AppUser {
@@ -20,6 +20,7 @@ interface AppContextType {
   trips: Trip[];
   bilties: Bilty[];
   complaints: Complaint[];
+  chatMessages: ChatMessage[];
   login: (user: AppUser) => Promise<void>;
   logout: () => Promise<void>;
   refreshAll: () => Promise<void>;
@@ -30,6 +31,8 @@ interface AppContextType {
   updateTrip: (id: string, updates: Partial<Trip>) => Promise<void>;
   addBilty: (b: Bilty) => Promise<void>;
   addComplaint: (c: Complaint) => Promise<void>;
+  sendChatMessage: (msg: ChatMessage) => Promise<void>;
+  getTripMessages: (tripId: string) => ChatMessage[];
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -49,15 +52,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [bilties, setBilties] = useState<Bilty[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const refreshAll = useCallback(async () => {
-    const [d, v, ve, t, b, c] = await Promise.all([
+    const [d, v, ve, t, b, c, cm] = await Promise.all([
       getList<Driver>(KEYS.DRIVERS),
       getList<Vyapari>(KEYS.VYAPARIS),
       getList<Vehicle>(KEYS.VEHICLES),
       getList<Trip>(KEYS.TRIPS),
       getList<Bilty>(KEYS.BILTIES),
       getList<Complaint>(KEYS.COMPLAINTS),
+      getList<ChatMessage>(KEYS.CHAT_MESSAGES),
     ]);
     setDrivers(d);
     setVyaparis(v);
@@ -65,6 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTrips(t);
     setBilties(b);
     setComplaints(c);
+    setChatMessages(cm);
   }, []);
 
   useEffect(() => {
@@ -122,6 +128,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setComplaints((prev) => [...prev, c]);
   };
 
+  const sendChatMessage = async (msg: ChatMessage) => {
+    await addToList(KEYS.CHAT_MESSAGES, msg);
+    setChatMessages((prev) => [...prev, msg]);
+  };
+
+  const getTripMessages = (tripId: string) =>
+    chatMessages.filter((m) => m.tripId === tripId).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
   const getDriverVehicles = (driverId: string) => vehicles.filter((v) => v.driverId === driverId);
   const getDriverTrips = (driverId: string) => trips.filter((t) => t.driverId === driverId);
   const getVyapariBookings = (vyapariId: string) => trips.filter((t) => t.confirmedBy === vyapariId);
@@ -133,9 +147,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        user, isLoading, drivers, vyaparis, vehicles, trips, bilties, complaints,
+        user, isLoading, drivers, vyaparis, vehicles, trips, bilties, complaints, chatMessages,
         login, logout, refreshAll,
         addDriver, addVyapari, addVehicle, addTrip, updateTrip, addBilty, addComplaint,
+        sendChatMessage, getTripMessages,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         currentDriver, currentVyapari,
       }}
