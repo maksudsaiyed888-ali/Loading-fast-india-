@@ -122,24 +122,59 @@ export interface Complaint {
 }
 
 export const VEHICLE_TYPES = [
-  { id: 'tractor-trolley', name: 'ट्रैक्टर-ट्रॉली', nameEn: 'Tractor Trolley', maxLoad: 10 },
-  { id: 'mini-truck', name: 'मिनी ट्रक (छोटा हाथी)', nameEn: 'Mini Truck', maxLoad: 3 },
-  { id: 'pickup', name: 'पिकअप', nameEn: 'Pickup', maxLoad: 1 },
-  { id: 'truck-14', name: 'ट्रक 14 फिट', nameEn: 'Truck 14ft', maxLoad: 8 },
-  { id: 'truck-17', name: 'ट्रक 17 फिट', nameEn: 'Truck 17ft', maxLoad: 12 },
-  { id: 'truck-lorry', name: 'ट्रक / लॉरी', nameEn: 'Truck/Lorry', maxLoad: 25 },
-  { id: 'trailer', name: 'ट्रेलर', nameEn: 'Trailer', maxLoad: 40 },
-  { id: 'tipper', name: 'टिपर', nameEn: 'Tipper', maxLoad: 20 },
-  { id: 'container-20', name: 'कंटेनर 20 फिट', nameEn: 'Container 20ft', maxLoad: 18 },
-  { id: 'container-40', name: 'कंटेनर 40 फिट', nameEn: 'Container 40ft', maxLoad: 30 },
-  { id: 'tanker', name: 'टैंकर', nameEn: 'Tanker', maxLoad: 25 },
-  { id: 'flatbed', name: 'फ्लैटबेड', nameEn: 'Flatbed', maxLoad: 20 },
-  { id: 'crane-truck', name: 'क्रेन ट्रक', nameEn: 'Crane Truck', maxLoad: 15 },
-  { id: 'refrigerated', name: 'रेफ्रिजेरेटेड ट्रक', nameEn: 'Refrigerated Truck', maxLoad: 15 },
-  { id: 'tempo', name: 'टेम्पो', nameEn: 'Tempo', maxLoad: 2 },
-  { id: 'auto-goods', name: 'ऑटो (माल गाड़ी)', nameEn: 'Auto Goods', maxLoad: 0.5 },
-  { id: 'bullock-cart', name: 'बैलगाड़ी', nameEn: 'Bullock Cart', maxLoad: 2 },
-  { id: 'camel-cart', name: 'ऊंटगाड़ी', nameEn: 'Camel Cart', maxLoad: 1.5 },
+  // ─── 3-चक्का (3 Wheelers) ───
+  { id: 'riksha-3w',       name: '3-चक्का रिक्शा (माल)',    nameEn: 'Goods Rickshaw 3W',      maxLoad: 0.3,  wheels: 3,  category: '3-चक्का' },
+  { id: 'auto-goods',      name: '3-चक्का ऑटो (माल)',       nameEn: 'Auto Goods 3W',          maxLoad: 0.5,  wheels: 3,  category: '3-चक्का' },
+  { id: 'tempo-vikram',    name: '3-चक्का टेम्पो/विक्रम',   nameEn: 'Tempo Vikram 3W',        maxLoad: 1.5,  wheels: 3,  category: '3-चक्का' },
+
+  // ─── 4-चक्का (4 Wheelers) ───
+  { id: 'pickup',          name: 'पिकअप (4-चक्का)',          nameEn: 'Pickup 4W',              maxLoad: 1,    wheels: 4,  category: '4-चक्का' },
+  { id: 'mini-truck',      name: 'मिनी ट्रक छोटा हाथी (4W)', nameEn: 'Mini Truck 4W',          maxLoad: 3,    wheels: 4,  category: '4-चक्का' },
+  { id: 'tractor-trolley', name: 'ट्रैक्टर-ट्रॉली (4-चक्का)', nameEn: 'Tractor Trolley 4W',   maxLoad: 10,   wheels: 4,  category: '4-चक्का' },
+
+  // ─── 6-चक्का (6 Wheelers / 2-Axle) ───
+  { id: 'truck-6w',        name: '6-चक्का ट्रक (2 Axle)',    nameEn: 'Truck 6W 2-Axle',       maxLoad: 9,    wheels: 6,  category: '6-चक्का' },
+  { id: 'truck-14',        name: 'ट्रक 14 फिट (6-चक्का)',    nameEn: 'Truck 14ft 6W',         maxLoad: 8,    wheels: 6,  category: '6-चक्का' },
+  { id: 'truck-17',        name: 'ट्रक 17 फिट (6-चक्का)',    nameEn: 'Truck 17ft 6W',         maxLoad: 12,   wheels: 6,  category: '6-चक्का' },
+  { id: 'tipper-6w',       name: 'टिपर (6-चक्का)',           nameEn: 'Tipper 6W',             maxLoad: 9,    wheels: 6,  category: '6-चक्का' },
+  { id: 'flatbed-6w',      name: 'फ्लैटबेड (6-चक्का)',       nameEn: 'Flatbed 6W',            maxLoad: 10,   wheels: 6,  category: '6-चक्का' },
+  { id: 'tanker-6w',       name: 'टैंकर (6-चक्का)',          nameEn: 'Tanker 6W',             maxLoad: 10,   wheels: 6,  category: '6-चक्का' },
+  { id: 'refrigerated',    name: 'रेफ्रिजेरेटेड ट्रक (6W)',  nameEn: 'Refrigerated Truck 6W', maxLoad: 8,    wheels: 6,  category: '6-चक्का' },
+
+  // ─── 10-चक्का (10 Wheelers / 3-Axle) ───
+  { id: 'truck-10w',       name: '10-चक्का ट्रक (3 Axle)',   nameEn: 'Truck 10W 3-Axle',      maxLoad: 16,   wheels: 10, category: '10-चक्का' },
+  { id: 'tipper-10w',      name: 'टिपर (10-चक्का)',          nameEn: 'Tipper 10W',            maxLoad: 18,   wheels: 10, category: '10-चक्का' },
+  { id: 'tanker-10w',      name: 'टैंकर (10-चक्का)',         nameEn: 'Tanker 10W',            maxLoad: 18,   wheels: 10, category: '10-चक्का' },
+  { id: 'container-20',    name: 'कंटेनर 20 फिट (10W)',      nameEn: 'Container 20ft 10W',    maxLoad: 18,   wheels: 10, category: '10-चक्का' },
+
+  // ─── 12-चक्का (12 Wheelers / 4-Axle) ───
+  { id: 'truck-12w',       name: '12-चक्का ट्रक (4 Axle)',   nameEn: 'Truck 12W 4-Axle',      maxLoad: 22,   wheels: 12, category: '12-चक्का' },
+  { id: 'tipper-12w',      name: 'टिपर (12-चक्का)',          nameEn: 'Tipper 12W',            maxLoad: 20,   wheels: 12, category: '12-चक्का' },
+  { id: 'tanker-12w',      name: 'टैंकर (12-चक्का)',         nameEn: 'Tanker 12W',            maxLoad: 20,   wheels: 12, category: '12-चक्का' },
+
+  // ─── 14-चक्का (14 Wheelers / 5-Axle) ───
+  { id: 'truck-14w',       name: '14-चक्का ट्रक (5 Axle)',   nameEn: 'Truck 14W 5-Axle',      maxLoad: 28,   wheels: 14, category: '14-चक्का' },
+  { id: 'tipper-14w',      name: 'टिपर (14-चक्का)',          nameEn: 'Tipper 14W',            maxLoad: 26,   wheels: 14, category: '14-चक्का' },
+
+  // ─── 16-चक्का (16 Wheelers / 6-Axle) ───
+  { id: 'truck-16w',       name: '16-चक्का ट्रक (6 Axle)',   nameEn: 'Truck 16W 6-Axle',      maxLoad: 35,   wheels: 16, category: '16-चक्का' },
+  { id: 'trailer-16w',     name: '16-चक्का ट्रेलर',          nameEn: 'Trailer 16W',           maxLoad: 32,   wheels: 16, category: '16-चक्का' },
+
+  // ─── 18-चक्का (18 Wheelers / Semi-Truck) ───
+  { id: 'trailer-18w',     name: '18-चक्का ट्रेलर (Semi)',   nameEn: 'Trailer 18W Semi-Truck', maxLoad: 40,  wheels: 18, category: '18-चक्का' },
+  { id: 'container-40',    name: 'कंटेनर 40 फिट (18W)',      nameEn: 'Container 40ft 18W',    maxLoad: 30,   wheels: 18, category: '18-चक्का' },
+  { id: 'tanker-18w',      name: 'टैंकर (18-चक्का)',         nameEn: 'Tanker 18W',            maxLoad: 35,   wheels: 18, category: '18-चक्का' },
+
+  // ─── 20-चक्का (20 Wheelers / MAV) ───
+  { id: 'mav-20w',         name: '20-चक्का MAV',             nameEn: 'MAV 20 Wheeler',        maxLoad: 45,   wheels: 20, category: '20-चक्का' },
+
+  // ─── 22-चक्का (22 Wheelers / Heavy MAV) ───
+  { id: 'mav-22w',         name: '22-चक्का MAV (भारी)',      nameEn: 'Heavy MAV 22W',         maxLoad: 50,   wheels: 22, category: '22-चक्का' },
+
+  // ─── विशेष वाहन (Special) ───
+  { id: 'crane-truck',     name: 'क्रेन ट्रक',               nameEn: 'Crane Truck',           maxLoad: 15,   wheels: 6,  category: 'विशेष' },
+  { id: 'bullock-cart',    name: 'बैलगाड़ी',                  nameEn: 'Bullock Cart',          maxLoad: 2,    wheels: 4,  category: 'विशेष' },
+  { id: 'camel-cart',      name: 'ऊंटगाड़ी',                  nameEn: 'Camel Cart',            maxLoad: 1.5,  wheels: 4,  category: 'विशेष' },
 ];
 
 export const INDIA_STATES = [

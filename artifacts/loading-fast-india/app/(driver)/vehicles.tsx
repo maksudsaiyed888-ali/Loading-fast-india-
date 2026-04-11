@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
@@ -10,13 +10,30 @@ import Input from '@/components/ui/Input';
 import { VEHICLE_TYPES } from '@/lib/types';
 import { generateId } from '@/lib/utils';
 
+const WHEEL_CATEGORIES = [
+  { label: '3-चक्का', icon: '🛺' },
+  { label: '4-चक्का', icon: '🚗' },
+  { label: '6-चक्का', icon: '🚛' },
+  { label: '10-चक्का', icon: '🚚' },
+  { label: '12-चक्का', icon: '🚚' },
+  { label: '14-चक्का', icon: '🚛' },
+  { label: '16-चक्का', icon: '🚛' },
+  { label: '18-चक्का', icon: '🚛' },
+  { label: '20-चक्का', icon: '🏗️' },
+  { label: '22-चक्का', icon: '🏗️' },
+  { label: 'विशेष', icon: '⭐' },
+];
+
+const DEFAULT_TYPE = VEHICLE_TYPES.find((v) => v.id === 'truck-6w') ?? VEHICLE_TYPES[6];
+
 export default function VehiclesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, getDriverVehicles, addVehicle } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedType, setSelectedType] = useState(VEHICLE_TYPES[4]);
+  const [selectedType, setSelectedType] = useState(DEFAULT_TYPE);
+  const [activeCategory, setActiveCategory] = useState('6-चक्का');
 
   const [form, setForm] = useState({
     vehicleNumber: '', model: '', year: '', rcNumber: '', rcExpiry: '', insuranceExpiry: '',
@@ -24,6 +41,11 @@ export default function VehiclesScreen() {
 
   const myVehicles = user ? getDriverVehicles(user.id) : [];
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  const filteredTypes = useMemo(
+    () => VEHICLE_TYPES.filter((v) => (v as { category?: string }).category === activeCategory),
+    [activeCategory]
+  );
 
   const handleAdd = async () => {
     if (!form.vehicleNumber.trim()) { Alert.alert('त्रुटि', 'गाड़ी नंबर जरूरी है'); return; }
@@ -47,7 +69,8 @@ export default function VehiclesScreen() {
         createdAt: new Date().toISOString(),
       });
       setForm({ vehicleNumber: '', model: '', year: '', rcNumber: '', rcExpiry: '', insuranceExpiry: '' });
-      setSelectedType(VEHICLE_TYPES[4]);
+      setSelectedType(DEFAULT_TYPE);
+      setActiveCategory('6-चक्का');
       Alert.alert(
         '✅ गाड़ी जोड़ी गई!',
         `${form.vehicleNumber.trim().toUpperCase()} सफलतापूर्वक रजिस्टर हो गई।\n\nक्या आप एक और गाड़ी जोड़ना चाहते हैं?`,
@@ -62,12 +85,13 @@ export default function VehiclesScreen() {
   };
 
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
+  const vt = selectedType as { wheels?: number; category?: string } & typeof selectedType;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient colors={[colors.navy, '#1a4a7a']} style={[styles.header, { paddingTop: top }]}>
         <Text style={styles.title}>मेरी गाड़ियां</Text>
-        <Text style={styles.sub}>{myVehicles.length} गाड़ियां रजिस्टर्ड</Text>
+        <Text style={styles.sub}>{myVehicles.length} गाड़ियां • 3-चक्का से 22-चक्का तक सभी वाहन</Text>
       </LinearGradient>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.body, { paddingBottom: 100 }]}>
@@ -80,7 +104,7 @@ export default function VehiclesScreen() {
           <Feather name="plus-circle" size={20} color={colors.primary} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.addMoreTitle, { color: colors.primary }]}>नई गाड़ी जोड़ें</Text>
-            <Text style={[styles.addMoreSub, { color: colors.mutedForeground }]}>एक ID से unlimited गाड़ियां रजिस्टर करें</Text>
+            <Text style={[styles.addMoreSub, { color: colors.mutedForeground }]}>एक ID से unlimited गाड़ियां — 3W से 22W तक</Text>
           </View>
           <Feather name="chevron-right" size={18} color={colors.primary} />
         </TouchableOpacity>
@@ -133,26 +157,80 @@ export default function VehiclesScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.sheetBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={[styles.sectionLabel, { color: colors.foreground }]}>गाड़ी का प्रकार चुनें *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typesScroll}>
-                {VEHICLE_TYPES.map((vt) => (
-                  <TouchableOpacity
-                    key={vt.id}
-                    style={[styles.typeChip, {
-                      backgroundColor: selectedType.id === vt.id ? colors.primary : colors.card,
-                      borderColor: selectedType.id === vt.id ? colors.primary : colors.border,
-                    }]}
-                    onPress={() => setSelectedType(vt)}
-                  >
-                    <Text style={[styles.typeChipText, { color: selectedType.id === vt.id ? '#fff' : colors.foreground }]}>
-                      {vt.name}
-                    </Text>
-                    <Text style={[styles.typeLoad, { color: selectedType.id === vt.id ? 'rgba(255,255,255,0.7)' : colors.mutedForeground }]}>
-                      {vt.maxLoad} टन
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+
+              <Text style={[styles.sectionLabel, { color: colors.secondary }]}>चक्के के अनुसार चुनें</Text>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                {WHEEL_CATEGORIES.map((cat) => {
+                  const isActive = activeCategory === cat.label;
+                  return (
+                    <TouchableOpacity
+                      key={cat.label}
+                      style={[styles.categoryTab, {
+                        backgroundColor: isActive ? colors.navy : colors.card,
+                        borderColor: isActive ? colors.navy : colors.border,
+                      }]}
+                      onPress={() => {
+                        setActiveCategory(cat.label);
+                        const first = VEHICLE_TYPES.find((v) => (v as { category?: string }).category === cat.label);
+                        if (first) setSelectedType(first);
+                      }}
+                    >
+                      <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                      <Text style={[styles.categoryLabel, { color: isActive ? '#fff' : colors.foreground }]}>{cat.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
+
+              <View style={[styles.selectedInfo, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}>
+                <Text style={{ fontSize: 20 }}>
+                  {activeCategory === '3-चक्का' ? '🛺' : activeCategory === '4-चक्का' ? '🚗' : activeCategory === 'विशेष' ? '⭐' : '🚛'}
+                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.selectedName, { color: colors.foreground }]}>{selectedType.name}</Text>
+                  <Text style={[styles.selectedMeta, { color: colors.mutedForeground }]}>
+                    {vt.wheels ? `${vt.wheels} चक्के • ` : ''}{selectedType.maxLoad} टन क्षमता
+                  </Text>
+                </View>
+                <View style={[styles.wheelBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.wheelBadgeText}>{vt.wheels ?? '—'}W</Text>
+                </View>
+              </View>
+
+              <View style={styles.vehicleGrid}>
+                {filteredTypes.map((vt2) => {
+                  const isSelected = selectedType.id === vt2.id;
+                  return (
+                    <TouchableOpacity
+                      key={vt2.id}
+                      style={[styles.vehicleGridItem, {
+                        backgroundColor: isSelected ? colors.primary : colors.card,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                        borderWidth: isSelected ? 2 : 1,
+                      }]}
+                      onPress={() => setSelectedType(vt2)}
+                    >
+                      <Text style={[styles.vehicleGridName, { color: isSelected ? '#fff' : colors.foreground }]} numberOfLines={2}>
+                        {vt2.name}
+                      </Text>
+                      <Text style={[styles.vehicleGridLoad, { color: isSelected ? 'rgba(255,255,255,0.75)' : colors.mutedForeground }]}>
+                        {vt2.maxLoad} टन
+                      </Text>
+                      {((vt2 as { wheels?: number }).wheels ?? 0) > 0 && (
+                        <View style={[styles.wBadge, { backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : colors.muted }]}>
+                          <Text style={[styles.wBadgeText, { color: isSelected ? '#fff' : colors.mutedForeground }]}>
+                            {(vt2 as { wheels?: number }).wheels}W
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={[styles.divider, { borderColor: colors.border }]} />
+
               <Input label="गाड़ी नंबर (RC)" placeholder="जैसे: RJ14CA0001" value={form.vehicleNumber} onChangeText={(v) => set('vehicleNumber', v)} autoCapitalize="characters" icon="credit-card" required />
               <Input label="RC Book नंबर" placeholder="RC नंबर" value={form.rcNumber} onChangeText={(v) => set('rcNumber', v)} autoCapitalize="characters" icon="file-text" required />
               <Input label="RC एक्सपायरी" placeholder="DD/MM/YYYY" value={form.rcExpiry} onChangeText={(v) => set('rcExpiry', v)} icon="calendar" required />
@@ -189,7 +267,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: 20, paddingBottom: 20 },
   title: { color: '#fff', fontSize: 22, fontFamily: 'Inter_700Bold' },
-  sub: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  sub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
   body: { padding: 16 },
   empty: { borderRadius: 16, padding: 40, alignItems: 'center', gap: 8, borderWidth: 1, marginTop: 20 },
   emptyTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
@@ -208,13 +286,25 @@ const styles = StyleSheet.create({
   addMoreSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
   fab: { position: 'absolute', bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { maxHeight: '90%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheet: { maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
   sheetTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
   sheetBody: { padding: 20 },
-  sectionLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 10 },
-  typesScroll: { marginBottom: 16 },
-  typeChip: { borderWidth: 1.5, borderRadius: 10, padding: 10, marginRight: 8, minWidth: 100, alignItems: 'center' },
-  typeChipText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
-  typeLoad: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  sectionLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
+  categoryScroll: { marginBottom: 12 },
+  categoryTab: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  categoryIcon: { fontSize: 14 },
+  categoryLabel: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  selectedInfo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 14 },
+  selectedName: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  selectedMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  wheelBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  wheelBadgeText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#fff' },
+  vehicleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  vehicleGridItem: { borderRadius: 10, padding: 10, width: '48%', alignItems: 'center', gap: 4 },
+  vehicleGridName: { fontSize: 12, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
+  vehicleGridLoad: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  wBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginTop: 2 },
+  wBadgeText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  divider: { borderTopWidth: 1, marginBottom: 16 },
 });
