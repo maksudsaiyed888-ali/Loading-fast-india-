@@ -3,6 +3,8 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { haversineKm, getInitialRadius } from '@/lib/location';
+import { Driver } from '@/lib/types';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -19,12 +21,10 @@ export async function registerForPushNotifications(driverId: string): Promise<st
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
-
   if (existing !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-
   if (finalStatus !== 'granted') return null;
 
   if (Platform.OS === 'android') {
@@ -41,48 +41,77 @@ export async function registerForPushNotifications(driverId: string): Promise<st
     projectId: '90d24ee7-082f-4a98-b2f2-e57f8c87c9d5',
   });
   const token = tokenData.data;
-
   await updateDoc(doc(db, 'drivers', driverId), { pushToken: token });
-
   return token;
 }
 
-export async function notifyDriversOfNewTrip(
-  pushTokens: string[],
-  fromCity: string,
-  toCity: string,
-  goodsCategory: string,
-  vyapariName: string,
-): Promise<void> {
-  const validTokens = pushTokens.filter((t) => t && t.startsWith('ExponentPushToken'));
-  if (validTokens.length === 0) return;
-
-  const messages = validTokens.map((to) => ({
-    to,
-    channelId: 'vyapari-trips',
-    title: `🚛 नई ट्रिप — ${fromCity} → ${toCity}`,
-    body: `${vyapariName} को ${goodsCategory} पहुँचाना है`,
-    data: { type: 'vyapari_trip' },
-    sound: 'default',
-    priority: 'high',
-  }));
-
-  const chunks: typeof messages[] = [];
-  for (let i = 0; i < messages.length; i += 100) {
-    chunks.push(messages.slice(i, i + 100));
-  }
-
+async function sendPush(tokens: string[], title: string, body: string): Promise<void> {
+  const valid = tokens.filter((t) => t?.startsWith('ExponentPushToken'));
+  if (valid.length === 0) return;
+  const chunks: string[][] = [];
+  for (let i = 0; i < valid.length; i += 100) chunks.push(valid.slice(i, i + 100));
   await Promise.all(
     chunks.map((chunk) =>
       fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip, deflate',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(chunk),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          chunk.map((to) => ({
+            to, channelId: 'vyapari-trips',
+            title, body, sound: 'default', priority: 'high',
+            data: { type: 'vyapari_trip' },
+          })),
+        ),
       }),
     ),
   );
+}
+
+function filterZone(
+  drivers: Driver[],
+  fromLat: number,
+  fromLon: number,
+  minKm: number,
+  maxKm: number,
+  notified: Set<string>,
+): string[] {
+  return drivers
+    .filter((d) => {
+      if (!d.pushToken || notified.has(d.pushToken)) return false;
+      if (!d.latitude || !d.longitude) return minKm === 0;
+      const dist = haversineKm(fromLat, fromLon, d.latitude, d.longitude);
+      return dist >= minKm && dist <= maxKm;
+    })
+    .map((d) => d.pushToken as string);
+}
+
+export function sendZoneNotifications(
+  drivers: Driver[],
+  fromLat: number,
+  fromLon: number,
+  vehicleTypePref: string,
+  fromCity: string,
+  toCity: string,
+  goodsCategory: string,
+  vyapariName: string,
+): void {
+  const initialR = getInitialRadius(vehicleTypePref);
+  const title = `🚛 नई ट्रिप — ${fromCity} → ${toCity}`;
+  const body = `${vyapariName} को ${goodsCategory} पहुँचाना है`;
+  const notified = new Set<string>();
+
+  const zoneA = filterZone(drivers, fromLat, fromLon, 0, initialR, notified);
+  sendPush(zoneA, `${title} 📍 Zone A`, body);
+  zoneA.forEach((t) => notified.add(t));
+
+  setTimeout(() => {
+    const zoneB = filterZone(drivers, fromLat, fromLon, initialR, initialR + 30, notified);
+    sendPush(zoneB, `${title} 📍 Zone B`, `${body} — अभी भी उपलब्ध`);
+    zoneB.forEach((t) => notified.add(t));
+  }, 10 * 60 * 1000);
+
+  setTimeout(() => {
+    const zoneC = filterZone(drivers, fromLat, fromLon, initialR + 30, initialR + 60, notified);
+    sendPush(zoneC, `${title} 📍 Zone C`, `${body} — तुरंत संपर्क करें!`);
+  }, 20 * 60 * 1000);
 }

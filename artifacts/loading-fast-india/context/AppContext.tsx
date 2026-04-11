@@ -3,6 +3,7 @@ import { collection, doc, onSnapshot, setDoc, updateDoc, query, orderBy } from '
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { registerForPushNotifications } from '@/lib/notifications';
+import { updateDriverLocation } from '@/lib/location';
 import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip } from '@/lib/types';
 
 const USER_KEY = '@lfi_user';
@@ -124,6 +125,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser(u);
     if (u.role === 'driver') {
       registerForPushNotifications(u.id).catch(() => {});
+      updateDriverLocation(u.id).catch(() => {});
     }
   };
 

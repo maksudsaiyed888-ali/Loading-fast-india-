@@ -20,6 +20,9 @@ export interface Driver {
   totalTrips: number;
   rating: number;
   pushToken?: string;
+  latitude?: number;
+  longitude?: number;
+  lastLocationAt?: string;
 }
 
 export interface Vyapari {

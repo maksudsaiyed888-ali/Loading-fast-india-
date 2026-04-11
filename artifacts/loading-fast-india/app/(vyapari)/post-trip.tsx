@@ -7,9 +7,10 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import * as Location from 'expo-location';
 import { INDIA_STATES, GOODS_CATEGORIES, VEHICLE_TYPES } from '@/lib/types';
 import { generateId } from '@/lib/utils';
-import { notifyDriversOfNewTrip } from '@/lib/notifications';
+import { sendZoneNotifications } from '@/lib/notifications';
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -68,14 +69,26 @@ export default function VyapariPostTripScreen() {
         status: 'open',
         createdAt: new Date().toISOString(),
       });
-      const tokens = drivers.map((d) => d.pushToken).filter(Boolean) as string[];
-      notifyDriversOfNewTrip(
-        tokens,
+      let fromLat = 23.0;
+      let fromLon = 72.5;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          fromLat = loc.coords.latitude;
+          fromLon = loc.coords.longitude;
+        }
+      } catch {}
+      sendZoneNotifications(
+        drivers,
+        fromLat,
+        fromLon,
+        form.vehicleTypePref,
         form.fromCity.trim(),
         form.toCity.trim(),
         form.goodsCategory.trim(),
         currentVyapari?.name || user!.name,
-      ).catch(() => {});
+      );
       setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
       setShowModal(false);
       Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। सभी ड्राइवरों को notification भेजी गई।');
