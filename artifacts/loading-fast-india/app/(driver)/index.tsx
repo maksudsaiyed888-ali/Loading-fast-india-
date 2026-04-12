@@ -17,7 +17,7 @@ type Colors = ReturnType<typeof useColors>;
 export default function DriverHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, addCommissionPayment, hasDriverPaidCommission } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, addCommissionPayment, hasDriverPaidCommission, confirmVyapariTrip } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
 
@@ -93,6 +93,7 @@ export default function DriverHomeScreen() {
                 driverName={currentDriver?.name || user?.name || ''}
                 hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
                 onPayCommission={addCommissionPayment}
+                onConfirmTrip={confirmVyapariTrip}
               />
             ))}
           </View>
@@ -178,7 +179,7 @@ const actionStyles = StyleSheet.create({
 });
 
 function VyapariTripCard({
-  trip, colors, driverId, driverName, hasPaid, onPayCommission,
+  trip, colors, driverId, driverName, hasPaid, onPayCommission, onConfirmTrip,
 }: {
   trip: VyapariTrip;
   colors: Colors;
@@ -186,10 +187,14 @@ function VyapariTripCard({
   driverName: string;
   hasPaid: boolean;
   onPayCommission: (c: import('@/lib/types').CommissionPayment) => Promise<void>;
+  onConfirmTrip: (tripId: string, driverId: string, driverName: string) => Promise<void>;
 }) {
   const [utr, setUtr] = useState('');
   const [paying, setPaying] = useState(false);
   const [showUtr, setShowUtr] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(trip.status === 'accepted');
+  const [subscribed, setSubscribed] = useState(false);
 
   const commissionAmt = trip.ratePerTon > 0
     ? Math.max(50, Math.round(trip.weightTons * trip.ratePerTon * 0.02))
@@ -225,92 +230,166 @@ function VyapariTripCard({
     }
   };
 
+  const handleConfirm = async () => {
+    if (isConfirmed) return;
+    Alert.alert(
+      'ट्रिप Accept करें?',
+      `${trip.fromCity} → ${trip.toCity} की यह ट्रिप accept करना चाहते हैं?`,
+      [
+        { text: 'नहीं', style: 'cancel' },
+        {
+          text: 'हाँ, Accept करें',
+          onPress: async () => {
+            setConfirming(true);
+            try {
+              await onConfirmTrip(trip.id, driverId, driverName);
+              setIsConfirmed(true);
+              Alert.alert('✅ Trip Accept', 'आपने यह ट्रिप accept कर लिया है!');
+            } finally {
+              setConfirming(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSubscribe = () => {
+    const next = !subscribed;
+    setSubscribed(next);
+    Alert.alert(
+      next ? '🔔 Subscribed!' : '🔕 Unsubscribed',
+      next
+        ? `${trip.fromCity} → ${trip.toCity} route के नए loads की notification मिलेगी।`
+        : 'Notification band कर दी गई।'
+    );
+  };
+
   return (
-    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: hasPaid ? '#16a34a40' : colors.navy + '30' }]}>
+    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: isConfirmed ? '#16a34a40' : hasPaid ? colors.primary + '40' : colors.navy + '30' }]}>
+      {/* Header */}
       <View style={vtStyles.row}>
-        <View style={[vtStyles.badge, { backgroundColor: colors.navy + '15' }]}>
-          <Text style={[vtStyles.badgeText, { color: colors.navy }]}>📦 व्यापारी लोड</Text>
+        <View style={[vtStyles.badge, { backgroundColor: isConfirmed ? '#16a34a15' : colors.navy + '15' }]}>
+          <Text style={[vtStyles.badgeText, { color: isConfirmed ? '#16a34a' : colors.navy }]}>
+            {isConfirmed ? '✅ Accepted' : '📦 व्यापारी लोड'}
+          </Text>
         </View>
         <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>{trip.tripDate}</Text>
       </View>
 
+      {/* Route */}
       <Text style={[vtStyles.route, { color: colors.foreground }]}>
         {trip.fromCity} ({trip.fromState}) → {trip.toCity} ({trip.toState})
       </Text>
-      <Text style={[vtStyles.meta, { color: colors.mutedForeground, marginBottom: 8 }]}>
+      <Text style={[vtStyles.meta, { color: colors.mutedForeground }]}>
         {trip.goodsCategory} • {trip.weightTons} टन
         {trip.ratePerTon > 0 ? ` • ₹${trip.ratePerTon}/टन` : ''}
       </Text>
 
-      {hasPaid ? (
-        <View style={[vtStyles.unlocked, { backgroundColor: '#16a34a10', borderColor: '#16a34a40' }]}>
-          <Text style={[vtStyles.unlockedTitle, { color: '#16a34a' }]}>✅ Commission Paid — Contact Unlocked</Text>
-          <Text style={[vtStyles.vyapariName, { color: colors.foreground }]}>👤 {trip.vyapariName}</Text>
-          <View style={vtStyles.contactRow}>
-            <TouchableOpacity
-              style={[vtStyles.contactBtn, { backgroundColor: colors.primary }]}
-              onPress={() => Linking.openURL(`tel:${trip.vyapariPhone}`)}
-            >
-              <Feather name="phone" size={14} color="#fff" />
-              <Text style={vtStyles.contactBtnText}>Call</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[vtStyles.contactBtn, { backgroundColor: '#25D366' }]}
-              onPress={() => Linking.openURL(`whatsapp://send?phone=91${trip.vyapariPhone}`)}
-            >
-              <Feather name="message-circle" size={14} color="#fff" />
-              <Text style={vtStyles.contactBtnText}>WhatsApp</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[vtStyles.contactBtn, { backgroundColor: colors.navy }]}
-              onPress={() => router.push(`/chat?tripId=${trip.id}&toId=${trip.vyapariId}&toName=${trip.vyapariName}`)}
-            >
-              <Feather name="message-square" size={14} color="#fff" />
-              <Text style={vtStyles.contactBtnText}>Chat</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <View style={[vtStyles.locked, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '40' }]}>
-          <View style={vtStyles.lockedRow}>
-            <Feather name="lock" size={14} color={colors.warning} />
-            <Text style={[vtStyles.lockedText, { color: colors.warning }]}>
-              Contact देखने के लिए ₹{commissionAmt} commission pay करें (2%)
-            </Text>
-          </View>
+      {/* ───── CONSOLIDATED ACTION PANEL ───── */}
+      <View style={[vtStyles.actionPanel, { borderColor: colors.border + '60' }]}>
+
+        {/* Row 1: Confirm + Subscribe — always visible */}
+        <View style={vtStyles.actionRow}>
           <TouchableOpacity
-            style={[vtStyles.upiBtn, { backgroundColor: colors.primary }]}
-            onPress={handleOpenUpi}
+            style={[vtStyles.actionBtn, { backgroundColor: isConfirmed ? '#16a34a' : colors.success, opacity: confirming ? 0.6 : 1, flex: 1.4 }]}
+            onPress={handleConfirm}
+            disabled={confirming || isConfirmed}
+            activeOpacity={0.8}
           >
-            <Feather name="credit-card" size={14} color="#fff" />
-            <Text style={vtStyles.upiBtnText}>UPI से Pay करें — ₹{commissionAmt}</Text>
+            <Feather name={isConfirmed ? 'check-circle' : 'check-square'} size={15} color="#fff" />
+            <Text style={vtStyles.actionBtnText}>
+              {confirming ? 'हो रहा है...' : isConfirmed ? 'Accepted ✓' : 'Trip Confirm'}
+            </Text>
           </TouchableOpacity>
-          {showUtr && (
-            <>
-              <TextInput
-                style={[vtStyles.utrInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                placeholder="UTR / Transaction ID दर्ज करें"
-                placeholderTextColor={colors.mutedForeground}
-                value={utr}
-                onChangeText={setUtr}
-              />
-              <TouchableOpacity
-                style={[vtStyles.unlockBtn, { backgroundColor: '#16a34a', opacity: paying ? 0.6 : 1 }]}
-                onPress={handleUnlock}
-                disabled={paying}
-              >
-                <Feather name="unlock" size={14} color="#fff" />
-                <Text style={vtStyles.upiBtnText}>{paying ? 'Processing...' : 'Contact Unlock करें'}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-          {!showUtr && (
-            <TouchableOpacity onPress={() => setShowUtr(true)}>
-              <Text style={[vtStyles.alreadyPaid, { color: colors.primary }]}>पहले से pay कर दिया? UTR दर्ज करें</Text>
-            </TouchableOpacity>
-          )}
+
+          <TouchableOpacity
+            style={[vtStyles.actionBtn, { backgroundColor: subscribed ? '#f97316' : colors.mutedForeground, flex: 1 }]}
+            onPress={handleSubscribe}
+            activeOpacity={0.8}
+          >
+            <Feather name={subscribed ? 'bell' : 'bell-off'} size={15} color="#fff" />
+            <Text style={vtStyles.actionBtnText}>{subscribed ? 'Subscribed' : 'Notify'}</Text>
+          </TouchableOpacity>
         </View>
-      )}
+
+        {/* Row 2: Contact buttons (visible after commission paid) */}
+        {hasPaid ? (
+          <View>
+            <Text style={[vtStyles.unlockedTitle, { color: '#16a34a', marginBottom: 6 }]}>
+              ✅ Contact Unlocked — 👤 {trip.vyapariName}
+            </Text>
+            <View style={vtStyles.actionRow}>
+              <TouchableOpacity
+                style={[vtStyles.actionBtn, { backgroundColor: colors.primary, flex: 1 }]}
+                onPress={() => Linking.openURL(`tel:${trip.vyapariPhone}`)}
+                activeOpacity={0.8}
+              >
+                <Feather name="phone" size={15} color="#fff" />
+                <Text style={vtStyles.actionBtnText}>Call</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[vtStyles.actionBtn, { backgroundColor: '#25D366', flex: 1 }]}
+                onPress={() => Linking.openURL(`whatsapp://send?phone=91${trip.vyapariPhone}`)}
+                activeOpacity={0.8}
+              >
+                <Feather name="message-circle" size={15} color="#fff" />
+                <Text style={vtStyles.actionBtnText}>WhatsApp</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[vtStyles.actionBtn, { backgroundColor: colors.navy, flex: 1 }]}
+                onPress={() => router.push(`/chat?tripId=${trip.id}&toId=${trip.vyapariId}&toName=${trip.vyapariName}`)}
+                activeOpacity={0.8}
+              >
+                <Feather name="message-square" size={15} color="#fff" />
+                <Text style={vtStyles.actionBtnText}>Chat</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          /* Commission gate */
+          <View style={[vtStyles.commGate, { borderColor: colors.warning + '50', backgroundColor: colors.warning + '08' }]}>
+            <View style={vtStyles.lockedRow}>
+              <Feather name="lock" size={13} color={colors.warning} />
+              <Text style={[vtStyles.lockedText, { color: colors.warning }]}>
+                Contact unlock करें — ₹{commissionAmt} (2%)
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[vtStyles.upiBtn, { backgroundColor: colors.primary }]}
+              onPress={handleOpenUpi}
+              activeOpacity={0.8}
+            >
+              <Feather name="credit-card" size={14} color="#fff" />
+              <Text style={vtStyles.upiBtnText}>UPI से Pay करें — ₹{commissionAmt}</Text>
+            </TouchableOpacity>
+            {showUtr ? (
+              <>
+                <TextInput
+                  style={[vtStyles.utrInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                  placeholder="UTR / Transaction ID दर्ज करें"
+                  placeholderTextColor={colors.mutedForeground}
+                  value={utr}
+                  onChangeText={setUtr}
+                />
+                <TouchableOpacity
+                  style={[vtStyles.upiBtn, { backgroundColor: '#16a34a', opacity: paying ? 0.6 : 1 }]}
+                  onPress={handleUnlock}
+                  disabled={paying}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="unlock" size={14} color="#fff" />
+                  <Text style={vtStyles.upiBtnText}>{paying ? 'Processing...' : 'Contact Unlock करें'}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity onPress={() => setShowUtr(true)}>
+                <Text style={[vtStyles.alreadyPaid, { color: colors.primary }]}>पहले pay कर दिया? UTR दर्ज करें</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -322,21 +401,19 @@ const vtStyles = StyleSheet.create({
   badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   date: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   route: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  locked: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 8 },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 10 },
+  actionPanel: { borderTopWidth: 1, paddingTop: 10, gap: 8 },
+  actionRow: { flexDirection: 'row', gap: 7 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, paddingHorizontal: 6, borderRadius: 9 },
+  actionBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  unlockedTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
+  commGate: { borderRadius: 9, borderWidth: 1, padding: 9, gap: 7 },
   lockedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   lockedText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
-  upiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, justifyContent: 'center' },
+  upiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 8, justifyContent: 'center' },
   upiBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
   utrInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'Inter_400Regular' },
-  unlockBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, justifyContent: 'center' },
   alreadyPaid: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 2 },
-  unlocked: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 8 },
-  unlockedTitle: { fontSize: 12, fontFamily: 'Inter_700Bold' },
-  vyapariName: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  contactRow: { flexDirection: 'row', gap: 8 },
-  contactBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8, borderRadius: 8, justifyContent: 'center' },
-  contactBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_500Medium' },
 });
 
 const styles = StyleSheet.create({
