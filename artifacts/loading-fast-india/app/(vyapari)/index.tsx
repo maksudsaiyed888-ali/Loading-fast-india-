@@ -26,7 +26,7 @@ export default function VyapariHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, currentVyapari, getAvailableTrips, getVyapariBookings, bilties, refreshAll,
-    addVyapariTrip, getVyapariOwnTrips } = useApp();
+    addVyapariTrip, cancelVyapariTrip, getVyapariOwnTrips } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -134,6 +134,31 @@ export default function VyapariHomeScreen() {
                 <Text style={[styles.postedMeta, { color: colors.mutedForeground }]}>
                   {t.goodsCategory} • {t.weightTons} टन {t.ratePerTon > 0 ? `• ₹${t.ratePerTon}/टन` : ''}
                 </Text>
+                {t.status === 'open' && (
+                  <TouchableOpacity
+                    style={[styles.cancelBtn, { borderColor: '#ef4444' }]}
+                    onPress={() => {
+                      Alert.alert(
+                        'ट्रिप रद्द करें?',
+                        `${t.fromCity} → ${t.toCity} यह ट्रिप रद्द होगी।`,
+                        [
+                          { text: 'नहीं', style: 'cancel' },
+                          {
+                            text: 'हाँ, रद्द करें',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await cancelVyapariTrip(t.id);
+                              Alert.alert('✅', 'ट्रिप रद्द हो गई।');
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Feather name="x-circle" size={14} color="#ef4444" />
+                    <Text style={styles.cancelBtnText}>ट्रिप रद्द करें</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
@@ -353,6 +378,8 @@ const styles = StyleSheet.create({
   postedDate: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   postedRoute: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 3 },
   postedMeta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  cancelBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: '#ef4444' },
   empty: { borderRadius: 14, padding: 32, alignItems: 'center', gap: 8, borderWidth: 1 },
   emptyText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   emptySubText: { fontSize: 12, fontFamily: 'Inter_400Regular' },

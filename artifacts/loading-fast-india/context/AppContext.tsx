@@ -56,6 +56,7 @@ interface AppContextType {
   getAvailableTrips: () => Trip[];
   vyapariTrips: VyapariTrip[];
   addVyapariTrip: (t: VyapariTrip) => Promise<void>;
+  cancelVyapariTrip: (tripId: string) => Promise<void>;
   getVyapariOwnTrips: (vyapariId: string) => VyapariTrip[];
   getOpenVyapariTrips: () => VyapariTrip[];
   currentDriver: Driver | null;
@@ -213,6 +214,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fsSet('vyapariTrips', t);
   };
 
+  const cancelVyapariTrip = async (tripId: string) => {
+    await fsUpdate('vyapariTrips', tripId, { status: 'cancelled' });
+  };
+
   const addCommissionPayment = async (c: CommissionPayment) => {
     await fsSet('commissionPayments', c);
   };
@@ -235,7 +240,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addRating, getUserRatings, getAverageRating, hasRated,
         appRatings, addAppRating, getAppAvgRating, hasRatedApp,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
-        vyapariTrips, addVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
+        vyapariTrips, addVyapariTrip, cancelVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         currentDriver, currentVyapari,
       }}
