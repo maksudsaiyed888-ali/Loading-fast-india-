@@ -77,7 +77,7 @@ export interface Trip {
   totalRent: number;
   tripDate: string;
   description: string;
-  status: 'available' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'available' | 'confirmed' | 'pending_confirmation' | 'completed' | 'cancelled';
   confirmedBy?: string;
   confirmedByName?: string;
   confirmedAt?: string;
@@ -86,6 +86,12 @@ export interface Trip {
   createdAt: string;
   tripStatus?: 'loading' | 'on_the_way' | 'delivered';
   currentLocation?: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
+  deliveryVoiceRecorded?: boolean;
+  deliveryNotes?: string;
+  deliveredAt?: string;
+  vyapariConfirmedAt?: string;
 }
 
 export interface Bilty {

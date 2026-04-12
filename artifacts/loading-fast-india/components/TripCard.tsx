@@ -17,6 +17,7 @@ interface TripCardProps {
 const STATUS_COLORS: Record<string, string> = {
   available: '#16a34a',
   confirmed: '#d97706',
+  pending_confirmation: '#f59e0b',
   completed: '#0A2540',
   cancelled: '#dc2626',
 };
@@ -24,6 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   available: 'उपलब्ध',
   confirmed: 'बुक हुई',
+  pending_confirmation: '⏳ Pending',
   completed: 'पूर्ण',
   cancelled: 'रद्द',
 };
