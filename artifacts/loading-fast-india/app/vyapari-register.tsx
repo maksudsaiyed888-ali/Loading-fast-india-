@@ -10,6 +10,7 @@ import { useColors } from '@/hooks/useColors';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { generateId } from '@/lib/utils';
+import { validateAadhaar, formatAadhaarInput } from '@/lib/verhoeff';
 
 export default function VyapariRegisterScreen() {
   const colors = useColors();
@@ -39,8 +40,8 @@ export default function VyapariRegisterScreen() {
     if (!form.email.includes('@')) e.email = 'सही Gmail/Email दर्ज करें';
     if (!form.password || form.password.length < 6) e.password = 'पासवर्ड कम से कम 6 अक्षर का होना चाहिए';
     if (form.password !== form.confirmPassword) e.confirmPassword = 'पासवर्ड मेल नहीं खाता';
-    if (!form.aadhaarNumber || form.aadhaarNumber.replace(/\s/g, '').length !== 12)
-      e.aadhaarNumber = 'आधार 12 अंकों का होना चाहिए';
+    const aadhaarResult = validateAadhaar(form.aadhaarNumber);
+    if (!aadhaarResult.valid) e.aadhaarNumber = aadhaarResult.error;
     if (!form.address.trim()) e.address = 'पता आवश्यक है';
     if (!form.city.trim()) e.city = 'शहर आवश्यक है';
     setErrors(e);
@@ -129,7 +130,21 @@ export default function VyapariRegisterScreen() {
           <Feather name="file-text" size={15} color={colors.primary} />
           <Text style={[styles.docNoteText, { color: colors.primary }]}>Aadhaar Card अनिवार्य • GST वैकल्पिक है</Text>
         </View>
-        <Input label="आधार कार्ड नंबर" placeholder="12 अंकों का आधार नंबर" value={form.aadhaarNumber} onChangeText={(v) => { set('aadhaarNumber', v); clearError('aadhaarNumber'); }} keyboardType="numeric" maxLength={14} error={errors.aadhaarNumber} icon="shield" required />
+        <Input
+          label="आधार कार्ड नंबर"
+          placeholder="XXXX XXXX XXXX"
+          value={form.aadhaarNumber}
+          onChangeText={(v) => {
+            const formatted = formatAadhaarInput(v);
+            set('aadhaarNumber', formatted);
+            if (errors.aadhaarNumber) clearError('aadhaarNumber');
+          }}
+          keyboardType="numeric"
+          maxLength={14}
+          error={errors.aadhaarNumber}
+          icon="shield"
+          required
+        />
         <Input label="GST नंबर (वैकल्पिक)" placeholder="GSTIN नंबर (यदि है)" value={form.gstNumber} onChangeText={(v) => set('gstNumber', v)} autoCapitalize="characters" icon="file" />
 
         <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 4 }]}>पता</Text>
