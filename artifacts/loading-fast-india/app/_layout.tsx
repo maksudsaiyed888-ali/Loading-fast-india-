@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
 import * as KeepAwake from "expo-keep-awake";
@@ -16,7 +16,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useApp } from "@/context/AppContext";
 import NetworkBanner from "@/components/NetworkBanner";
 import { initNetworkMonitor, stopNetworkMonitor } from "@/lib/networkService";
 
@@ -34,9 +34,24 @@ async function checkForUpdates() {
   } catch {}
 }
 
+function AuthWatcher() {
+  const { user, isLoading } = useApp();
+  const [prevUser, setPrevUser] = React.useState(user);
+
+  useEffect(() => {
+    if (!isLoading && prevUser !== null && user === null) {
+      router.replace('/');
+    }
+    setPrevUser(user);
+  }, [user, isLoading]);
+
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <View style={{ flex: 1 }}>
+      <AuthWatcher />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
