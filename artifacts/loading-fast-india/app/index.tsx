@@ -13,6 +13,16 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, isLoading, getAppAvgRating, appRatings } = useApp();
   const [showRating, setShowRating] = useState(false);
+  const [logoTaps, setLogoTaps] = useState(0);
+
+  const handleLogoTap = () => {
+    const next = logoTaps + 1;
+    setLogoTaps(next);
+    if (next >= 5) {
+      setLogoTaps(0);
+      router.push('/admin');
+    }
+  };
 
   React.useEffect(() => {
     if (!isLoading && user) {
@@ -31,7 +41,7 @@ export default function WelcomeScreen() {
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
-      <View style={styles.logoArea}>
+      <TouchableOpacity style={styles.logoArea} onPress={handleLogoTap} activeOpacity={1}>
         <Image
           source={require('../assets/images/icon.png')}
           style={styles.logo}
@@ -39,7 +49,7 @@ export default function WelcomeScreen() {
         />
         <Text style={styles.appName}>Loading Fast India</Text>
         <Text style={styles.tagline}>भारत की सबसे तेज़ लोडिंग सेवा</Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.flagStripe}>
         <View style={[styles.stripe, { backgroundColor: '#FF9933' }]} />
@@ -75,15 +85,6 @@ export default function WelcomeScreen() {
             <Text style={styles.roleBtnSub}>Vyapari Registration</Text>
           </View>
           <Feather name="chevron-right" size={22} color="rgba(255,255,255,0.7)" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.adminBtn, { borderColor: colors.border }]}
-          activeOpacity={0.85}
-          onPress={() => router.push('/admin')}
-        >
-          <Feather name="settings" size={16} color={colors.mutedForeground} />
-          <Text style={[styles.adminBtnText, { color: colors.mutedForeground }]}>Admin Panel</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -139,11 +140,6 @@ const styles = StyleSheet.create({
   roleBtnText: { flex: 1 },
   roleBtnTitle: { color: '#fff', fontSize: 20, fontFamily: 'Inter_700Bold' },
   roleBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: 'Inter_400Regular' },
-  adminBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, paddingVertical: 10, borderRadius: 10, borderWidth: 1, marginTop: 4,
-  },
-  adminBtnText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
   loginLink: { marginTop: 14, alignItems: 'center' },
   loginLinkText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
   footer: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 8, textAlign: 'center' },
