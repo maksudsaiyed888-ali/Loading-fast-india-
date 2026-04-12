@@ -2,7 +2,7 @@
   "expo": {
     "name": "Loading Fast India",
     "slug": "loading-fast-india",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "loading-fast-india",
@@ -38,7 +38,7 @@
         "backgroundColor": "#0A2540"
       },
       "package": "com.loadingfastindia.app",
-      "versionCode": 1,
+      "versionCode": 2,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "minSdkVersion": 24,
