@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 import React, { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +32,22 @@ export default function DriverProfileScreen() {
       { text: 'नहीं', style: 'cancel' },
       { text: 'हाँ', style: 'destructive', onPress: () => { logout().then(() => router.replace('/')).catch(() => router.replace('/')); } },
     ]);
+  };
+
+  const handleCheckUpdate = async () => {
+    try {
+      Alert.alert('अपडेट', 'नया अपडेट चेक हो रहा है...');
+      const result = await Updates.checkForUpdateAsync();
+      if (result.isAvailable) {
+        Alert.alert('नया अपडेट मिला! 🎉', 'अपडेट डाउनलोड हो रहा है, app अभी restart होगी।', [], { cancelable: false });
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } else {
+        Alert.alert('✅ App अप-टू-डेट है', 'कोई नया अपडेट नहीं है।');
+      }
+    } catch {
+      Alert.alert('Update Check', 'अपडेट चेक नहीं हो सका। Internet connection चेक करें।');
+    }
   };
 
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -173,6 +190,11 @@ export default function DriverProfileScreen() {
           <Text style={[styles.complaintBtnText, { color: colors.warning }]}>शिकायत दर्ज करें</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={[styles.updateBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '10' }]} onPress={handleCheckUpdate}>
+          <Feather name="download-cloud" size={18} color={colors.primary} />
+          <Text style={[styles.updateBtnText, { color: colors.primary }]}>अपडेट चेक करें</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={[styles.logoutBtn, { borderColor: colors.destructive }]} onPress={handleLogout}>
           <Feather name="log-out" size={18} color={colors.destructive} />
           <Text style={[styles.logoutText, { color: colors.destructive }]}>लॉगआउट</Text>
@@ -256,6 +278,8 @@ const styles = StyleSheet.create({
   policyText: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 22 },
   complaintBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
   complaintBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  updateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
+  updateBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 20 },
   logoutText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
 });
