@@ -2,12 +2,14 @@ import { Feather } from '@expo/vector-icons';
 import { Tabs, router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useApp } from '@/context/AppContext';
 
 export default function VyapariTabLayout() {
   const colors = useColors();
   const { user } = useApp();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!user || user.role !== 'vyapari') {
@@ -16,6 +18,8 @@ export default function VyapariTabLayout() {
   }, [user]);
 
   const isWeb = Platform.OS === 'web';
+  const bottomPad = isWeb ? 30 : Math.max(insets.bottom, 8);
+  const tabHeight = isWeb ? 84 : 54 + bottomPad;
 
   return (
     <Tabs
@@ -32,7 +36,8 @@ export default function VyapariTabLayout() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.08,
           shadowRadius: 8,
-          ...(isWeb ? { height: 84, paddingBottom: 30 } : { height: 62, paddingBottom: 8 }),
+          height: tabHeight,
+          paddingBottom: bottomPad,
         },
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
