@@ -22,10 +22,14 @@ const VEHICLE_PREFS = [
   { label: 'भारी (16W+)', value: 'heavy' },
 ];
 
+const LOW_RATE_THRESHOLD = 300;
+
+const isLowRate = (ratePerTon: number) => ratePerTon === 0 || ratePerTon < LOW_RATE_THRESHOLD;
+
 export default function VyapariPostTripScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, drivers } = useApp();
+  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, updateVyapariTrip, drivers } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [posting, setPosting] = useState(false);
 
@@ -35,6 +39,43 @@ export default function VyapariPostTripScreen() {
     tripDate: '', vehicleTypePref: '', description: '',
   });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  const [editTrip, setEditTrip] = useState<ReturnType<typeof getVyapariOwnTrips>[0] | null>(null);
+  const [editForm, setEditForm] = useState({ ratePerTon: '', weightTons: '', tripDate: '', description: '' });
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = (trip: ReturnType<typeof getVyapariOwnTrips>[0]) => {
+    setEditTrip(trip);
+    setEditForm({
+      ratePerTon: trip.ratePerTon > 0 ? String(trip.ratePerTon) : '',
+      weightTons: String(trip.weightTons),
+      tripDate: trip.tripDate,
+      description: trip.description || '',
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTrip) return;
+    const rate = editForm.ratePerTon.trim() ? Number(editForm.ratePerTon) : 0;
+    const weight = Number(editForm.weightTons);
+    if (!editForm.weightTons.trim() || isNaN(weight) || weight <= 0) {
+      Alert.alert('त्रुटि', 'वज़न सही संख्या डालें'); return;
+    }
+    if (!editForm.tripDate.trim()) { Alert.alert('त्रुटि', 'तारीख जरूरी है'); return; }
+    setSaving(true);
+    try {
+      await updateVyapariTrip(editTrip.id, {
+        ratePerTon: isNaN(rate) ? 0 : rate,
+        weightTons: weight,
+        tripDate: editForm.tripDate.trim(),
+        description: editForm.description.trim(),
+      });
+      setEditTrip(null);
+      Alert.alert('✅ ट्रिप अपडेट हुई!', 'आपकी ट्रिप की जानकारी बदल दी गई।');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const myPostedTrips = user ? getVyapariOwnTrips(user.id) : [];
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -126,7 +167,10 @@ export default function VyapariPostTripScreen() {
           </View>
         ) : (
           myPostedTrips.map((t) => (
-            <View key={t.id} style={[styles.tripCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={t.id} style={[styles.tripCard, {
+              backgroundColor: colors.card,
+              borderColor: t.status === 'open' && isLowRate(t.ratePerTon) ? '#f97316' + '60' : colors.border,
+            }]}>
               <View style={styles.tripCardRow}>
                 <View style={[styles.statusBadge, {
                   backgroundColor: t.status === 'open' ? colors.success + '20' :
@@ -146,12 +190,39 @@ export default function VyapariPostTripScreen() {
               </Text>
               <Text style={[styles.tripMeta, { color: colors.mutedForeground }]}>
                 {t.goodsCategory} • {t.weightTons} टन
-                {t.ratePerTon > 0 ? ` • ₹${t.ratePerTon}/टन` : ''}
+                {t.ratePerTon > 0 ? ` • ₹${t.ratePerTon}/टन` : ' • भाड़ा नहीं दिया'}
                 {t.vehicleTypePref ? ` • ${VEHICLE_PREFS.find(v => v.value === t.vehicleTypePref)?.label ?? t.vehicleTypePref}` : ''}
               </Text>
               {t.description ? (
                 <Text style={[styles.tripDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{t.description}</Text>
               ) : null}
+
+              {/* ⚠️ Low Rate Warning */}
+              {t.status === 'open' && isLowRate(t.ratePerTon) && (
+                <View style={[styles.lowRateBanner, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '60' }]}>
+                  <Feather name="alert-triangle" size={13} color="#f97316" />
+                  <Text style={[styles.lowRateText, { color: '#c2410c' }]}>
+                    {t.ratePerTon === 0
+                      ? '⚠️ भाड़ा नहीं दिया — ड्राइवर नहीं आएंगे! भाड़ा बढ़ाएं।'
+                      : `⚠️ ₹${t.ratePerTon}/टन बहुत कम है — ₹${LOW_RATE_THRESHOLD}+ डालने पर ड्राइवर जल्दी आएंगे।`}
+                  </Text>
+                </View>
+              )}
+
+              {/* Action Buttons Row */}
+              {t.status === 'open' && (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={[styles.editBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
+                    onPress={() => openEdit(t)}
+                  >
+                    <Feather name="edit-2" size={13} color={colors.primary} />
+                    <Text style={[styles.editBtnText, { color: colors.primary }]}>
+                      {isLowRate(t.ratePerTon) ? 'भाड़ा बढ़ाएं / Edit' : 'Edit करें'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -165,6 +236,74 @@ export default function VyapariPostTripScreen() {
         <Feather name="plus" size={26} color="#fff" />
       </TouchableOpacity>
 
+      {/* ── Edit Trip Modal ── */}
+      <Modal visible={!!editTrip} transparent animationType="slide" onRequestClose={() => setEditTrip(null)}>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>✏️ ट्रिप Edit करें</Text>
+              <TouchableOpacity onPress={() => setEditTrip(null)}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            {editTrip && (
+              <ScrollView style={styles.sheetBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={[styles.editRouteBadge, { backgroundColor: colors.navy + '12', borderColor: colors.navy + '30' }]}>
+                  <Feather name="map-pin" size={14} color={colors.navy} />
+                  <Text style={[styles.editRouteText, { color: colors.navy }]}>
+                    {editTrip.fromCity} → {editTrip.toCity} • {editTrip.goodsCategory}
+                  </Text>
+                </View>
+
+                <Input
+                  label="भाड़ा / रेट प्रति टन (₹)"
+                  placeholder="जैसे: 1500"
+                  value={editForm.ratePerTon}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, ratePerTon: v }))}
+                  keyboardType="numeric"
+                  icon="dollar-sign"
+                />
+                {(editForm.ratePerTon === '' || isLowRate(Number(editForm.ratePerTon))) && (
+                  <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50', marginTop: -6 }]}>
+                    <Feather name="alert-triangle" size={12} color="#f97316" />
+                    <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
+                      ₹{LOW_RATE_THRESHOLD}+ डालने पर ड्राइवर जल्दी मिलेंगे
+                    </Text>
+                  </View>
+                )}
+
+                <Input
+                  label="वज़न (टन में)"
+                  placeholder="जैसे: 5"
+                  value={editForm.weightTons}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, weightTons: v }))}
+                  keyboardType="numeric"
+                  icon="package"
+                  required
+                />
+                <Input
+                  label="तारीख"
+                  placeholder="DD/MM/YYYY"
+                  value={editForm.tripDate}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, tripDate: v }))}
+                  icon="calendar"
+                  required
+                />
+                <Input
+                  label="विशेष जानकारी (वैकल्पिक)"
+                  placeholder="कोई अतिरिक्त जानकारी..."
+                  value={editForm.description}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, description: v }))}
+                />
+                <Button title="बदलाव सेव करें" onPress={handleSaveEdit} loading={saving} />
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Post Trip Modal ── */}
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.background }]}>
@@ -192,6 +331,22 @@ export default function VyapariPostTripScreen() {
               <GoodsCategoryPicker value={form.goodsCategory} onSelect={(v) => set('goodsCategory', v)} colors={colors} />
               <Input label="वज़न (टन में)" placeholder="जैसे: 5" value={form.weightTons} onChangeText={(v) => set('weightTons', v)} keyboardType="numeric" icon="package" required />
               <Input label="रेट प्रति टन (₹, वैकल्पिक)" placeholder="जैसे: 1500" value={form.ratePerTon} onChangeText={(v) => set('ratePerTon', v)} keyboardType="numeric" icon="dollar-sign" />
+              {form.ratePerTon.trim() && isLowRate(Number(form.ratePerTon)) && (
+                <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
+                  <Feather name="alert-triangle" size={12} color="#f97316" />
+                  <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
+                    ₹{LOW_RATE_THRESHOLD}+ डालने पर ड्राइवर जल्दी मिलेंगे
+                  </Text>
+                </View>
+              )}
+              {(!form.ratePerTon.trim() || Number(form.ratePerTon) === 0) && (
+                <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
+                  <Feather name="info" size={12} color="#f97316" />
+                  <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
+                    भाड़ा (Rate) जरूर डालें — नहीं डालने पर ड्राइवर interest नहीं लेते
+                  </Text>
+                </View>
+              )}
               <Input label="तारीख" placeholder="DD/MM/YYYY" value={form.tripDate} onChangeText={(v) => set('tripDate', v)} icon="calendar" required />
 
               <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>🚛 गाड़ी का प्रकार (वैकल्पिक)</Text>
@@ -328,6 +483,15 @@ const styles = StyleSheet.create({
   tripRoute: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 4 },
   tripMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 4 },
   tripDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', fontStyle: 'italic' },
+  lowRateBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, borderWidth: 1, borderRadius: 8, padding: 8, marginTop: 8 },
+  lowRateText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  editBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  rateHint: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 7, padding: 7, marginBottom: 10 },
+  rateHintText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
+  editRouteBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 14 },
+  editRouteText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', flex: 1 },
   fab: { position: 'absolute', bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { maxHeight: '94%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },

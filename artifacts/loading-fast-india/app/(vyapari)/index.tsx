@@ -9,8 +9,11 @@ import { useColors } from '@/hooks/useColors';
 import TripCard from '@/components/TripCard';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { INDIA_STATES, GOODS_CATEGORIES } from '@/lib/types';
+import { INDIA_STATES, GOODS_CATEGORIES, VyapariTrip } from '@/lib/types';
 import { generateId } from '@/lib/utils';
+
+const LOW_RATE_THRESHOLD = 300;
+const isLowRate = (r: number) => r === 0 || r < LOW_RATE_THRESHOLD;
 
 type Colors = ReturnType<typeof useColors>;
 
@@ -26,10 +29,47 @@ export default function VyapariHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, currentVyapari, getAvailableTrips, getVyapariBookings, bilties, refreshAll,
-    addVyapariTrip, cancelVyapariTrip, getVyapariOwnTrips } = useApp();
+    addVyapariTrip, cancelVyapariTrip, updateVyapariTrip, getVyapariOwnTrips } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [posting, setPosting] = useState(false);
+
+  const [editTrip, setEditTrip] = useState<VyapariTrip | null>(null);
+  const [editForm, setEditForm] = useState({ ratePerTon: '', weightTons: '', tripDate: '', description: '' });
+  const [saving, setSaving] = useState(false);
+
+  const openEdit = (trip: VyapariTrip) => {
+    setEditTrip(trip);
+    setEditForm({
+      ratePerTon: trip.ratePerTon > 0 ? String(trip.ratePerTon) : '',
+      weightTons: String(trip.weightTons),
+      tripDate: trip.tripDate,
+      description: trip.description || '',
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTrip) return;
+    const rate = editForm.ratePerTon.trim() ? Number(editForm.ratePerTon) : 0;
+    const weight = Number(editForm.weightTons);
+    if (!editForm.weightTons.trim() || isNaN(weight) || weight <= 0) {
+      Alert.alert('त्रुटि', 'वज़न सही संख्या डालें'); return;
+    }
+    if (!editForm.tripDate.trim()) { Alert.alert('त्रुटि', 'तारीख जरूरी है'); return; }
+    setSaving(true);
+    try {
+      await updateVyapariTrip(editTrip.id, {
+        ratePerTon: isNaN(rate) ? 0 : rate,
+        weightTons: weight,
+        tripDate: editForm.tripDate.trim(),
+        description: editForm.description.trim(),
+      });
+      setEditTrip(null);
+      Alert.alert('✅ ट्रिप अपडेट हुई!', 'आपकी ट्रिप की जानकारी बदल दी गई।');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const [form, setForm] = useState({
     fromCity: '', fromState: '', toCity: '', toState: '',
@@ -119,7 +159,10 @@ export default function VyapariHomeScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>मेरी पोस्ट की ट्रिप्स</Text>
             {myPostedTrips.slice(0, 3).map((t) => (
-              <View key={t.id} style={[styles.postedCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View key={t.id} style={[styles.postedCard, {
+                backgroundColor: colors.card,
+                borderColor: t.status === 'open' && isLowRate(t.ratePerTon) ? '#f97316' + '60' : colors.border,
+              }]}>
                 <View style={styles.postedCardRow}>
                   <View style={[styles.statusBadge, { backgroundColor: t.status === 'open' ? colors.success + '20' : colors.muted }]}>
                     <Text style={[styles.statusText, { color: t.status === 'open' ? colors.success : colors.mutedForeground }]}>
@@ -132,32 +175,56 @@ export default function VyapariHomeScreen() {
                   {t.fromCity} → {t.toCity}
                 </Text>
                 <Text style={[styles.postedMeta, { color: colors.mutedForeground }]}>
-                  {t.goodsCategory} • {t.weightTons} टन {t.ratePerTon > 0 ? `• ₹${t.ratePerTon}/टन` : ''}
+                  {t.goodsCategory} • {t.weightTons} टन {t.ratePerTon > 0 ? `• ₹${t.ratePerTon}/टन` : '• भाड़ा नहीं'}
                 </Text>
+
+                {/* ⚠️ Low Rate Warning */}
+                {t.status === 'open' && isLowRate(t.ratePerTon) && (
+                  <View style={[styles.lowRateBanner, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
+                    <Feather name="alert-triangle" size={12} color="#f97316" />
+                    <Text style={[styles.lowRateText, { color: '#c2410c' }]}>
+                      {t.ratePerTon === 0
+                        ? 'भाड़ा नहीं दिया — ड्राइवर नहीं आएंगे! Edit करके बढ़ाएं।'
+                        : `₹${t.ratePerTon}/टन कम है — ₹${LOW_RATE_THRESHOLD}+ डालें`}
+                    </Text>
+                  </View>
+                )}
+
                 {t.status === 'open' && (
-                  <TouchableOpacity
-                    style={[styles.cancelBtn, { borderColor: '#ef4444' }]}
-                    onPress={() => {
-                      Alert.alert(
-                        'ट्रिप रद्द करें?',
-                        `${t.fromCity} → ${t.toCity} यह ट्रिप रद्द होगी।`,
-                        [
-                          { text: 'नहीं', style: 'cancel' },
-                          {
-                            text: 'हाँ, रद्द करें',
-                            style: 'destructive',
-                            onPress: async () => {
-                              await cancelVyapariTrip(t.id);
-                              Alert.alert('✅', 'ट्रिप रद्द हो गई।');
+                  <View style={styles.btnRow}>
+                    <TouchableOpacity
+                      style={[styles.editBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
+                      onPress={() => openEdit(t)}
+                    >
+                      <Feather name="edit-2" size={13} color={colors.primary} />
+                      <Text style={[styles.editBtnText, { color: colors.primary }]}>
+                        {isLowRate(t.ratePerTon) ? 'भाड़ा बढ़ाएं' : 'Edit'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.cancelBtn, { borderColor: '#ef4444' }]}
+                      onPress={() => {
+                        Alert.alert(
+                          'ट्रिप रद्द करें?',
+                          `${t.fromCity} → ${t.toCity} यह ट्रिप रद्द होगी।`,
+                          [
+                            { text: 'नहीं', style: 'cancel' },
+                            {
+                              text: 'हाँ, रद्द करें',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await cancelVyapariTrip(t.id);
+                                Alert.alert('✅', 'ट्रिप रद्द हो गई।');
+                              },
                             },
-                          },
-                        ]
-                      );
-                    }}
-                  >
-                    <Feather name="x-circle" size={14} color="#ef4444" />
-                    <Text style={styles.cancelBtnText}>ट्रिप रद्द करें</Text>
-                  </TouchableOpacity>
+                          ]
+                        );
+                      }}
+                    >
+                      <Feather name="x-circle" size={14} color="#ef4444" />
+                      <Text style={styles.cancelBtnText}>रद्द करें</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
             ))}
@@ -186,6 +253,71 @@ export default function VyapariHomeScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* ── Edit Trip Modal ── */}
+      <Modal visible={!!editTrip} transparent animationType="slide" onRequestClose={() => setEditTrip(null)}>
+        <View style={styles.overlay}>
+          <View style={[styles.sheet, { backgroundColor: colors.background }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>✏️ ट्रिप Edit करें</Text>
+              <TouchableOpacity onPress={() => setEditTrip(null)}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            {editTrip && (
+              <ScrollView style={styles.sheetBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={[styles.editRouteBadge, { backgroundColor: colors.navy + '12', borderColor: colors.navy + '30' }]}>
+                  <Feather name="map-pin" size={14} color={colors.navy} />
+                  <Text style={[styles.editRouteText, { color: colors.navy }]}>
+                    {editTrip.fromCity} → {editTrip.toCity} • {editTrip.goodsCategory}
+                  </Text>
+                </View>
+                <Input
+                  label="भाड़ा / रेट प्रति टन (₹)"
+                  placeholder="जैसे: 1500"
+                  value={editForm.ratePerTon}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, ratePerTon: v }))}
+                  keyboardType="numeric"
+                  icon="dollar-sign"
+                />
+                {(editForm.ratePerTon === '' || isLowRate(Number(editForm.ratePerTon))) && (
+                  <View style={[styles.lowRateBanner, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50', marginTop: -6, marginBottom: 10 }]}>
+                    <Feather name="alert-triangle" size={12} color="#f97316" />
+                    <Text style={[styles.lowRateText, { color: '#c2410c' }]}>
+                      ₹{LOW_RATE_THRESHOLD}+ डालने पर ड्राइवर जल्दी मिलेंगे
+                    </Text>
+                  </View>
+                )}
+                <Input
+                  label="वज़न (टन में)"
+                  placeholder="जैसे: 5"
+                  value={editForm.weightTons}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, weightTons: v }))}
+                  keyboardType="numeric"
+                  icon="package"
+                  required
+                />
+                <Input
+                  label="तारीख"
+                  placeholder="DD/MM/YYYY"
+                  value={editForm.tripDate}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, tripDate: v }))}
+                  icon="calendar"
+                  required
+                />
+                <Input
+                  label="विशेष जानकारी (वैकल्पिक)"
+                  placeholder="कोई अतिरिक्त जानकारी..."
+                  value={editForm.description}
+                  onChangeText={(v) => setEditForm(p => ({ ...p, description: v }))}
+                />
+                <Button title="बदलाव सेव करें" onPress={handleSaveEdit} loading={saving} />
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showPostModal} transparent animationType="slide" onRequestClose={() => setShowPostModal(false)}>
         <View style={styles.overlay}>
@@ -378,7 +510,14 @@ const styles = StyleSheet.create({
   postedDate: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   postedRoute: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 3 },
   postedMeta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, alignSelf: 'flex-start', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  lowRateBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 7, padding: 7, marginTop: 7 },
+  lowRateText: { fontSize: 11, fontFamily: 'Inter_500Medium', flex: 1 },
+  btnRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  editBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  editRouteBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 14 },
+  editRouteText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', flex: 1 },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
   cancelBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium', color: '#ef4444' },
   empty: { borderRadius: 14, padding: 32, alignItems: 'center', gap: 8, borderWidth: 1 },
   emptyText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
