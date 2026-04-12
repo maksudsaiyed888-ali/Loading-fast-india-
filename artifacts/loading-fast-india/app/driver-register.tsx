@@ -12,6 +12,7 @@ import Input from '@/components/ui/Input';
 import { generateId } from '@/lib/utils';
 import { INDIA_STATES } from '@/lib/types';
 import { validateAadhaar, formatAadhaarInput } from '@/lib/verhoeff';
+import { validateDrivingLicense, validateRCBook, validateLicenseExpiry, formatDLInput, formatRCInput, formatDateInput } from '@/lib/validators';
 
 export default function DriverRegisterScreen() {
   const colors = useColors();
@@ -51,9 +52,12 @@ export default function DriverRegisterScreen() {
     const e: Record<string, string> = {};
     const aadhaarResult = validateAadhaar(form.aadhaarNumber);
     if (!aadhaarResult.valid) e.aadhaarNumber = aadhaarResult.error;
-    if (!form.licenseNumber.trim()) e.licenseNumber = 'लाइसेंस नंबर आवश्यक है';
-    if (!form.licenseExpiry.trim()) e.licenseExpiry = 'लाइसेंस एक्सपायरी आवश्यक है';
-    if (!form.rcBookNumber.trim()) e.rcBookNumber = 'RC Book नंबर आवश्यक है';
+    const dlResult = validateDrivingLicense(form.licenseNumber);
+    if (!dlResult.valid) e.licenseNumber = dlResult.error;
+    const expiryResult = validateLicenseExpiry(form.licenseExpiry);
+    if (!expiryResult.valid) e.licenseExpiry = expiryResult.error;
+    const rcResult = validateRCBook(form.rcBookNumber);
+    if (!rcResult.valid) e.rcBookNumber = rcResult.error;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -197,9 +201,46 @@ export default function DriverRegisterScreen() {
               icon="shield"
               required
             />
-            <Input label="RC Book नंबर" placeholder="जैसे: RJ14CA0001" value={form.rcBookNumber} onChangeText={(v) => { set('rcBookNumber', v); clearError('rcBookNumber'); }} autoCapitalize="characters" error={errors.rcBookNumber} icon="truck" required />
-            <Input label="ड्राइविंग लाइसेंस नंबर" placeholder="जैसे: RJ14 20230000001" value={form.licenseNumber} onChangeText={(v) => { set('licenseNumber', v); clearError('licenseNumber'); }} autoCapitalize="characters" error={errors.licenseNumber} icon="credit-card" required />
-            <Input label="लाइसेंस एक्सपायरी तारीख" placeholder="DD/MM/YYYY" value={form.licenseExpiry} onChangeText={(v) => { set('licenseExpiry', v); clearError('licenseExpiry'); }} error={errors.licenseExpiry} icon="calendar" required />
+            <Input
+              label="RC Book नंबर (वाहन पंजीकरण)"
+              placeholder="जैसे: RJ14CA0001"
+              value={form.rcBookNumber}
+              onChangeText={(v) => {
+                set('rcBookNumber', formatRCInput(v));
+                if (errors.rcBookNumber) clearError('rcBookNumber');
+              }}
+              autoCapitalize="characters"
+              error={errors.rcBookNumber}
+              icon="truck"
+              required
+            />
+            <Input
+              label="ड्राइविंग लाइसेंस नंबर"
+              placeholder="जैसे: RJ14 2023 0000001"
+              value={form.licenseNumber}
+              onChangeText={(v) => {
+                set('licenseNumber', formatDLInput(v));
+                if (errors.licenseNumber) clearError('licenseNumber');
+              }}
+              autoCapitalize="characters"
+              error={errors.licenseNumber}
+              icon="credit-card"
+              required
+            />
+            <Input
+              label="लाइसेंस एक्सपायरी तारीख"
+              placeholder="DD/MM/YYYY"
+              value={form.licenseExpiry}
+              onChangeText={(v) => {
+                set('licenseExpiry', formatDateInput(v));
+                if (errors.licenseExpiry) clearError('licenseExpiry');
+              }}
+              keyboardType="numeric"
+              maxLength={10}
+              error={errors.licenseExpiry}
+              icon="calendar"
+              required
+            />
 
             <View style={[styles.privacyBox, { borderColor: colors.border }]}>
               <Feather name="lock" size={14} color={colors.mutedForeground} />
