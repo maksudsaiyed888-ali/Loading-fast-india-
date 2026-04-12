@@ -96,7 +96,7 @@ export default function TermsModal({ visible, onClose }: Props) {
               <Para>✓ पुलिस/न्यायालय को जानकारी दी जाएगी</Para>
               <Para>✓ Aadhaar-linked mobile पर legal notice भेजा जाएगा</Para>
               <Para>✓ Bilty record evidence के रूप में प्रस्तुत किया जाएगा</Para>
-              <Para style={{ fontWeight: 'bold' }}>📞 Helpline: Platform Admin — LFI@Admin2024</Para>
+              <Para style={{ fontWeight: 'bold' }}>📞 Helpline: maksudsaiyed888@gmail.com</Para>
             </Section>
 
             <Section title="✅ स्वीकृति" color="#0A2540">

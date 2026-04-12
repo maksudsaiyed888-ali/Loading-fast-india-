@@ -54,7 +54,7 @@ export default function ChatScreen() {
         <Text style={[styles.lockTitle, { color: colors.foreground }]}>चैट लॉक है</Text>
         <Text style={[styles.lockSub, { color: colors.mutedForeground }]}>
           2% कमीशन (₹{trip.commissionAmount?.toFixed(0) ?? '—'}) भुगतान के बाद चैट active होगी।
-          {'\n\n'}UPI: hemaksudsaiyed888@oksbi
+          {'\n\n'}UPI: maksudsaiyed888@oksbi
         </Text>
         <TouchableOpacity
           style={[styles.backBtn, { backgroundColor: colors.primary }]}

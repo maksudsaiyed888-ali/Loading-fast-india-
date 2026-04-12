@@ -26,7 +26,7 @@ const FAQ: { keywords: string[]; answer: string }[] = [
   },
   {
     keywords: ['कमीशन', 'commission', '2%', 'शुल्क', 'fees', 'charge'],
-    answer: '💰 कमीशन:\n• प्रति ट्रिप 2% कमीशन लिया जाता है\n• UPI: hemaksudsaiyed888@oksbi\n• कमीशन भुगतान के बाद ही चैट और बिलटी सुविधा मिलती है',
+    answer: '💰 कमीशन:\n• प्रति ट्रिप 2% कमीशन लिया जाता है\n• UPI: maksudsaiyed888@oksbi\n• कमीशन भुगतान के बाद ही चैट और बिलटी सुविधा मिलती है',
   },
   {
     keywords: ['बिलटी', 'bilty', 'receipt', 'रसीद', 'document'],
@@ -54,7 +54,7 @@ const FAQ: { keywords: string[]; answer: string }[] = [
   },
   {
     keywords: ['login', 'लॉगिन', 'sign in', 'पहले से', 'account', 'खाता'],
-    answer: '🔑 लॉगिन करने के लिए:\n• होम स्क्रीन पर "पहले से खाता है? लॉगिन करें"\n• मोबाइल नंबर या Email डालें\n• Admin के लिए password: LFI@Admin2024',
+    answer: '🔑 लॉगिन करने के लिए:\n• होम स्क्रीन पर "पहले से खाता है? लॉगिन करें"\n• मोबाइल नंबर या Email डालें\n• पहले रजिस्ट्रेशन जरूरी है',
   },
   {
     keywords: ['aadhaar', 'आधार', 'document', 'दस्तावेज़', 'verification'],
@@ -62,7 +62,7 @@ const FAQ: { keywords: string[]; answer: string }[] = [
   },
   {
     keywords: ['help', 'मदद', 'support', 'सहायता', 'helpline', 'contact'],
-    answer: '📞 सहायता:\n• App: Loading Fast India\n• Commission UPI: hemaksudsaiyed888@oksbi\n• Transporter ID: 24BRLPS3959R1ZN\n\nआप नीचे अपना सवाल टाइप करें, मैं जवाब दूंगा!',
+    answer: '📞 सहायता:\n• App: Loading Fast India\n• Email: maksudsaiyed888@gmail.com\n• Commission UPI: maksudsaiyed888@oksbi\n• Transporter ID: 24BRLPS3959R1ZN\n\nआप नीचे अपना सवाल टाइप करें, मैं जवाब दूंगा!',
   },
 ];
 
