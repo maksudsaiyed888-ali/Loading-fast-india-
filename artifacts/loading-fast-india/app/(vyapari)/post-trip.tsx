@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -13,14 +13,6 @@ import { generateId } from '@/lib/utils';
 import { sendZoneNotifications } from '@/lib/notifications';
 
 type Colors = ReturnType<typeof useColors>;
-
-const VEHICLE_PREFS = [
-  { label: 'कोई भी', value: '' },
-  { label: 'छोटा (≤5 टन)', value: 'small' },
-  { label: 'मध्यम (6W)', value: 'medium' },
-  { label: 'बड़ा (10W-14W)', value: 'large' },
-  { label: 'भारी (16W+)', value: 'heavy' },
-];
 
 const LOW_RATE_THRESHOLD = 300;
 
@@ -191,7 +183,7 @@ export default function VyapariPostTripScreen() {
               <Text style={[styles.tripMeta, { color: colors.mutedForeground }]}>
                 {t.goodsCategory} • {t.weightTons} टन
                 {t.ratePerTon > 0 ? ` • ₹${t.ratePerTon}/टन` : ' • भाड़ा नहीं दिया'}
-                {t.vehicleTypePref ? ` • ${VEHICLE_PREFS.find(v => v.value === t.vehicleTypePref)?.label ?? t.vehicleTypePref}` : ''}
+                {t.vehicleTypePref ? ` • ${VEHICLE_TYPES.find(v => v.id === t.vehicleTypePref)?.name ?? t.vehicleTypePref}` : ''}
               </Text>
               {t.description ? (
                 <Text style={[styles.tripDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{t.description}</Text>
@@ -330,7 +322,7 @@ export default function VyapariPostTripScreen() {
               <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>📦 माल की जानकारी</Text>
               <GoodsCategoryPicker value={form.goodsCategory} onSelect={(v) => set('goodsCategory', v)} colors={colors} />
               <Input label="वज़न (टन में)" placeholder="जैसे: 5" value={form.weightTons} onChangeText={(v) => set('weightTons', v)} keyboardType="numeric" icon="package" required />
-              <Input label="रेट प्रति टन (₹, वैकल्पिक)" placeholder="जैसे: 1500" value={form.ratePerTon} onChangeText={(v) => set('ratePerTon', v)} keyboardType="numeric" icon="dollar-sign" />
+              <Input label="रेंट डालें (₹)" placeholder="रेंट डालें" value={form.ratePerTon} onChangeText={(v) => set('ratePerTon', v)} keyboardType="numeric" icon="dollar-sign" />
               {form.ratePerTon.trim() && isLowRate(Number(form.ratePerTon)) && (
                 <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
                   <Feather name="alert-triangle" size={12} color="#f97316" />
@@ -350,7 +342,7 @@ export default function VyapariPostTripScreen() {
               <Input label="तारीख" placeholder="DD/MM/YYYY" value={form.tripDate} onChangeText={(v) => set('tripDate', v)} icon="calendar" required />
 
               <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>🚛 गाड़ी का प्रकार (वैकल्पिक)</Text>
-              <VehiclePrefPicker value={form.vehicleTypePref} onSelect={(v) => set('vehicleTypePref', v)} colors={colors} />
+              <VehicleTypePicker value={form.vehicleTypePref} onSelect={(v) => set('vehicleTypePref', v)} colors={colors} />
 
               <Input label="विशेष जानकारी (वैकल्पिक)" placeholder="कोई अतिरिक्त जानकारी..." value={form.description} onChangeText={(v) => set('description', v)} />
 
@@ -421,28 +413,91 @@ function GoodsCategoryPicker({ value, onSelect, colors }: { value: string; onSel
   );
 }
 
-function VehiclePrefPicker({ value, onSelect, colors }: { value: string; onSelect: (v: string) => void; colors: Colors }) {
+function VehicleTypePicker({ value, onSelect, colors }: { value: string; onSelect: (v: string) => void; colors: Colors }) {
+  const [open, setOpen] = useState(false);
+
+  const displayName = value
+    ? VEHICLE_TYPES.find(v => v.id === value)?.name ?? value
+    : 'कोई भी गाड़ी चलेगी';
+
   return (
     <View style={{ marginBottom: 12 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={gcStyles.row}>
-          {VEHICLE_PREFS.map((vp) => {
-            const isSelected = value === vp.value;
-            return (
-              <TouchableOpacity
-                key={vp.value}
-                style={[gcStyles.chip, {
-                  backgroundColor: isSelected ? colors.navy : colors.card,
-                  borderColor: isSelected ? colors.navy : colors.border,
-                }]}
-                onPress={() => onSelect(vp.value)}
-              >
-                <Text style={[gcStyles.chipText, { color: isSelected ? '#fff' : colors.foreground }]}>{vp.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+      <TouchableOpacity
+        style={[ddStyles.trigger, { borderColor: value ? colors.navy : colors.border, backgroundColor: colors.card }]}
+        onPress={() => setOpen(true)}
+        activeOpacity={0.8}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 18 }}>🚛</Text>
+          <Text style={[ddStyles.triggerText, { color: value ? colors.foreground : colors.mutedForeground }]}>
+            {displayName}
+          </Text>
         </View>
-      </ScrollView>
+        <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <View style={vtStyles.overlay}>
+          <View style={[vtStyles.sheet, { backgroundColor: colors.background }]}>
+            <View style={[vtStyles.header, { borderBottomColor: colors.border }]}>
+              <Text style={[vtStyles.title, { color: colors.foreground }]}>🚛 गाड़ी चुनें</Text>
+              <TouchableOpacity onPress={() => setOpen(false)}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={[{ id: '', name: 'कोई भी गाड़ी चलेगी', category: '', maxLoad: 0 }, ...VEHICLE_TYPES]}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingBottom: 30 }}
+              ListHeaderComponent={null}
+              renderItem={({ item, index }) => {
+                const isFirst = index === 0;
+                const prevItem = index > 1 ? VEHICLE_TYPES[index - 2] : null;
+                const showHeader = !isFirst && item.category !== prevItem?.category;
+                const isSelected = value === item.id;
+
+                return (
+                  <>
+                    {showHeader && (
+                      <View style={[vtStyles.catHeader, { backgroundColor: colors.muted }]}>
+                        <Text style={[vtStyles.catHeaderText, { color: colors.secondary }]}>
+                          {item.category}
+                        </Text>
+                      </View>
+                    )}
+                    {isFirst && (
+                      <View style={[vtStyles.catHeader, { backgroundColor: colors.muted }]}>
+                        <Text style={[vtStyles.catHeaderText, { color: colors.secondary }]}>सभी गाड़ियाँ</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      style={[vtStyles.row, {
+                        backgroundColor: isSelected ? colors.navy + '10' : colors.background,
+                        borderBottomColor: colors.border,
+                      }]}
+                      onPress={() => { onSelect(item.id); setOpen(false); }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={[vtStyles.name, { color: isSelected ? colors.navy : colors.foreground }]}>
+                          {item.name || 'कोई भी गाड़ी चलेगी'}
+                        </Text>
+                        {item.maxLoad > 0 && (
+                          <Text style={[vtStyles.load, { color: colors.mutedForeground }]}>
+                            अधिकतम भार: {item.maxLoad} टन
+                          </Text>
+                        )}
+                      </View>
+                      {isSelected && <Feather name="check-circle" size={20} color={colors.navy} />}
+                    </TouchableOpacity>
+                  </>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -453,6 +508,18 @@ const ddStyles = StyleSheet.create({
   dropdown: { borderWidth: 1, borderRadius: 10, marginTop: 4, zIndex: 99 },
   option: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 0.5 },
   optionText: { fontSize: 14, fontFamily: 'Inter_400Regular' },
+});
+
+const vtStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { maxHeight: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
+  title: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  catHeader: { paddingHorizontal: 16, paddingVertical: 8 },
+  catHeaderText: { fontSize: 12, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 0.6 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 0.5 },
+  name: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  load: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
 });
 
 const gcStyles = StyleSheet.create({
