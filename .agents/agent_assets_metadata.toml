@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "SfFnLlURFvf197UwinBU1"
@@ -18,3 +17,9 @@ id = "h2Is24qfcVh14G0pZ553-"
 uri = "file://artifacts/loading-fast-india/assets/images/splash.png"
 type = "image"
 title = "loading fast india splash screen"
+
+[[outputs]]
+id = "Q0EY6BJw1HNDhLbiab94k"
+uri = "file://artifacts/loading-fast-india/KEYSTORE-CREDENTIALS.txt"
+type = "text"
+title = "Keystore Passwords & Credentials Info"
