@@ -86,7 +86,7 @@ export default function DriverProfileScreen() {
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.secondary }]}>व्यक्तिगत जानकारी</Text>
             <InfoRow icon="phone" label="मोबाइल" value={driver.phone} />
-            <InfoRow icon="mail" label="Email" value={driver.email} />
+            <InfoRow icon="mail" label="Email" value={driver.email ?? '—'} />
             <InfoRow icon="map-pin" label="शहर" value={`${driver.city}, ${driver.state}`} />
             <InfoRow icon="shield" label="Aadhaar" value={maskAadhaar(driver.aadhaarNumber)} />
             <InfoRow icon="credit-card" label="License" value={driver.licenseNumber} />

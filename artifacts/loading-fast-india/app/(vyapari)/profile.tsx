@@ -79,7 +79,7 @@ export default function VyapariProfileScreen() {
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.secondary }]}>व्यक्तिगत जानकारी</Text>
             <InfoRow icon="phone" label="मोबाइल" value={vyapari.phone} />
-            <InfoRow icon="mail" label="Email" value={vyapari.email} />
+            <InfoRow icon="mail" label="Email" value={vyapari.email ?? '—'} />
             <InfoRow icon="briefcase" label="व्यापार" value={vyapari.businessName} />
             <InfoRow icon="map-pin" label="शहर" value={`${vyapari.city}, ${vyapari.state}`} />
             <InfoRow icon="shield" label="Aadhaar" value={maskAadhaar(vyapari.aadhaarNumber)} />

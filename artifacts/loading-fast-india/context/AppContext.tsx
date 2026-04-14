@@ -63,6 +63,8 @@ interface AppContextType {
   getOpenVyapariTrips: () => VyapariTrip[];
   generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<string>;
   verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
+  generateLoginOtp: (phone: string, role: 'driver' | 'vyapari') => Promise<string | null>;
+  verifyLoginOtp: (phone: string, otp: string, role: 'driver' | 'vyapari') => Promise<boolean>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
 }
@@ -265,6 +267,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const generateLoginOtp = async (phone: string, role: 'driver' | 'vyapari'): Promise<string | null> => {
+    const user = role === 'driver'
+      ? drivers.find((d) => d.phone === phone)
+      : vyaparis.find((v) => v.phone === phone);
+    if (!user) return null;
+    const otp = String(Math.floor(1000 + Math.random() * 9000));
+    await fsUpdate(role === 'driver' ? 'drivers' : 'vyaparis', user.id, { loginOtp: otp, loginOtpAt: new Date().toISOString() });
+    return otp;
+  };
+
+  const verifyLoginOtp = async (phone: string, otp: string, role: 'driver' | 'vyapari'): Promise<boolean> => {
+    const found = role === 'driver'
+      ? drivers.find((d) => d.phone === phone)
+      : vyaparis.find((v) => v.phone === phone);
+    if (!found) return false;
+    const record = found as unknown as Record<string, unknown>;
+    if (!record.loginOtp || record.loginOtp !== otp) return false;
+    await fsUpdate(role === 'driver' ? 'drivers' : 'vyaparis', found.id, { loginOtp: '', loginOtpAt: '' });
+    await login({ id: found.id, role, name: found.name, phone: found.phone, email: found.email ?? '' });
+    return true;
+  };
+
   const currentDriver = user?.role === 'driver' ? drivers.find((d) => d.id === user.id) ?? null : null;
   const currentVyapari = user?.role === 'vyapari' ? vyaparis.find((v) => v.id === user.id) ?? null : null;
 
@@ -280,6 +304,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         vyapariTrips, addVyapariTrip, cancelVyapariTrip, confirmVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
         generateDeliveryOtp, verifyDeliveryOtp,
+        generateLoginOtp, verifyLoginOtp,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         currentDriver, currentVyapari,
       }}

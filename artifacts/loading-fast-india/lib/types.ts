@@ -4,8 +4,8 @@ export interface Driver {
   id: string;
   name: string;
   phone: string;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
   aadhaarNumber: string;
   licenseNumber: string;
   licenseExpiry: string;
@@ -30,8 +30,8 @@ export interface Vyapari {
   name: string;
   businessName: string;
   phone: string;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
   aadhaarNumber: string;
   gstNumber?: string;
   address: string;
