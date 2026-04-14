@@ -88,10 +88,10 @@ export interface Trip {
   currentLocation?: string;
   deliveryLat?: number;
   deliveryLng?: number;
-  deliveryVoiceRecorded?: boolean;
+  deliveryOtp?: string;
   deliveryNotes?: string;
   deliveredAt?: string;
-  vyapariConfirmedAt?: string;
+  completedAt?: string;
 }
 
 export interface Bilty {

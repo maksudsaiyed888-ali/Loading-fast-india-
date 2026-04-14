@@ -61,7 +61,8 @@ interface AppContextType {
   updateVyapariTrip: (tripId: string, updates: Partial<VyapariTrip>) => Promise<void>;
   getVyapariOwnTrips: (vyapariId: string) => VyapariTrip[];
   getOpenVyapariTrips: () => VyapariTrip[];
-  confirmDelivery: (tripId: string) => Promise<void>;
+  generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<void>;
+  verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
 }
@@ -238,8 +239,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
 
-  const confirmDelivery = async (tripId: string) => {
-    await fsUpdate('trips', tripId, { status: 'completed', vyapariConfirmedAt: new Date().toISOString() });
+  const generateDeliveryOtp = async (tripId: string, gpsLat?: number, gpsLng?: number) => {
+    const otp = String(Math.floor(1000 + Math.random() * 9000));
+    const updates: Record<string, unknown> = {
+      status: 'pending_confirmation',
+      tripStatus: 'delivered',
+      deliveryOtp: otp,
+      deliveredAt: new Date().toISOString(),
+    };
+    if (gpsLat !== undefined) updates.deliveryLat = gpsLat;
+    if (gpsLng !== undefined) updates.deliveryLng = gpsLng;
+    await fsUpdate('trips', tripId, updates);
+  };
+
+  const verifyDeliveryOtp = async (tripId: string, otp: string): Promise<boolean> => {
+    const trip = trips.find((t) => t.id === tripId);
+    if (!trip || !trip.deliveryOtp) return false;
+    if (trip.deliveryOtp.trim() !== otp.trim()) return false;
+    await fsUpdate('trips', tripId, {
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+      deliveryOtp: '',
+    });
+    return true;
   };
 
   const currentDriver = user?.role === 'driver' ? drivers.find((d) => d.id === user.id) ?? null : null;
@@ -256,7 +278,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         appRatings, addAppRating, getAppAvgRating, hasRatedApp,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         vyapariTrips, addVyapariTrip, cancelVyapariTrip, confirmVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
-        confirmDelivery,
+        generateDeliveryOtp, verifyDeliveryOtp,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         currentDriver, currentVyapari,
       }}

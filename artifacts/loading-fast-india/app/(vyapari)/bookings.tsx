@@ -18,7 +18,7 @@ export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, getVyapariBookings, bilties, refreshAll, hasRated, confirmDelivery } = useApp();
+  const { user, getVyapariBookings, bilties, refreshAll, hasRated } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showComplaint, setShowComplaint] = useState(false);
@@ -26,7 +26,6 @@ export default function BookingsScreen() {
   const [showChatbot, setShowChatbot] = useState(false);
   const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const myBookings = user ? getVyapariBookings(user.id) : [];
   const onRefresh = async () => { setRefreshing(true); await refreshAll(); setRefreshing(false); };
@@ -34,30 +33,6 @@ export default function BookingsScreen() {
   const handleBilty = (tripId: string) => {
     const b = bilties.find((b) => b.tripId === tripId);
     if (b) setSelectedBilty(b);
-  };
-
-  const handleConfirmDelivery = (trip: Trip) => {
-    Alert.alert(
-      'डिलीवरी कन्फर्म करें?',
-      `क्या आपको माल मिल गया?\n\nड्राइवर की GPS Location:\n📍 ${trip.deliveryLat?.toFixed(5) ?? '—'}, ${trip.deliveryLng?.toFixed(5) ?? '—'}${trip.deliveryVoiceRecorded ? '\n🎙️ Voice Note: रिकॉर्ड किया हुआ ✓' : ''}\n\nकन्फर्म करने के बाद ट्रिप पूर्ण मानी जाएगी।`,
-      [
-        { text: 'नहीं', style: 'cancel' },
-        {
-          text: 'हाँ, मिल गया ✓',
-          style: 'default',
-          onPress: async () => {
-            setConfirmingId(trip.id);
-            try {
-              await confirmDelivery(trip.id);
-              Alert.alert('✅ पुष्टि हो गई!', 'ट्रिप सफलतापूर्वक पूर्ण हो गई। अब रेटिंग दें।');
-            } catch {
-              Alert.alert('Error', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
-            }
-            setConfirmingId(null);
-          },
-        },
-      ]
-    );
   };
 
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -86,17 +61,23 @@ export default function BookingsScreen() {
               <TripCard trip={trip} />
 
               {trip.status === 'pending_confirmation' && (
-                <View style={[styles.pendingBanner, { backgroundColor: '#fef3c715', borderColor: '#f59e0b' }]}>
-                  <Text style={styles.pendingIcon}>⏳</Text>
+                <View style={[styles.pendingBanner, { backgroundColor: '#eff6ff', borderColor: '#2563eb' }]}>
+                  <Text style={styles.pendingIcon}>🔑</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.pendingTitle, { color: '#b45309' }]}>Pending Confirmation</Text>
-                    <Text style={[styles.pendingSubtitle, { color: '#78350f' }]}>
-                      ड्राइवर ने डिलीवरी दर्ज की है — आपकी पुष्टि ज़रूरी है
+                    <Text style={[styles.pendingTitle, { color: '#1e40af' }]}>ड्राइवर को यह OTP बताएं</Text>
+                    {trip.deliveryOtp ? (
+                      <View style={[styles.otpBox, { backgroundColor: '#1e40af' }]}>
+                        <Text style={styles.otpText}>{trip.deliveryOtp}</Text>
+                      </View>
+                    ) : (
+                      <Text style={[styles.pendingSubtitle, { color: '#1e40af' }]}>OTP लोड हो रहा है...</Text>
+                    )}
+                    <Text style={[styles.pendingSubtitle, { color: '#3b82f6' }]}>
+                      ड्राइवर इस OTP को ऐप में डालने के बाद ट्रिप पूर्ण होगी
                     </Text>
                     {trip.deliveryLat ? (
-                      <Text style={[styles.pendingGps, { color: '#92400e' }]}>
+                      <Text style={[styles.pendingGps, { color: '#6b7280' }]}>
                         📍 {trip.deliveryLat.toFixed(5)}, {trip.deliveryLng?.toFixed(5)}
-                        {trip.deliveryVoiceRecorded ? '  🎙️ Voice ✓' : ''}
                       </Text>
                     ) : null}
                   </View>
@@ -104,20 +85,6 @@ export default function BookingsScreen() {
               )}
 
               <View style={styles.tripActions}>
-                {trip.status === 'pending_confirmation' && (
-                  <TouchableOpacity
-                    style={[styles.confirmBtn, { backgroundColor: '#16a34a', opacity: confirmingId === trip.id ? 0.6 : 1 }]}
-                    onPress={() => handleConfirmDelivery(trip)}
-                    disabled={confirmingId === trip.id}
-                    activeOpacity={0.85}
-                  >
-                    <Feather name="check-circle" size={15} color="#fff" />
-                    <Text style={styles.confirmBtnText}>
-                      {confirmingId === trip.id ? 'कन्फर्म हो रहा है...' : 'डिलीवरी कन्फर्म करें ✓'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.success + '15', borderColor: colors.success }]}
                   onPress={() => handleBilty(trip.id)}
@@ -233,12 +200,12 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   pendingBanner: { borderRadius: 12, borderWidth: 1.5, padding: 14, flexDirection: 'row', gap: 10, marginTop: -6, marginBottom: 8, alignItems: 'flex-start' },
   pendingIcon: { fontSize: 22, marginTop: 2 },
-  pendingTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
-  pendingSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  pendingGps: { fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 4 },
+  pendingTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  pendingSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  pendingGps: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  otpBox: { borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, alignSelf: 'flex-start', marginVertical: 6 },
+  otpText: { color: '#fff', fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: 8 },
   tripActions: { flexDirection: 'row', gap: 8, marginTop: -4, marginBottom: 12, flexWrap: 'wrap' },
-  confirmBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, width: '100%', justifyContent: 'center' },
-  confirmBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_700Bold' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
   actionBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   chatbotFab: { position: 'absolute', bottom: 88, right: 20, width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },

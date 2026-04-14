@@ -1,13 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
-import { Audio } from 'expo-av';
 import { useRouter } from 'expo-router';
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
-  Alert, Linking, Modal, Platform, RefreshControl,
+  Alert, ActivityIndicator, Linking, Modal, Platform, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput,
-  TouchableOpacity, View, ActivityIndicator,
+  TouchableOpacity, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
@@ -24,16 +23,20 @@ type Filter = 'all' | 'available' | 'confirmed' | 'pending_confirmation' | 'comp
 type TripStatus = 'loading' | 'on_the_way' | 'delivered';
 
 const TRIP_STATUS_OPTIONS: { key: TripStatus; label: string; icon: string; color: string }[] = [
-  { key: 'loading',   label: 'लोडिंग हो रही है', icon: '📦', color: '#d97706' },
+  { key: 'loading',    label: 'लोडिंग हो रही है', icon: '📦', color: '#d97706' },
   { key: 'on_the_way', label: 'रास्ते में है',    icon: '🚛', color: '#2563eb' },
-  { key: 'delivered', label: 'डिलीवर हो गया',    icon: '✅', color: '#16a34a' },
+  { key: 'delivered',  label: 'डिलीवर हो गया',   icon: '✅', color: '#16a34a' },
 ];
 
 export default function MyTripsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, getDriverTrips, bilties, refreshAll, updateTrip, hasRated, vyaparis } = useApp();
+  const {
+    user, getDriverTrips, bilties, refreshAll, updateTrip, hasRated, vyaparis,
+    generateDeliveryOtp, verifyDeliveryOtp,
+  } = useApp();
+
   const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
@@ -52,13 +55,12 @@ export default function MyTripsScreen() {
   const [deliveryTrip, setDeliveryTrip] = useState<Trip | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const [voiceDone, setVoiceDone] = useState(false);
-  const [deliveryNotes, setDeliveryNotes] = useState('');
   const [savingDelivery, setSavingDelivery] = useState(false);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [otpModal, setOtpModal] = useState(false);
+  const [otpTrip, setOtpTrip] = useState<Trip | null>(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const filtered = filter === 'all' ? myTrips : myTrips.filter((t) => t.status === filter);
@@ -75,11 +77,6 @@ export default function MyTripsScreen() {
   const openDeliveryModal = (trip: Trip) => {
     setDeliveryTrip(trip);
     setGpsCoords(null);
-    setVoiceDone(false);
-    setRecordingDuration(0);
-    setIsRecording(false);
-    setDeliveryNotes('');
-    recordingRef.current = null;
     setDeliveryModal(true);
   };
 
@@ -100,74 +97,46 @@ export default function MyTripsScreen() {
     setGpsLoading(false);
   };
 
-  const startRecording = async () => {
-    try {
-      const perm = await Audio.requestPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission नहीं मिली', 'Voice Record के लिए Microphone Permission दें।');
-        return;
-      }
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
-      setIsRecording(true);
-      setRecordingDuration(0);
-      timerRef.current = setInterval(() => {
-        setRecordingDuration((d) => d + 1);
-      }, 1000);
-    } catch {
-      Alert.alert('Error', 'Voice recording शुरू नहीं हो पाई।');
-    }
-  };
-
-  const stopRecording = async () => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-    setIsRecording(false);
-    try {
-      if (recordingRef.current) {
-        await recordingRef.current.stopAndUnloadAsync();
-        recordingRef.current = null;
-      }
-    } catch {}
-    setVoiceDone(true);
-  };
-
-  const handleSaveDelivery = async () => {
+  const handleGenerateOtp = async () => {
     if (!deliveryTrip) return;
-    if (!gpsCoords) {
-      Alert.alert('GPS ज़रूरी है', 'कृपया पहले GPS Location कैप्चर करें।');
-      return;
-    }
-    if (!voiceDone) {
-      Alert.alert('Voice Note ज़रूरी है', 'कृपया पहले Voice Note रिकॉर्ड करें और Stop करें।');
-      return;
-    }
-    if (isRecording) {
-      Alert.alert('Recording चल रही है', 'पहले Stop Recording दबाएँ।');
-      return;
-    }
     setSavingDelivery(true);
     try {
-      await updateTrip(deliveryTrip.id, {
-        status: 'pending_confirmation',
-        tripStatus: 'delivered',
-        deliveryLat: gpsCoords.lat,
-        deliveryLng: gpsCoords.lng,
-        deliveryVoiceRecorded: true,
-        deliveryNotes: deliveryNotes.trim() || undefined,
-        deliveredAt: new Date().toISOString(),
-      });
+      await generateDeliveryOtp(deliveryTrip.id, gpsCoords?.lat, gpsCoords?.lng);
       setDeliveryModal(false);
       Alert.alert(
-        'डिलीवरी दर्ज हो गई! ✅',
-        'GPS + Voice Note सेव हो गया। व्यापारी की पुष्टि का इंतज़ार है।'
+        '✅ OTP भेजा गया!',
+        'व्यापारी के स्क्रीन पर OTP दिख रहा है।\n\nव्यापारी से OTP लेकर "OTP दर्ज करें" बटन दबाएं।'
       );
     } catch {
       Alert.alert('Error', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
     }
     setSavingDelivery(false);
+  };
+
+  const openOtpModal = (trip: Trip) => {
+    setOtpTrip(trip);
+    setOtpInput('');
+    setOtpModal(true);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpTrip || otpInput.length !== 4) {
+      Alert.alert('OTP गलत है', '4 अंकों का OTP डालें।');
+      return;
+    }
+    setVerifyingOtp(true);
+    try {
+      const ok = await verifyDeliveryOtp(otpTrip.id, otpInput);
+      if (ok) {
+        setOtpModal(false);
+        Alert.alert('🎉 ट्रिप पूर्ण हुई!', 'OTP सही था। ट्रिप सफलतापूर्वक Completed हो गई।');
+      } else {
+        Alert.alert('❌ OTP गलत है', 'व्यापारी से सही OTP लेकर दोबारा डालें।');
+      }
+    } catch {
+      Alert.alert('Error', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
+    }
+    setVerifyingOtp(false);
   };
 
   const handleBilty = (tripId: string) => {
@@ -197,14 +166,12 @@ export default function MyTripsScreen() {
     Alert.alert('अपडेट हो गया!', `स्थिति: ${TRIP_STATUS_OPTIONS.find(s => s.key === selectedTripStatus)?.label}${locationInput ? `\nस्थान: ${locationInput}` : ''}`);
   };
 
-  const formatDuration = (secs: number) => `${Math.floor(secs / 60).toString().padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`;
-
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
   const FILTERS: { key: Filter; label: string }[] = [
     { key: 'all', label: 'सभी' },
     { key: 'available', label: 'उपलब्ध' },
     { key: 'confirmed', label: 'बुक' },
-    { key: 'pending_confirmation', label: '⏳ Pending' },
+    { key: 'pending_confirmation', label: '⏳ OTP बाकी' },
     { key: 'completed', label: 'पूर्ण' },
   ];
 
@@ -248,11 +215,13 @@ export default function MyTripsScreen() {
                 <View style={[styles.pendingBanner, { borderColor: '#f59e0b50', backgroundColor: '#f59e0b12' }]}>
                   <Text style={styles.pendingIcon}>⏳</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.pendingLabel, { color: '#b45309' }]}>व्यापारी की पुष्टि बाकी है</Text>
+                    <Text style={[styles.pendingLabel, { color: '#b45309' }]}>OTP दर्ज करना बाकी है</Text>
+                    <Text style={[styles.pendingGps, { color: colors.mutedForeground }]}>
+                      व्यापारी से OTP लेकर नीचे बटन दबाएं
+                    </Text>
                     {trip.deliveryLat ? (
                       <Text style={[styles.pendingGps, { color: colors.mutedForeground }]}>
                         📍 {trip.deliveryLat.toFixed(5)}, {trip.deliveryLng?.toFixed(5)}
-                        {trip.deliveryVoiceRecorded ? '  🎙️ Voice ✓' : ''}
                       </Text>
                     ) : null}
                   </View>
@@ -281,7 +250,7 @@ export default function MyTripsScreen() {
               <View style={styles.tripActions}>
                 {trip.status === 'confirmed' && (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#7C3AED' + '15', borderColor: '#7C3AED' }]}
+                    style={[styles.actionBtn, { backgroundColor: '#7C3AED15', borderColor: '#7C3AED' }]}
                     onPress={() => openStatusModal(trip)}
                   >
                     <Feather name="navigation" size={14} color="#7C3AED" />
@@ -299,8 +268,17 @@ export default function MyTripsScreen() {
                     style={[styles.actionBtn, { backgroundColor: '#16a34a15', borderColor: '#16a34a' }]}
                     onPress={() => openDeliveryModal(trip)}
                   >
-                    <Feather name="check-circle" size={14} color="#16a34a" />
-                    <Text style={[styles.actionBtnText, { color: '#16a34a' }]}>डिलीवरी पूर्ण करें</Text>
+                    <Feather name="send" size={14} color="#16a34a" />
+                    <Text style={[styles.actionBtnText, { color: '#16a34a' }]}>Complete Trip</Text>
+                  </TouchableOpacity>
+                )}
+                {trip.status === 'pending_confirmation' && (
+                  <TouchableOpacity
+                    style={[styles.otpBtn, { backgroundColor: '#2563eb' }]}
+                    onPress={() => openOtpModal(trip)}
+                  >
+                    <Feather name="key" size={14} color="#fff" />
+                    <Text style={styles.otpBtnText}>OTP दर्ज करें</Text>
                   </TouchableOpacity>
                 )}
                 {trip.status === 'available' && (
@@ -311,7 +289,7 @@ export default function MyTripsScreen() {
                 )}
                 {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && trip.commissionPaid && (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#0ea5e9' + '15', borderColor: '#0ea5e9' }]}
+                    style={[styles.actionBtn, { backgroundColor: '#0ea5e915', borderColor: '#0ea5e9' }]}
                     onPress={() => router.push(`/chat?tripId=${trip.id}`)}
                   >
                     <Feather name="message-circle" size={14} color="#0ea5e9" />
@@ -329,7 +307,7 @@ export default function MyTripsScreen() {
                 )}
                 {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && !trip.commissionPaid && (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#94a3b8' + '15', borderColor: '#94a3b8' }]}
+                    style={[styles.actionBtn, { backgroundColor: '#94a3b815', borderColor: '#94a3b8' }]}
                     onPress={() => router.push(`/chat?tripId=${trip.id}`)}
                   >
                     <Feather name="lock" size={14} color="#94a3b8" />
@@ -339,7 +317,7 @@ export default function MyTripsScreen() {
                 {trip.status === 'completed' && trip.confirmedBy && (
                   <TouchableOpacity
                     style={[styles.actionBtn, {
-                      backgroundColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' + '15' : '#f59e0b' + '15',
+                      backgroundColor: (user && hasRated(trip.id, user.id)) ? '#94a3b815' : '#f59e0b15',
                       borderColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b',
                     }]}
                     onPress={() => setRatingTrip(trip)}
@@ -390,6 +368,7 @@ export default function MyTripsScreen() {
         />
       )}
 
+      {/* Status Update Modal */}
       <Modal visible={statusModal} transparent animationType="slide" onRequestClose={() => setStatusModal(false)}>
         <View style={styles.overlay}>
           <View style={[styles.statusSheet, { backgroundColor: colors.background }]}>
@@ -426,14 +405,12 @@ export default function MyTripsScreen() {
                   <Text style={[styles.statusOptionLabel, { color: selectedTripStatus === opt.key ? opt.color : colors.foreground }]}>
                     {opt.label}
                   </Text>
-                  {selectedTripStatus === opt.key && (
-                    <Feather name="check-circle" size={20} color={opt.color} />
-                  )}
+                  {selectedTripStatus === opt.key && <Feather name="check-circle" size={20} color={opt.color} />}
                 </TouchableOpacity>
               ))}
               <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 16 }]}>शहर का नाम लिखें (optional)</Text>
               <TextInput
-                style={[styles.locationInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+                style={[styles.textInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
                 placeholder="जैसे: जयपुर, दिल्ली, मुंबई..."
                 placeholderTextColor={colors.mutedForeground}
                 value={locationInput}
@@ -453,12 +430,13 @@ export default function MyTripsScreen() {
         </View>
       </Modal>
 
-      <Modal visible={deliveryModal} transparent animationType="slide" onRequestClose={() => { if (!savingDelivery) { if (isRecording) stopRecording(); setDeliveryModal(false); } }}>
+      {/* Complete Trip Modal — GPS + OTP Send */}
+      <Modal visible={deliveryModal} transparent animationType="slide" onRequestClose={() => { if (!savingDelivery) setDeliveryModal(false); }}>
         <View style={styles.overlay}>
           <View style={[styles.statusSheet, { backgroundColor: colors.background }]}>
             <View style={[styles.statusHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.statusTitle, { color: colors.foreground }]}>📦 डिलीवरी प्रमाण</Text>
-              <TouchableOpacity onPress={() => { if (!savingDelivery) { if (isRecording) stopRecording(); setDeliveryModal(false); } }}>
+              <Text style={[styles.statusTitle, { color: colors.foreground }]}>📦 ट्रिप पूर्ण करें</Text>
+              <TouchableOpacity onPress={() => { if (!savingDelivery) setDeliveryModal(false); }}>
                 <Feather name="x" size={22} color={colors.foreground} />
               </TouchableOpacity>
             </View>
@@ -475,15 +453,15 @@ export default function MyTripsScreen() {
                 </View>
               )}
 
-              <View style={[styles.mandatoryNote, { backgroundColor: '#fef3c7', borderColor: '#f59e0b' }]}>
-                <Feather name="info" size={14} color="#b45309" />
-                <Text style={[styles.mandatoryNoteText, { color: '#92400e' }]}>
-                  GPS Location और Voice Note दोनों अनिवार्य हैं — यह झूठ को रोकने के लिए है।
+              <View style={[styles.infoNote, { backgroundColor: '#eff6ff', borderColor: '#2563eb30' }]}>
+                <Feather name="info" size={14} color="#2563eb" />
+                <Text style={[styles.infoNoteText, { color: '#1d4ed8' }]}>
+                  "Send OTP" दबाने पर व्यापारी के स्क्रीन पर 4-अंकों का OTP दिखेगा। व्यापारी से OTP लेकर अगले चरण में डालें।
                 </Text>
               </View>
 
               <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 16 }]}>
-                1. GPS Location (अनिवार्य) {gpsCoords ? '✅' : ''}
+                GPS Location (वैकल्पिक) {gpsCoords ? '✅' : ''}
               </Text>
               {gpsCoords ? (
                 <View style={[styles.gpsResult, { backgroundColor: '#f0fdf4', borderColor: '#16a34a' }]}>
@@ -499,90 +477,93 @@ export default function MyTripsScreen() {
                   disabled={gpsLoading}
                   activeOpacity={0.8}
                 >
-                  {gpsLoading ? (
-                    <ActivityIndicator size="small" color="#2563eb" />
-                  ) : (
-                    <Feather name="map-pin" size={16} color="#2563eb" />
-                  )}
+                  {gpsLoading ? <ActivityIndicator size="small" color="#2563eb" /> : <Feather name="map-pin" size={16} color="#2563eb" />}
                   <Text style={[styles.gpsBtnText, { color: '#2563eb' }]}>
                     {gpsLoading ? 'Location ले रहे हैं...' : '📍 GPS Location लें'}
                   </Text>
                 </TouchableOpacity>
               )}
 
-              <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 20 }]}>
-                2. Voice Note (अनिवार्य) {voiceDone ? '✅' : ''}
-              </Text>
-              <View style={[styles.voiceCard, { backgroundColor: colors.card, borderColor: isRecording ? '#dc2626' : voiceDone ? '#16a34a' : colors.border }]}>
-                <View style={styles.voiceRow}>
-                  {isRecording ? (
-                    <>
-                      <View style={styles.recDot} />
-                      <Text style={[styles.recTimerText, { color: '#dc2626' }]}>
-                        Recording... {formatDuration(recordingDuration)}
-                      </Text>
-                    </>
-                  ) : voiceDone ? (
-                    <>
-                      <Feather name="check-circle" size={18} color="#16a34a" />
-                      <Text style={[styles.recTimerText, { color: '#15803d' }]}>
-                        Voice Note रिकॉर्ड हो गया ({formatDuration(recordingDuration)})
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <Feather name="mic" size={18} color={colors.mutedForeground} />
-                      <Text style={[styles.recTimerText, { color: colors.mutedForeground }]}>
-                        Record नहीं हुआ
-                      </Text>
-                    </>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={[styles.recBtn, { backgroundColor: isRecording ? '#dc2626' : voiceDone ? '#16a34a50' : '#2563eb' }]}
-                  onPress={isRecording ? stopRecording : voiceDone ? undefined : startRecording}
-                  disabled={voiceDone && !isRecording}
-                  activeOpacity={0.8}
-                >
-                  <Feather name={isRecording ? 'square' : 'mic'} size={16} color="#fff" />
-                  <Text style={styles.recBtnText}>
-                    {isRecording ? 'Stop' : voiceDone ? 'हो गया ✓' : 'Start Recording'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 20 }]}>3. नोट (Optional)</Text>
-              <TextInput
-                style={[styles.locationInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
-                placeholder="जैसे: माल ठीक हालत में डिलीवर हुआ..."
-                placeholderTextColor={colors.mutedForeground}
-                value={deliveryNotes}
-                onChangeText={setDeliveryNotes}
-                multiline
-                numberOfLines={2}
-              />
-
               <TouchableOpacity
                 style={[styles.saveBtn, {
-                  backgroundColor: (gpsCoords && voiceDone && !savingDelivery) ? '#16a34a' : '#94a3b8',
-                  opacity: (gpsCoords && voiceDone && !savingDelivery) ? 1 : 0.6,
+                  backgroundColor: savingDelivery ? '#94a3b8' : '#16a34a',
+                  marginTop: 28,
                 }]}
-                onPress={handleSaveDelivery}
+                onPress={handleGenerateOtp}
+                disabled={savingDelivery}
                 activeOpacity={0.8}
-                disabled={!gpsCoords || !voiceDone || savingDelivery}
               >
                 {savingDelivery ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Feather name="send" size={18} color="#fff" />
+                )}
+                <Text style={styles.saveBtnText}>
+                  {savingDelivery ? 'OTP भेजा जा रहा है...' : 'Merchant को OTP Send करें'}
+                </Text>
+              </TouchableOpacity>
+              <View style={{ height: 24 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* OTP Verify Modal */}
+      <Modal visible={otpModal} transparent animationType="slide" onRequestClose={() => { if (!verifyingOtp) { setOtpModal(false); } }}>
+        <View style={styles.overlay}>
+          <View style={[styles.otpSheet, { backgroundColor: colors.background }]}>
+            <View style={[styles.statusHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.statusTitle, { color: colors.foreground }]}>🔑 OTP दर्ज करें</Text>
+              <TouchableOpacity onPress={() => { if (!verifyingOtp) setOtpModal(false); }}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 24, gap: 20 }}>
+              {otpTrip && (
+                <View style={[styles.tripInfo, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.tripInfoRoute, { color: colors.foreground }]}>
+                    {otpTrip.fromCity} → {otpTrip.toCity}
+                  </Text>
+                  <Text style={[styles.tripInfoSub, { color: colors.mutedForeground }]}>
+                    {otpTrip.vehicleTypeName} • {otpTrip.loadTons} टन
+                  </Text>
+                </View>
+              )}
+              <Text style={[{ fontSize: 13, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, textAlign: 'center', lineHeight: 20 }]}>
+                व्यापारी के ऐप में दिख रहा 4-अंकों का OTP यहाँ डालें
+              </Text>
+              <TextInput
+                style={[styles.otpInput, {
+                  color: colors.foreground,
+                  borderColor: colors.navy,
+                  backgroundColor: colors.card,
+                }]}
+                placeholder="- - - -"
+                placeholderTextColor={colors.mutedForeground}
+                value={otpInput}
+                onChangeText={(t) => setOtpInput(t.replace(/[^0-9]/g, '').slice(0, 4))}
+                keyboardType="number-pad"
+                maxLength={4}
+                textAlign="center"
+              />
+              <TouchableOpacity
+                style={[styles.saveBtn, {
+                  backgroundColor: (otpInput.length === 4 && !verifyingOtp) ? '#16a34a' : '#94a3b8',
+                }]}
+                onPress={handleVerifyOtp}
+                disabled={otpInput.length !== 4 || verifyingOtp}
+                activeOpacity={0.85}
+              >
+                {verifyingOtp ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Feather name="check-circle" size={18} color="#fff" />
                 )}
                 <Text style={styles.saveBtnText}>
-                  {savingDelivery ? 'सेव हो रहा है...' : 'डिलीवरी पूर्ण करें'}
+                  {verifyingOtp ? 'Verify हो रहा है...' : 'OTP Verify करें'}
                 </Text>
               </TouchableOpacity>
-
-              <View style={{ height: 24 }} />
-            </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -622,8 +603,8 @@ const styles = StyleSheet.create({
   body: { padding: 16 },
   empty: { borderRadius: 16, padding: 40, alignItems: 'center', gap: 8, borderWidth: 1 },
   emptyText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
-  pendingBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, marginTop: -6, marginBottom: 6 },
-  pendingIcon: { fontSize: 20 },
+  pendingBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, marginTop: -6, marginBottom: 6 },
+  pendingIcon: { fontSize: 20, marginTop: 2 },
   pendingLabel: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   pendingGps: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
   statusBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 10, borderWidth: 1, marginTop: -6, marginBottom: 6 },
@@ -633,8 +614,11 @@ const styles = StyleSheet.create({
   tripActions: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
   actionBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  otpBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, width: '100%', justifyContent: 'center' },
+  otpBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   statusSheet: { maxHeight: '90%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  otpSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
   statusTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   statusBody: { padding: 20 },
@@ -646,19 +630,14 @@ const styles = StyleSheet.create({
   statusOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12, marginBottom: 10 },
   statusOptionIcon: { fontSize: 24 },
   statusOptionLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  locationInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: 'Inter_400Regular', marginBottom: 20 },
+  textInput: { borderWidth: 1, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: 'Inter_400Regular', marginBottom: 20 },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingVertical: 16 },
   saveBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
-  mandatoryNote: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 12, borderRadius: 10, borderWidth: 1 },
-  mandatoryNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  infoNote: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', padding: 12, borderRadius: 10, borderWidth: 1 },
+  infoNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 },
   gpsBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 12, borderWidth: 1.5 },
   gpsBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  gpsResult: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 4 },
+  gpsResult: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   gpsResultText: { fontSize: 13, fontFamily: 'Inter_500Medium', flex: 1 },
-  voiceCard: { borderRadius: 12, borderWidth: 1.5, padding: 14, gap: 12 },
-  voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#dc2626' },
-  recTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  recBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 10, paddingVertical: 12 },
-  recBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  otpInput: { borderWidth: 2, borderRadius: 16, paddingVertical: 20, fontSize: 36, fontFamily: 'Inter_700Bold', letterSpacing: 12 },
 });
