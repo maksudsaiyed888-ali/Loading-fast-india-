@@ -61,7 +61,7 @@ interface AppContextType {
   updateVyapariTrip: (tripId: string, updates: Partial<VyapariTrip>) => Promise<void>;
   getVyapariOwnTrips: (vyapariId: string) => VyapariTrip[];
   getOpenVyapariTrips: () => VyapariTrip[];
-  generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<void>;
+  generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<string>;
   verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
@@ -239,7 +239,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
 
-  const generateDeliveryOtp = async (tripId: string, gpsLat?: number, gpsLng?: number) => {
+  const generateDeliveryOtp = async (tripId: string, gpsLat?: number, gpsLng?: number): Promise<string> => {
     const otp = String(Math.floor(1000 + Math.random() * 9000));
     const updates: Record<string, unknown> = {
       status: 'pending_confirmation',
@@ -250,6 +250,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (gpsLat !== undefined) updates.deliveryLat = gpsLat;
     if (gpsLng !== undefined) updates.deliveryLng = gpsLng;
     await fsUpdate('trips', tripId, updates);
+    return otp;
   };
 
   const verifyDeliveryOtp = async (tripId: string, otp: string): Promise<boolean> => {

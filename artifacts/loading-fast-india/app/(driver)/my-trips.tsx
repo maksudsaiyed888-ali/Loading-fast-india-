@@ -56,11 +56,11 @@ export default function MyTripsScreen() {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savingDelivery, setSavingDelivery] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
 
-  const [otpModal, setOtpModal] = useState(false);
-  const [otpTrip, setOtpTrip] = useState<Trip | null>(null);
   const [otpInput, setOtpInput] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpTrip, setOtpTrip] = useState<Trip | null>(null);
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const filtered = filter === 'all' ? myTrips : myTrips.filter((t) => t.status === filter);
@@ -77,6 +77,8 @@ export default function MyTripsScreen() {
   const openDeliveryModal = (trip: Trip) => {
     setDeliveryTrip(trip);
     setGpsCoords(null);
+    setGeneratedOtp(null);
+    setOtpInput('');
     setDeliveryModal(true);
   };
 
@@ -101,37 +103,32 @@ export default function MyTripsScreen() {
     if (!deliveryTrip) return;
     setSavingDelivery(true);
     try {
-      await generateDeliveryOtp(deliveryTrip.id, gpsCoords?.lat, gpsCoords?.lng);
-      setDeliveryModal(false);
-      Alert.alert(
-        '✅ OTP भेजा गया!',
-        'व्यापारी के स्क्रीन पर OTP दिख रहा है।\n\nव्यापारी से OTP लेकर "OTP दर्ज करें" बटन दबाएं।'
-      );
+      const otp = await generateDeliveryOtp(deliveryTrip.id, gpsCoords?.lat, gpsCoords?.lng);
+      setGeneratedOtp(otp);
+      setOtpTrip(deliveryTrip);
     } catch {
       Alert.alert('Error', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
     }
     setSavingDelivery(false);
   };
 
-  const openOtpModal = (trip: Trip) => {
-    setOtpTrip(trip);
-    setOtpInput('');
-    setOtpModal(true);
-  };
-
   const handleVerifyOtp = async () => {
-    if (!otpTrip || otpInput.length !== 4) {
+    const trip = otpTrip;
+    if (!trip) return;
+    if (otpInput.length !== 4) {
       Alert.alert('OTP गलत है', '4 अंकों का OTP डालें।');
       return;
     }
     setVerifyingOtp(true);
     try {
-      const ok = await verifyDeliveryOtp(otpTrip.id, otpInput);
+      const ok = await verifyDeliveryOtp(trip.id, otpInput);
       if (ok) {
-        setOtpModal(false);
+        setDeliveryModal(false);
+        setGeneratedOtp(null);
+        setOtpInput('');
         Alert.alert('🎉 ट्रिप पूर्ण हुई!', 'OTP सही था। ट्रिप सफलतापूर्वक Completed हो गई।');
       } else {
-        Alert.alert('❌ OTP गलत है', 'व्यापारी से सही OTP लेकर दोबारा डालें।');
+        Alert.alert('❌ OTP गलत है', 'सही OTP डालें।');
       }
     } catch {
       Alert.alert('Error', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
@@ -275,7 +272,13 @@ export default function MyTripsScreen() {
                 {trip.status === 'pending_confirmation' && (
                   <TouchableOpacity
                     style={[styles.otpBtn, { backgroundColor: '#2563eb' }]}
-                    onPress={() => openOtpModal(trip)}
+                    onPress={() => {
+                      setDeliveryTrip(trip);
+                      setOtpTrip(trip);
+                      setGeneratedOtp(trip.deliveryOtp || '----');
+                      setOtpInput('');
+                      setDeliveryModal(true);
+                    }}
                   >
                     <Feather name="key" size={14} color="#fff" />
                     <Text style={styles.otpBtnText}>OTP दर्ज करें</Text>
@@ -430,18 +433,20 @@ export default function MyTripsScreen() {
         </View>
       </Modal>
 
-      {/* Complete Trip Modal — GPS + OTP Send */}
-      <Modal visible={deliveryModal} transparent animationType="slide" onRequestClose={() => { if (!savingDelivery) setDeliveryModal(false); }}>
+      {/* Complete Trip Modal — Step 1: GPS + Generate OTP | Step 2: Show OTP + Verify */}
+      <Modal visible={deliveryModal} transparent animationType="slide" onRequestClose={() => { if (!savingDelivery && !verifyingOtp) { setDeliveryModal(false); setGeneratedOtp(null); setOtpInput(''); } }}>
         <View style={styles.overlay}>
           <View style={[styles.statusSheet, { backgroundColor: colors.background }]}>
             <View style={[styles.statusHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.statusTitle, { color: colors.foreground }]}>📦 ट्रिप पूर्ण करें</Text>
-              <TouchableOpacity onPress={() => { if (!savingDelivery) setDeliveryModal(false); }}>
+              <Text style={[styles.statusTitle, { color: colors.foreground }]}>
+                {generatedOtp ? '🔑 OTP Verify करें' : '📦 ट्रिप पूर्ण करें'}
+              </Text>
+              <TouchableOpacity onPress={() => { if (!savingDelivery && !verifyingOtp) { setDeliveryModal(false); setGeneratedOtp(null); setOtpInput(''); } }}>
                 <Feather name="x" size={22} color={colors.foreground} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.statusBody}>
+            <ScrollView style={styles.statusBody} keyboardShouldPersistTaps="handled">
               {deliveryTrip && (
                 <View style={[styles.tripInfo, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.tripInfoRoute, { color: colors.foreground }]}>
@@ -453,117 +458,102 @@ export default function MyTripsScreen() {
                 </View>
               )}
 
-              <View style={[styles.infoNote, { backgroundColor: '#eff6ff', borderColor: '#2563eb30' }]}>
-                <Feather name="info" size={14} color="#2563eb" />
-                <Text style={[styles.infoNoteText, { color: '#1d4ed8' }]}>
-                  "Send OTP" दबाने पर व्यापारी के स्क्रीन पर 4-अंकों का OTP दिखेगा। व्यापारी से OTP लेकर अगले चरण में डालें।
-                </Text>
-              </View>
+              {!generatedOtp ? (
+                <>
+                  <View style={[styles.infoNote, { backgroundColor: '#eff6ff', borderColor: '#2563eb30' }]}>
+                    <Feather name="info" size={14} color="#2563eb" />
+                    <Text style={[styles.infoNoteText, { color: '#1d4ed8' }]}>
+                      OTP Generate होगा — आप और व्यापारी दोनों देख सकेंगे। व्यापारी के ऐप पर भी दिखेगा।
+                    </Text>
+                  </View>
 
-              <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 16 }]}>
-                GPS Location (वैकल्पिक) {gpsCoords ? '✅' : ''}
-              </Text>
-              {gpsCoords ? (
-                <View style={[styles.gpsResult, { backgroundColor: '#f0fdf4', borderColor: '#16a34a' }]}>
-                  <Feather name="map-pin" size={16} color="#16a34a" />
-                  <Text style={[styles.gpsResultText, { color: '#15803d' }]}>
-                    {gpsCoords.lat.toFixed(6)}, {gpsCoords.lng.toFixed(6)}
+                  <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 16 }]}>
+                    GPS Location (वैकल्पिक) {gpsCoords ? '✅' : ''}
                   </Text>
-                </View>
+                  {gpsCoords ? (
+                    <View style={[styles.gpsResult, { backgroundColor: '#f0fdf4', borderColor: '#16a34a' }]}>
+                      <Feather name="map-pin" size={16} color="#16a34a" />
+                      <Text style={[styles.gpsResultText, { color: '#15803d' }]}>
+                        {gpsCoords.lat.toFixed(6)}, {gpsCoords.lng.toFixed(6)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.gpsBtn, { backgroundColor: '#2563eb15', borderColor: '#2563eb' }]}
+                      onPress={captureGPS}
+                      disabled={gpsLoading}
+                      activeOpacity={0.8}
+                    >
+                      {gpsLoading ? <ActivityIndicator size="small" color="#2563eb" /> : <Feather name="map-pin" size={16} color="#2563eb" />}
+                      <Text style={[styles.gpsBtnText, { color: '#2563eb' }]}>
+                        {gpsLoading ? 'Location ले रहे हैं...' : '📍 GPS Location लें'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={[styles.saveBtn, { backgroundColor: savingDelivery ? '#94a3b8' : '#16a34a', marginTop: 28 }]}
+                    onPress={handleGenerateOtp}
+                    disabled={savingDelivery}
+                    activeOpacity={0.8}
+                  >
+                    {savingDelivery ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="key" size={18} color="#fff" />}
+                    <Text style={styles.saveBtnText}>
+                      {savingDelivery ? 'OTP बन रहा है...' : 'OTP Generate करें'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
               ) : (
-                <TouchableOpacity
-                  style={[styles.gpsBtn, { backgroundColor: '#2563eb15', borderColor: '#2563eb' }]}
-                  onPress={captureGPS}
-                  disabled={gpsLoading}
-                  activeOpacity={0.8}
-                >
-                  {gpsLoading ? <ActivityIndicator size="small" color="#2563eb" /> : <Feather name="map-pin" size={16} color="#2563eb" />}
-                  <Text style={[styles.gpsBtnText, { color: '#2563eb' }]}>
-                    {gpsLoading ? 'Location ले रहे हैं...' : '📍 GPS Location लें'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                <>
+                  <View style={[styles.otpDisplayCard, { backgroundColor: '#1e40af' }]}>
+                    <Text style={styles.otpDisplayLabel}>यह OTP व्यापारी को दिखाएं</Text>
+                    <Text style={styles.otpDisplayNumber}>{generatedOtp}</Text>
+                    <Text style={styles.otpDisplaySub}>व्यापारी के ऐप पर भी यही OTP दिख रहा है</Text>
+                  </View>
 
-              <TouchableOpacity
-                style={[styles.saveBtn, {
-                  backgroundColor: savingDelivery ? '#94a3b8' : '#16a34a',
-                  marginTop: 28,
-                }]}
-                onPress={handleGenerateOtp}
-                disabled={savingDelivery}
-                activeOpacity={0.8}
-              >
-                {savingDelivery ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Feather name="send" size={18} color="#fff" />
-                )}
-                <Text style={styles.saveBtnText}>
-                  {savingDelivery ? 'OTP भेजा जा रहा है...' : 'Merchant को OTP Send करें'}
-                </Text>
-              </TouchableOpacity>
-              <View style={{ height: 24 }} />
+                  <View style={[styles.infoNote, { backgroundColor: '#f0fdf4', borderColor: '#16a34a30', marginTop: 16 }]}>
+                    <Feather name="check-circle" size={14} color="#16a34a" />
+                    <Text style={[styles.infoNoteText, { color: '#15803d' }]}>
+                      व्यापारी ने OTP देख लिया हो तो नीचे वही OTP डालकर ट्रिप Complete करें
+                    </Text>
+                  </View>
+
+                  <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 20 }]}>
+                    OTP दर्ज करें (व्यापारी से Confirm करके)
+                  </Text>
+                  <TextInput
+                    style={[styles.otpInput, {
+                      color: colors.foreground,
+                      borderColor: otpInput.length === 4 ? colors.navy : colors.border,
+                      backgroundColor: colors.card,
+                    }]}
+                    placeholder="- - - -"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={otpInput}
+                    onChangeText={(t) => setOtpInput(t.replace(/[^0-9]/g, '').slice(0, 4))}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    textAlign="center"
+                    autoFocus
+                  />
+                  <TouchableOpacity
+                    style={[styles.saveBtn, {
+                      backgroundColor: (otpInput.length === 4 && !verifyingOtp) ? '#16a34a' : '#94a3b8',
+                      marginTop: 12,
+                    }]}
+                    onPress={handleVerifyOtp}
+                    disabled={otpInput.length !== 4 || verifyingOtp}
+                    activeOpacity={0.85}
+                  >
+                    {verifyingOtp ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="check-circle" size={18} color="#fff" />}
+                    <Text style={styles.saveBtnText}>
+                      {verifyingOtp ? 'Verify हो रहा है...' : 'OTP Verify करके ट्रिप Complete करें'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              <View style={{ height: 32 }} />
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* OTP Verify Modal */}
-      <Modal visible={otpModal} transparent animationType="slide" onRequestClose={() => { if (!verifyingOtp) { setOtpModal(false); } }}>
-        <View style={styles.overlay}>
-          <View style={[styles.otpSheet, { backgroundColor: colors.background }]}>
-            <View style={[styles.statusHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.statusTitle, { color: colors.foreground }]}>🔑 OTP दर्ज करें</Text>
-              <TouchableOpacity onPress={() => { if (!verifyingOtp) setOtpModal(false); }}>
-                <Feather name="x" size={22} color={colors.foreground} />
-              </TouchableOpacity>
-            </View>
-            <View style={{ padding: 24, gap: 20 }}>
-              {otpTrip && (
-                <View style={[styles.tripInfo, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.tripInfoRoute, { color: colors.foreground }]}>
-                    {otpTrip.fromCity} → {otpTrip.toCity}
-                  </Text>
-                  <Text style={[styles.tripInfoSub, { color: colors.mutedForeground }]}>
-                    {otpTrip.vehicleTypeName} • {otpTrip.loadTons} टन
-                  </Text>
-                </View>
-              )}
-              <Text style={[{ fontSize: 13, fontFamily: 'Inter_400Regular', color: colors.mutedForeground, textAlign: 'center', lineHeight: 20 }]}>
-                व्यापारी के ऐप में दिख रहा 4-अंकों का OTP यहाँ डालें
-              </Text>
-              <TextInput
-                style={[styles.otpInput, {
-                  color: colors.foreground,
-                  borderColor: colors.navy,
-                  backgroundColor: colors.card,
-                }]}
-                placeholder="- - - -"
-                placeholderTextColor={colors.mutedForeground}
-                value={otpInput}
-                onChangeText={(t) => setOtpInput(t.replace(/[^0-9]/g, '').slice(0, 4))}
-                keyboardType="number-pad"
-                maxLength={4}
-                textAlign="center"
-              />
-              <TouchableOpacity
-                style={[styles.saveBtn, {
-                  backgroundColor: (otpInput.length === 4 && !verifyingOtp) ? '#16a34a' : '#94a3b8',
-                }]}
-                onPress={handleVerifyOtp}
-                disabled={otpInput.length !== 4 || verifyingOtp}
-                activeOpacity={0.85}
-              >
-                {verifyingOtp ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Feather name="check-circle" size={18} color="#fff" />
-                )}
-                <Text style={styles.saveBtnText}>
-                  {verifyingOtp ? 'Verify हो रहा है...' : 'OTP Verify करें'}
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -618,7 +608,6 @@ const styles = StyleSheet.create({
   otpBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   statusSheet: { maxHeight: '90%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-  otpSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   statusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1 },
   statusTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   statusBody: { padding: 20 },
@@ -639,5 +628,9 @@ const styles = StyleSheet.create({
   gpsBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   gpsResult: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
   gpsResultText: { fontSize: 13, fontFamily: 'Inter_500Medium', flex: 1 },
+  otpDisplayCard: { borderRadius: 20, padding: 28, alignItems: 'center', gap: 8 },
+  otpDisplayLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  otpDisplayNumber: { color: '#fff', fontSize: 52, fontFamily: 'Inter_700Bold', letterSpacing: 16, marginVertical: 4 },
+  otpDisplaySub: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center' },
   otpInput: { borderWidth: 2, borderRadius: 16, paddingVertical: 20, fontSize: 36, fontFamily: 'Inter_700Bold', letterSpacing: 12 },
 });
