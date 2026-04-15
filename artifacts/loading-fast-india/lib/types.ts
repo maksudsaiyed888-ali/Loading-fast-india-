@@ -343,6 +343,7 @@ export interface VyapariTrip {
   description: string;
   status: 'open' | 'accepted' | 'cancelled';
   createdAt: string;
+  paymentType?: 'sender' | 'receiver';
 }
 
 export interface CommissionPayment {

@@ -29,6 +29,7 @@ export default function VyapariPostTripScreen() {
     fromCity: '', fromState: '', toCity: '', toState: '',
     goodsCategory: '', weightTons: '', ratePerTon: '',
     tripDate: '', vehicleTypePref: '', description: '',
+    paymentType: 'sender' as 'sender' | 'receiver',
   });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -101,6 +102,7 @@ export default function VyapariPostTripScreen() {
         description: form.description.trim(),
         status: 'open',
         createdAt: new Date().toISOString(),
+        paymentType: form.paymentType,
       });
       let fromLat = 23.0;
       let fromLon = 72.5;
@@ -122,7 +124,7 @@ export default function VyapariPostTripScreen() {
         form.goodsCategory.trim(),
         currentVyapari?.name || user!.name,
       );
-      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
+      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '', paymentType: 'sender' });
       setShowModal(false);
       Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। सभी ड्राइवरों को notification भेजी गई।');
     } finally {
@@ -188,6 +190,23 @@ export default function VyapariPostTripScreen() {
               {t.description ? (
                 <Text style={[styles.tripDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{t.description}</Text>
               ) : null}
+
+              {/* 💰 Payment Type Badge */}
+              <View style={[styles.payBadge, {
+                backgroundColor: (!t.paymentType || t.paymentType === 'sender') ? '#FFF3E0' : '#E3F2FD',
+                borderColor: (!t.paymentType || t.paymentType === 'sender') ? '#E65100' : '#1565C0',
+              }]}>
+                <Text style={[styles.payBadgeText, {
+                  color: (!t.paymentType || t.paymentType === 'sender') ? '#E65100' : '#1565C0',
+                }]}>
+                  {(!t.paymentType || t.paymentType === 'sender') ? '💰 आप किराया देंगे (Sender Pay)' : '📦 Receiver किराया देगा'}
+                </Text>
+                {t.paymentType === 'receiver' && (
+                  <Text style={[styles.payBadgeWarn, { color: '#BF360C' }]}>
+                    ⚠️ Receiver न दे तो आपकी जिम्मेदारी
+                  </Text>
+                )}
+              </View>
 
               {/* ⚠️ Low Rate Warning */}
               {t.status === 'open' && isLowRate(t.ratePerTon) && (
@@ -339,6 +358,43 @@ export default function VyapariPostTripScreen() {
                   </Text>
                 </View>
               )}
+              {/* ── Payment Type Selector ── */}
+              <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>💰 किराया कौन देगा?</Text>
+              <View style={[styles.payTypeRow]}>
+                <TouchableOpacity
+                  style={[styles.payTypeBtn, form.paymentType === 'sender' && { backgroundColor: '#E65100', borderColor: '#E65100' }, form.paymentType !== 'sender' && { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => setForm(p => ({ ...p, paymentType: 'sender' }))}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.payTypeBtnIcon}>🧑‍💼</Text>
+                  <Text style={[styles.payTypeBtnLabel, { color: form.paymentType === 'sender' ? '#fff' : colors.foreground }]}>मैं दूंगा (Sender)</Text>
+                  <Text style={[styles.payTypeBtnSub, { color: form.paymentType === 'sender' ? '#ffccbc' : colors.mutedForeground }]}>आप खुद driver को किराया देंगे</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.payTypeBtn, form.paymentType === 'receiver' && { backgroundColor: '#1565C0', borderColor: '#1565C0' }, form.paymentType !== 'receiver' && { backgroundColor: colors.card, borderColor: colors.border }]}
+                  onPress={() => setForm(p => ({ ...p, paymentType: 'receiver' }))}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.payTypeBtnIcon}>📦</Text>
+                  <Text style={[styles.payTypeBtnLabel, { color: form.paymentType === 'receiver' ? '#fff' : colors.foreground }]}>Receiver देगा</Text>
+                  <Text style={[styles.payTypeBtnSub, { color: form.paymentType === 'receiver' ? '#bbdefb' : colors.mutedForeground }]}>माल पाने वाला किराया देगा</Text>
+                </TouchableOpacity>
+              </View>
+
+              {form.paymentType === 'receiver' && (
+                <View style={[styles.receiverWarn, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+                  <Text style={styles.receiverWarnIcon}>⚠️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.receiverWarnTitle, { color: '#BF360C' }]}>महत्वपूर्ण चेतावनी — ध्यान से पढ़ें!</Text>
+                    <Text style={[styles.receiverWarnText, { color: '#BF360C' }]}>
+                      यदि receiver ने payment नहीं की या देरी की, तो{' '}
+                      <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (माल भेजने वाले) को driver को किराया चुकाना होगा।</Text>
+                      {'\n'}Receiver pay चुनने से आपकी जिम्मेदारी खत्म नहीं होती।
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <Input label="तारीख" placeholder="DD/MM/YYYY" value={form.tripDate} onChangeText={(v) => set('tripDate', v)} icon="calendar" required />
 
               <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>🚛 गाड़ी का प्रकार (वैकल्पिक)</Text>
@@ -550,6 +606,18 @@ const styles = StyleSheet.create({
   tripRoute: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 4 },
   tripMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 4 },
   tripDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', fontStyle: 'italic' },
+  payBadge: { borderWidth: 1.5, borderRadius: 8, padding: 8, marginTop: 8, gap: 3 },
+  payBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  payBadgeWarn: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  payTypeRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  payTypeBtn: { flex: 1, borderWidth: 1.5, borderRadius: 12, padding: 12, alignItems: 'center', gap: 4 },
+  payTypeBtnIcon: { fontSize: 22 },
+  payTypeBtnLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', textAlign: 'center' },
+  payTypeBtnSub: { fontSize: 10, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  receiverWarn: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: 10, borderWidth: 2, marginBottom: 10, alignItems: 'flex-start' },
+  receiverWarnIcon: { fontSize: 20 },
+  receiverWarnTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  receiverWarnText: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
   lowRateBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, borderWidth: 1, borderRadius: 8, padding: 8, marginTop: 8 },
   lowRateText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
