@@ -26,6 +26,7 @@ export default function PostTripScreen() {
     tripDate: new Date().toISOString().split('T')[0],
     description: '',
     usePerTon: false,
+    paymentType: 'sender' as 'sender' | 'receiver',
   });
 
   const set = (k: string, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
@@ -72,9 +73,11 @@ export default function PostTripScreen() {
         commissionPaid: false,
         commissionAmount: commission,
         createdAt: new Date().toISOString(),
+        paymentType: form.paymentType,
+        paymentReceived: false,
       });
       Alert.alert('ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सभी नज़दीकी व्यापारियों को दिख रही है।');
-      setForm({ fromCity: '', fromState: 'राजस्थान', toCity: '', toState: 'राजस्थान', loadTons: '', rentPerTon: '', totalRent: '', tripDate: new Date().toISOString().split('T')[0], description: '', usePerTon: false });
+      setForm({ fromCity: '', fromState: 'राजस्थान', toCity: '', toState: 'राजस्थान', loadTons: '', rentPerTon: '', totalRent: '', tripDate: new Date().toISOString().split('T')[0], description: '', usePerTon: false, paymentType: 'sender' });
     } finally {
       setLoading(false);
     }
@@ -165,6 +168,44 @@ export default function PostTripScreen() {
             )}
 
             <Input label="ट्रिप की तारीख" placeholder="YYYY-MM-DD" value={form.tripDate} onChangeText={(v) => set('tripDate', v)} icon="calendar" required />
+            <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 8 }]}>भुगतान कौन करेगा?</Text>
+            <View style={styles.paymentRow}>
+              <TouchableOpacity
+                style={[styles.paymentBtn, {
+                  backgroundColor: form.paymentType === 'sender' ? '#16a34a' : colors.card,
+                  borderColor: form.paymentType === 'sender' ? '#16a34a' : colors.border,
+                }]}
+                onPress={() => set('paymentType', 'sender')}
+              >
+                <Feather name="user" size={15} color={form.paymentType === 'sender' ? '#fff' : colors.mutedForeground} />
+                <Text style={[styles.paymentBtnText, { color: form.paymentType === 'sender' ? '#fff' : colors.foreground }]}>Sender Pay</Text>
+                <Text style={[styles.paymentBtnSub, { color: form.paymentType === 'sender' ? 'rgba(255,255,255,0.8)' : colors.mutedForeground }]}>माल भेजने वाला (Default)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.paymentBtn, {
+                  backgroundColor: form.paymentType === 'receiver' ? '#dc2626' : colors.card,
+                  borderColor: form.paymentType === 'receiver' ? '#dc2626' : colors.border,
+                }]}
+                onPress={() => set('paymentType', 'receiver')}
+              >
+                <Feather name="user-check" size={15} color={form.paymentType === 'receiver' ? '#fff' : colors.mutedForeground} />
+                <Text style={[styles.paymentBtnText, { color: form.paymentType === 'receiver' ? '#fff' : colors.foreground }]}>Receiver Pay</Text>
+                <Text style={[styles.paymentBtnSub, { color: form.paymentType === 'receiver' ? 'rgba(255,255,255,0.8)' : colors.mutedForeground }]}>माल पाने वाला</Text>
+              </TouchableOpacity>
+            </View>
+
+            {form.paymentType === 'receiver' && (
+              <View style={[styles.paymentWarning, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+                <Feather name="alert-triangle" size={16} color="#E65100" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentWarningTitle}>⚠️ Payment Risk हो सकता है!</Text>
+                  <Text style={styles.paymentWarningText}>
+                    Receiver Pay में payment मिलने की गारंटी नहीं होती। माल deliver होने के बाद receiver payment देने से मना कर सकता है। सावधानी बरतें।
+                  </Text>
+                </View>
+              </View>
+            )}
+
             <Input label="विवरण (वैकल्पिक)" placeholder="माल का प्रकार, शर्तें आदि" value={form.description} onChangeText={(v) => set('description', v)} multiline numberOfLines={3} />
 
             <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={loading} style={{ marginTop: 8 }} />
@@ -192,6 +233,13 @@ const styles = StyleSheet.create({
   rentToggle: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   rentToggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1.5 },
   commissionPreview: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 14 },
+  paymentRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  paymentBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', gap: 4 },
+  paymentBtnText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  paymentBtnSub: { fontSize: 10.5, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  paymentWarning: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: 10, borderWidth: 1.5, marginBottom: 14, alignItems: 'flex-start' },
+  paymentWarningTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#E65100', marginBottom: 4 },
+  paymentWarningText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: '#BF360C', lineHeight: 17 },
   commPreviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   commLabel: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   commValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },

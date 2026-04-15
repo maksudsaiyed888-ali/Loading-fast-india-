@@ -92,6 +92,9 @@ export interface Trip {
   deliveryNotes?: string;
   deliveredAt?: string;
   completedAt?: string;
+  paymentType?: 'sender' | 'receiver';
+  paymentReceived?: boolean;
+  paymentReceivedAt?: string;
 }
 
 export interface Bilty {

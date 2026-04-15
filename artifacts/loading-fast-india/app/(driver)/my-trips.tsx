@@ -244,6 +244,27 @@ export default function MyTripsScreen() {
                 </View>
               )}
 
+              {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && trip.paymentType && (
+                <View style={[styles.paymentBadge, {
+                  backgroundColor: trip.paymentType === 'receiver' ? '#FFF3E015' : '#E8F5E915',
+                  borderColor: trip.paymentType === 'receiver' ? '#E6510050' : '#2E7D3250',
+                }]}>
+                  <Feather
+                    name={trip.paymentType === 'receiver' ? 'alert-circle' : 'check-circle'}
+                    size={13}
+                    color={trip.paymentType === 'receiver' ? '#E65100' : '#2E7D32'}
+                  />
+                  <Text style={[styles.paymentBadgeText, { color: trip.paymentType === 'receiver' ? '#E65100' : '#2E7D32' }]}>
+                    {trip.paymentType === 'receiver' ? '⚠️ Receiver Pay — माल पाने वाला भुगतान करेगा' : '✅ Sender Pay — माल भेजने वाले ने पहले भुगतान किया'}
+                  </Text>
+                  {trip.paymentReceived && (
+                    <View style={[styles.paymentReceivedTag, { backgroundColor: '#2E7D32' }]}>
+                      <Text style={styles.paymentReceivedTagText}>RECEIVED ✓</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
               <View style={styles.tripActions}>
                 {trip.status === 'confirmed' && (
                   <TouchableOpacity
@@ -260,13 +281,47 @@ export default function MyTripsScreen() {
                     <Text style={[styles.actionBtnText, { color: colors.success }]}>बिलटी देखें</Text>
                   </TouchableOpacity>
                 )}
+                {trip.status === 'confirmed' && trip.paymentType === 'receiver' && !trip.paymentReceived && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#ff6f0015', borderColor: '#ff6f00' }]}
+                    onPress={() => {
+                      Alert.alert(
+                        'Payment मिली?',
+                        `क्या आपको ₹${trip.totalRent?.toLocaleString('en-IN')} की payment receiver से मिल गई?`,
+                        [
+                          { text: 'नहीं', style: 'cancel' },
+                          {
+                            text: 'हाँ, मिल गई ✓',
+                            onPress: async () => {
+                              await updateTrip(trip.id, { paymentReceived: true, paymentReceivedAt: new Date().toISOString() });
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Feather name="dollar-sign" size={14} color="#ff6f00" />
+                    <Text style={[styles.actionBtnText, { color: '#ff6f00' }]}>Payment मिली?</Text>
+                  </TouchableOpacity>
+                )}
                 {trip.status === 'confirmed' && (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#16a34a15', borderColor: '#16a34a' }]}
-                    onPress={() => openDeliveryModal(trip)}
+                    style={[styles.actionBtn, {
+                      backgroundColor: (trip.paymentType === 'receiver' && !trip.paymentReceived) ? '#94a3b815' : '#16a34a15',
+                      borderColor: (trip.paymentType === 'receiver' && !trip.paymentReceived) ? '#94a3b8' : '#16a34a',
+                    }]}
+                    onPress={() => {
+                      if (trip.paymentType === 'receiver' && !trip.paymentReceived) {
+                        Alert.alert('Payment पहले Confirm करें', 'Trip complete करने से पहले "Payment मिली?" बटन दबाकर payment confirm करें।');
+                        return;
+                      }
+                      openDeliveryModal(trip);
+                    }}
                   >
-                    <Feather name="send" size={14} color="#16a34a" />
-                    <Text style={[styles.actionBtnText, { color: '#16a34a' }]}>Complete Trip</Text>
+                    <Feather name="send" size={14} color={(trip.paymentType === 'receiver' && !trip.paymentReceived) ? '#94a3b8' : '#16a34a'} />
+                    <Text style={[styles.actionBtnText, { color: (trip.paymentType === 'receiver' && !trip.paymentReceived) ? '#94a3b8' : '#16a34a' }]}>
+                      {(trip.paymentType === 'receiver' && !trip.paymentReceived) ? 'Complete Trip 🔒' : 'Complete Trip'}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 {trip.status === 'pending_confirmation' && (
@@ -604,6 +659,10 @@ const styles = StyleSheet.create({
   tripActions: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
   actionBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  paymentBadge: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: 8, borderRadius: 10, borderWidth: 1, marginTop: -4, marginBottom: 6 },
+  paymentBadgeText: { fontSize: 11.5, fontFamily: 'Inter_500Medium', flex: 1 },
+  paymentReceivedTag: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5 },
+  paymentReceivedTagText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#fff' },
   otpBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, width: '100%', justifyContent: 'center' },
   otpBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

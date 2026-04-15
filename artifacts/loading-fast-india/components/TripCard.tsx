@@ -78,11 +78,32 @@ export default function TripCard({ trip, onPress, showActions, onConfirm, onCanc
           <Text style={[styles.rentLabel, { color: colors.mutedForeground }]}>कुल किराया</Text>
           <Text style={[styles.rent, { color: colors.primary }]}>{formatCurrency(trip.totalRent)}</Text>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
           <Text style={[styles.rentLabel, { color: colors.mutedForeground }]}>2% कमीशन</Text>
           <Text style={[styles.commission, { color: colors.secondary }]}>{formatCurrency(trip.commissionAmount)}</Text>
         </View>
       </View>
+
+      {trip.paymentType && (
+        <View style={[styles.paymentTypeBadge, {
+          backgroundColor: trip.paymentType === 'receiver' ? '#FFF3E0' : '#E8F5E9',
+          borderColor: trip.paymentType === 'receiver' ? '#FF6F00' : '#2E7D32',
+        }]}>
+          <Feather
+            name={trip.paymentType === 'receiver' ? 'alert-circle' : 'check-circle'}
+            size={12}
+            color={trip.paymentType === 'receiver' ? '#E65100' : '#2E7D32'}
+          />
+          <Text style={[styles.paymentTypeText, { color: trip.paymentType === 'receiver' ? '#E65100' : '#2E7D32' }]}>
+            {trip.paymentType === 'receiver' ? '⚠️ Receiver Pay' : '✅ Sender Pay'}
+          </Text>
+          {trip.paymentReceived && (
+            <View style={[styles.paymentReceivedPill, { backgroundColor: '#2E7D32' }]}>
+              <Text style={styles.paymentReceivedPillText}>RECEIVED ✓</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {!isMyTrip && trip.status === 'available' && (
         <View style={styles.driverRow}>
@@ -153,6 +174,10 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   rentLabel: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  paymentTypeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, marginTop: 6 },
+  paymentTypeText: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', flex: 1 },
+  paymentReceivedPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 },
+  paymentReceivedPillText: { fontSize: 9.5, fontFamily: 'Inter_700Bold', color: '#fff' },
   rent: { fontSize: 18, fontFamily: 'Inter_700Bold' },
   commission: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   driverRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
