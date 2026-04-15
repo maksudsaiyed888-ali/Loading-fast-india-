@@ -63,8 +63,8 @@ interface AppContextType {
   getOpenVyapariTrips: () => VyapariTrip[];
   generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<string>;
   verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
-  generateLoginOtp: (phone: string, role: 'driver' | 'vyapari') => Promise<string | null>;
-  verifyLoginOtp: (phone: string, otp: string, role: 'driver' | 'vyapari') => Promise<boolean>;
+  generateLoginOtp: (phone: string, role: 'driver' | 'vyapari') => Promise<{ success: boolean; smsSent?: boolean; pendingVerification?: boolean; error?: string; errorCode?: string }>;
+  verifyLoginOtp: (phone: string, otp: string, role: 'driver' | 'vyapari') => Promise<{ success: boolean; error?: string; errorCode?: string }>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
 }
@@ -267,26 +267,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const generateLoginOtp = async (phone: string, role: 'driver' | 'vyapari'): Promise<string | null> => {
-    const user = role === 'driver'
-      ? drivers.find((d) => d.phone === phone)
-      : vyaparis.find((v) => v.phone === phone);
-    if (!user) return null;
-    const otp = String(Math.floor(1000 + Math.random() * 9000));
-    await fsUpdate(role === 'driver' ? 'drivers' : 'vyaparis', user.id, { loginOtp: otp, loginOtpAt: new Date().toISOString() });
-    return otp;
+  const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}:8080`;
+
+  const generateLoginOtp = async (phone: string, role: 'driver' | 'vyapari') => {
+    try {
+      const res = await fetch(`${API_BASE}/api/otp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, role }),
+      });
+      return await res.json() as { success: boolean; smsSent?: boolean; pendingVerification?: boolean; error?: string; errorCode?: string };
+    } catch {
+      return { success: false, error: 'Network error. Internet check करें।' };
+    }
   };
 
-  const verifyLoginOtp = async (phone: string, otp: string, role: 'driver' | 'vyapari'): Promise<boolean> => {
-    const found = role === 'driver'
-      ? drivers.find((d) => d.phone === phone)
-      : vyaparis.find((v) => v.phone === phone);
-    if (!found) return false;
-    const record = found as unknown as Record<string, unknown>;
-    if (!record.loginOtp || record.loginOtp !== otp) return false;
-    await fsUpdate(role === 'driver' ? 'drivers' : 'vyaparis', found.id, { loginOtp: '', loginOtpAt: '' });
-    await login({ id: found.id, role, name: found.name, phone: found.phone, email: found.email ?? '' });
-    return true;
+  const verifyLoginOtp = async (phone: string, otp: string, role: 'driver' | 'vyapari') => {
+    try {
+      const res = await fetch(`${API_BASE}/api/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp, role }),
+      });
+      const data = await res.json() as { success: boolean; user?: { id: string; name: string; phone: string; email: string }; error?: string; errorCode?: string };
+      if (data.success && data.user) {
+        await login({ id: data.user.id, role, name: data.user.name, phone: data.user.phone, email: data.user.email });
+      }
+      return data;
+    } catch {
+      return { success: false, error: 'Network error. Internet check करें।' };
+    }
   };
 
   const currentDriver = user?.role === 'driver' ? drivers.find((d) => d.id === user.id) ?? null : null;

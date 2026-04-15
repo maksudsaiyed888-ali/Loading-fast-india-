@@ -18,8 +18,8 @@ export default function LoginScreen() {
   const [role, setRole] = useState<'driver' | 'vyapari' | 'admin'>('driver');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
+  const [pendingVerification, setPendingVerification] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,7 @@ export default function LoginScreen() {
     setStep(1);
     setPhone('');
     setOtp('');
-    setGeneratedOtp('');
+    setPendingVerification(false);
   };
 
   const handleGetOtp = async () => {
@@ -39,34 +39,48 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const result = await generateLoginOtp(phone.trim(), role as 'driver' | 'vyapari');
-      if (!result) {
-        Alert.alert('नहीं मिला', 'इस नंबर से कोई खाता नहीं है। पहले रजिस्ट्रेशन करें।');
+      if (!result.success) {
+        if (result.errorCode === 'not_registered') {
+          Alert.alert('खाता नहीं मिला', 'इस नंबर से कोई खाता नहीं है। पहले रजिस्ट्रेशन करें।');
+        } else {
+          Alert.alert('त्रुटि', result.error || 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
+        }
         return;
       }
-      setGeneratedOtp(result);
+      setPendingVerification(result.pendingVerification === true);
       setStep(2);
-    } catch (e) {
-      Alert.alert('त्रुटि', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
+    } catch {
+      Alert.alert('त्रुटि', 'Internet connection check करें।');
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 4) {
-      Alert.alert('त्रुटि', '4 अंकों का OTP दर्ज करें');
+    if (!otp || otp.length < 4) {
+      Alert.alert('त्रुटि', 'OTP दर्ज करें');
       return;
     }
     setLoading(true);
     try {
-      const ok = await verifyLoginOtp(phone.trim(), otp.trim(), role as 'driver' | 'vyapari');
-      if (!ok) {
-        Alert.alert('गलत OTP', 'दर्ज किया गया OTP गलत है। दोबारा कोशिश करें।');
+      const result = await verifyLoginOtp(phone.trim(), otp.trim(), role as 'driver' | 'vyapari');
+      if (!result.success) {
+        if (result.errorCode === 'expired') {
+          Alert.alert('OTP Expire', 'OTP की समय सीमा खत्म हो गई। नया OTP लें।', [
+            { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); } },
+          ]);
+        } else if (result.errorCode === 'too_many') {
+          Alert.alert('बहुत ज्यादा कोशिश', 'नया OTP लें।', [
+            { text: 'ठीक है', onPress: () => { setStep(1); setOtp(''); } },
+          ]);
+        } else {
+          Alert.alert('गलत OTP', result.error || 'OTP गलत है।');
+        }
         return;
       }
       router.replace(role === 'driver' ? '/(driver)' : '/(vyapari)');
-    } catch (e) {
-      Alert.alert('त्रुटि', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
+    } catch {
+      Alert.alert('त्रुटि', 'Internet connection check करें।');
     } finally {
       setLoading(false);
     }
@@ -128,12 +142,13 @@ export default function LoginScreen() {
             <View style={[styles.infoBanner, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
               <Feather name="smartphone" size={16} color={colors.primary} />
               <Text style={[styles.infoBannerText, { color: colors.primary }]}>
-                पंजीकृत मोबाइल नंबर डालें — OTP स्क्रीन पर दिखेगा
+                पंजीकृत मोबाइल नंबर डालें — OTP SMS से आएगा
               </Text>
             </View>
+
             <Input
               label="मोबाइल नंबर"
-              placeholder="10 अंकों का नंबर दर्ज करें"
+              placeholder="10 अंकों का नंबर"
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -147,34 +162,54 @@ export default function LoginScreen() {
                 लॉगिन हमेशा याद रहेगा — दोबारा login की जरूरत नहीं
               </Text>
             </View>
-            <Button title="OTP लें →" onPress={handleGetOtp} loading={loading} />
+            <Button title="OTP भेजें →" onPress={handleGetOtp} loading={loading} />
           </>
+        ) : pendingVerification ? (
+          <View style={[styles.pendingCard, { backgroundColor: '#FFF8E1', borderColor: '#FFA000' }]}>
+            <Feather name="clock" size={32} color="#FFA000" style={{ marginBottom: 12 }} />
+            <Text style={styles.pendingTitle}>Pending Verification</Text>
+            <Text style={styles.pendingText}>
+              SMS service अभी उपलब्ध नहीं है।{'\n\n'}
+              आपका account Admin review के लिए भेज दिया गया है।{'\n\n'}
+              जल्द ही approve होगा — कृपया प्रतीक्षा करें।
+            </Text>
+            <TouchableOpacity style={[styles.retryBtn, { borderColor: '#FFA000' }]} onPress={() => { setStep(1); setOtp(''); setPendingVerification(false); }}>
+              <Text style={{ color: '#FFA000', fontFamily: 'Inter_600SemiBold', fontSize: 14 }}>वापस जाएं</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
-            <View style={[styles.otpCard, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
-              <Text style={[styles.otpLabel, { color: colors.primary }]}>आपका OTP</Text>
-              <Text style={[styles.otpNumber, { color: colors.primary }]}>{generatedOtp}</Text>
-              <Text style={[styles.otpHint, { color: colors.mutedForeground }]}>
-                नीचे यही OTP दर्ज करें
-              </Text>
+            <View style={[styles.smsBanner, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+              <Feather name="message-square" size={18} color="#388E3C" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.smsBannerTitle, { color: '#388E3C' }]}>OTP भेज दिया गया</Text>
+                <Text style={[styles.smsBannerSub, { color: '#388E3C' }]}>
+                  {phone} पर 6 अंकों का OTP SMS से आया होगा
+                </Text>
+              </View>
             </View>
 
             <Input
               label="OTP दर्ज करें"
-              placeholder="4 अंकों का OTP"
+              placeholder="6 अंकों का OTP"
               value={otp}
               onChangeText={setOtp}
               keyboardType="numeric"
-              maxLength={4}
+              maxLength={6}
               icon="key"
               required
             />
 
+            <View style={[styles.otpInfo, { borderColor: colors.border }]}>
+              <Feather name="info" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>OTP 10 मिनट में expire होगा • गलत OTP 3 बार से ज्यादा नहीं</Text>
+            </View>
+
             <Button title="लॉगिन करें" onPress={handleVerifyOtp} loading={loading} />
 
-            <TouchableOpacity style={styles.backStep} onPress={() => { setStep(1); setOtp(''); setGeneratedOtp(''); }}>
-              <Feather name="arrow-left" size={14} color={colors.primary} />
-              <Text style={[styles.backStepText, { color: colors.primary }]}>नंबर बदलें</Text>
+            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); }}>
+              <Feather name="refresh-cw" size={13} color={colors.primary} />
+              <Text style={[styles.resendText, { color: colors.primary }]}>OTP नहीं आया? नया OTP लें</Text>
             </TouchableOpacity>
           </>
         )}
@@ -198,16 +233,21 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1.5 },
   tabText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  infoBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
+  infoBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
   infoBannerText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', lineHeight: 18 },
   rememberBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16, marginTop: 4 },
   rememberText: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_400Regular' },
-  otpCard: { borderWidth: 2, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20 },
-  otpLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 8, letterSpacing: 1 },
-  otpNumber: { fontSize: 52, fontFamily: 'Inter_700Bold', letterSpacing: 8, marginBottom: 8 },
-  otpHint: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  backStep: { flexDirection: 'row', alignItems: 'center', gap: 4, justifyContent: 'center', marginTop: 12 },
-  backStepText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  smsBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 20 },
+  smsBannerTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  smsBannerSub: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  otpInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, borderWidth: 1, marginBottom: 16, marginTop: 4 },
+  otpInfoText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_400Regular', lineHeight: 16 },
+  resendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 12 },
+  resendText: { fontSize: 13.5, fontFamily: 'Inter_500Medium' },
+  pendingCard: { borderWidth: 2, borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 8 },
+  pendingTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: '#E65100', marginBottom: 12 },
+  pendingText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: '#795548', textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  retryBtn: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
   registerLink: { marginTop: 16, alignItems: 'center' },
   registerText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
 });
