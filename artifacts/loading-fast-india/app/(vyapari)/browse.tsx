@@ -241,6 +241,29 @@ export default function BrowseTripsScreen() {
                   )}
                 </View>
 
+                {selectedTrip.paymentType === 'receiver' ? (
+                  <View style={[styles.payResponsibility, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
+                    <Text style={styles.payRespIcon}>📦</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.payRespTitle, { color: '#1565C0' }]}>Receiver Pay Trip</Text>
+                      <Text style={[styles.payRespText, { color: '#1565C0' }]}>
+                        इस trip में किराया माल पाने वाला (receiver) देगा — आपको (sender) driver को rent नहीं देना है।
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={[styles.payResponsibility, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+                    <Text style={styles.payRespIcon}>💰</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.payRespTitle, { color: '#E65100' }]}>⚠️ आपको rent देना होगा!</Text>
+                      <Text style={[styles.payRespText, { color: '#BF360C' }]}>
+                        इस trip में किराया <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (माल भेजने वाले)</Text> को driver को देना होगा।{'\n'}
+                        कुल किराया: <Text style={{ fontFamily: 'Inter_700Bold' }}>{formatCurrency(selectedTrip.totalRent)}</Text> — driver को loading के समय दें।
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
                 <View style={[styles.paymentBreakdown, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
                   <Text style={[styles.payTitle, { color: colors.secondary }]}>Payment Breakdown</Text>
                   <PayRow label="कुल किराया" value={formatCurrency(selectedTrip.totalRent)} />
@@ -315,6 +338,10 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginVertical: 8 },
   legalNote: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
   legalText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  payResponsibility: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 12, borderWidth: 2, marginBottom: 14, alignItems: 'flex-start' },
+  payRespIcon: { fontSize: 22 },
+  payRespTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 5 },
+  payRespText: { fontSize: 13, fontFamily: 'Inter_500Medium', lineHeight: 20 },
   goodsSection: { borderRadius: 12, padding: 14, marginBottom: 14, borderWidth: 1 },
   goodsTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   goodsSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 10 },

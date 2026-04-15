@@ -60,6 +60,33 @@ export default function BookingsScreen() {
             <View key={trip.id}>
               <TripCard trip={trip} />
 
+              {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && (!trip.paymentType || trip.paymentType === 'sender') && !trip.paymentReceived && (
+                <View style={[styles.rentDueBanner, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+                  <Text style={styles.rentDueIcon}>💰</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rentDueTitle, { color: '#E65100' }]}>आपको driver को rent देना है!</Text>
+                    <Text style={[styles.rentDueAmount, { color: '#BF360C' }]}>
+                      कुल किराया: <Text style={{ fontFamily: 'Inter_700Bold' }}>₹{trip.totalRent?.toLocaleString('en-IN')}</Text>
+                    </Text>
+                    <Text style={[styles.rentDueSub, { color: '#BF360C' }]}>
+                      माल loading के समय driver को cash/UPI से दें
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && trip.paymentType === 'receiver' && (
+                <View style={[styles.rentDueBanner, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
+                  <Text style={styles.rentDueIcon}>✅</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rentDueTitle, { color: '#2E7D32' }]}>आपको rent नहीं देना</Text>
+                    <Text style={[styles.rentDueSub, { color: '#1B5E20' }]}>
+                      इस trip में किराया माल पाने वाला (receiver) देगा
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               {trip.status === 'pending_confirmation' && (
                 <View style={[styles.pendingBanner, { backgroundColor: '#eff6ff', borderColor: '#2563eb' }]}>
                   <Text style={styles.pendingIcon}>🔑</Text>
@@ -201,6 +228,11 @@ const styles = StyleSheet.create({
   pendingBanner: { borderRadius: 12, borderWidth: 1.5, padding: 14, flexDirection: 'row', gap: 10, marginTop: -6, marginBottom: 8, alignItems: 'flex-start' },
   pendingIcon: { fontSize: 22, marginTop: 2 },
   pendingTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  rentDueBanner: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 12, borderWidth: 2, marginTop: -6, marginBottom: 8, alignItems: 'flex-start' },
+  rentDueIcon: { fontSize: 22 },
+  rentDueTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  rentDueAmount: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 2 },
+  rentDueSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 16 },
   pendingSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
   pendingGps: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
   otpBox: { borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, alignSelf: 'flex-start', marginVertical: 6 },
