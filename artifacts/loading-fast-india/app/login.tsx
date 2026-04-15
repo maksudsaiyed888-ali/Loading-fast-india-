@@ -1,25 +1,30 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import React, { useRef, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { auth, firebaseConfig } from '@/lib/firebase';
 
 const ADMIN_PASS = 'LFI@Admin2024';
 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login, generateLoginOtp, verifyLoginOtp } = useApp();
+  const { login, drivers, vyaparis } = useApp();
+
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const [role, setRole] = useState<'driver' | 'vyapari' | 'admin'>('driver');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
-  const [pendingVerification, setPendingVerification] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +33,7 @@ export default function LoginScreen() {
     setStep(1);
     setPhone('');
     setOtp('');
-    setPendingVerification(false);
+    setConfirmationResult(null);
   };
 
   const handleGetOtp = async () => {
@@ -36,51 +41,60 @@ export default function LoginScreen() {
       Alert.alert('त्रुटि', '10 अंकों का मोबाइल नंबर दर्ज करें');
       return;
     }
+    const roleList = role === 'driver' ? drivers : vyaparis;
+    const found = roleList.find((u) => u.phone === phone.trim());
+    if (!found) {
+      Alert.alert('खाता नहीं मिला', 'इस नंबर से कोई खाता नहीं है। पहले रजिस्ट्रेशन करें।');
+      return;
+    }
     setLoading(true);
     try {
-      const result = await generateLoginOtp(phone.trim(), role as 'driver' | 'vyapari');
-      if (!result.success) {
-        if (result.errorCode === 'not_registered') {
-          Alert.alert('खाता नहीं मिला', 'इस नंबर से कोई खाता नहीं है। पहले रजिस्ट्रेशन करें।');
-        } else {
-          Alert.alert('त्रुटि', result.error || 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
-        }
-        return;
-      }
-      setPendingVerification(result.pendingVerification === true);
+      const result = await signInWithPhoneNumber(auth, '+91' + phone.trim(), recaptchaVerifier.current!);
+      setConfirmationResult(result);
       setStep(2);
-    } catch {
-      Alert.alert('त्रुटि', 'Internet connection check करें।');
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? '';
+      if (msg.includes('too-many-requests')) {
+        Alert.alert('बहुत ज्यादा कोशिश', 'कुछ देर बाद दोबारा try करें।');
+      } else if (msg.includes('invalid-phone-number')) {
+        Alert.alert('गलत नंबर', 'सही 10 अंकों का नंबर दर्ज करें।');
+      } else {
+        Alert.alert('OTP Error', 'OTP नहीं भेजा जा सका। दोबारा कोशिश करें।');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length < 4) {
-      Alert.alert('त्रुटि', 'OTP दर्ज करें');
+    if (!otp || otp.length < 6) {
+      Alert.alert('त्रुटि', '6 अंकों का OTP दर्ज करें');
+      return;
+    }
+    if (!confirmationResult) {
+      Alert.alert('त्रुटि', 'पहले OTP भेजें');
       return;
     }
     setLoading(true);
     try {
-      const result = await verifyLoginOtp(phone.trim(), otp.trim(), role as 'driver' | 'vyapari');
-      if (!result.success) {
-        if (result.errorCode === 'expired') {
-          Alert.alert('OTP Expire', 'OTP की समय सीमा खत्म हो गई। नया OTP लें।', [
-            { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); } },
-          ]);
-        } else if (result.errorCode === 'too_many') {
-          Alert.alert('बहुत ज्यादा कोशिश', 'नया OTP लें।', [
-            { text: 'ठीक है', onPress: () => { setStep(1); setOtp(''); } },
-          ]);
-        } else {
-          Alert.alert('गलत OTP', result.error || 'OTP गलत है।');
-        }
+      await confirmationResult.confirm(otp.trim());
+      const roleList = role === 'driver' ? drivers : vyaparis;
+      const found = roleList.find((u) => u.phone === phone.trim());
+      if (!found) {
+        Alert.alert('त्रुटि', 'User नहीं मिला। Support से संपर्क करें।');
         return;
       }
+      await login({ id: found.id, role: role as 'driver' | 'vyapari', name: found.name, phone: found.phone, email: (found as { email?: string }).email ?? '' });
       router.replace(role === 'driver' ? '/(driver)' : '/(vyapari)');
-    } catch {
-      Alert.alert('त्रुटि', 'Internet connection check करें।');
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? '';
+      if (msg.includes('invalid-verification-code') || msg.includes('code-expired')) {
+        Alert.alert('गलत OTP', 'OTP गलत है या expire हो गया। नया OTP लें।', [
+          { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); setConfirmationResult(null); } },
+        ]);
+      } else {
+        Alert.alert('त्रुटि', 'OTP verify नहीं हुआ। दोबारा कोशिश करें।');
+      }
     } finally {
       setLoading(false);
     }
@@ -102,6 +116,12 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 0) }]}>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification
+      />
+
       <TouchableOpacity onPress={() => router.back()} style={styles.back}>
         <Feather name="arrow-left" size={22} color={colors.foreground} />
       </TouchableOpacity>
@@ -164,19 +184,6 @@ export default function LoginScreen() {
             </View>
             <Button title="OTP भेजें →" onPress={handleGetOtp} loading={loading} />
           </>
-        ) : pendingVerification ? (
-          <View style={[styles.pendingCard, { backgroundColor: '#FFF8E1', borderColor: '#FFA000' }]}>
-            <Feather name="clock" size={32} color="#FFA000" style={{ marginBottom: 12 }} />
-            <Text style={styles.pendingTitle}>Pending Verification</Text>
-            <Text style={styles.pendingText}>
-              SMS service अभी उपलब्ध नहीं है।{'\n\n'}
-              आपका account Admin review के लिए भेज दिया गया है।{'\n\n'}
-              जल्द ही approve होगा — कृपया प्रतीक्षा करें।
-            </Text>
-            <TouchableOpacity style={[styles.retryBtn, { borderColor: '#FFA000' }]} onPress={() => { setStep(1); setOtp(''); setPendingVerification(false); }}>
-              <Text style={{ color: '#FFA000', fontFamily: 'Inter_600SemiBold', fontSize: 14 }}>वापस जाएं</Text>
-            </TouchableOpacity>
-          </View>
         ) : (
           <>
             <View style={[styles.smsBanner, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
@@ -184,7 +191,7 @@ export default function LoginScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.smsBannerTitle, { color: '#388E3C' }]}>OTP भेज दिया गया</Text>
                 <Text style={[styles.smsBannerSub, { color: '#388E3C' }]}>
-                  {phone} पर 6 अंकों का OTP SMS से आया होगा
+                  {phone} पर 6 अंकों का OTP Google द्वारा SMS से आया होगा
                 </Text>
               </View>
             </View>
@@ -201,13 +208,13 @@ export default function LoginScreen() {
             />
 
             <View style={[styles.otpInfo, { borderColor: colors.border }]}>
-              <Feather name="info" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>OTP 10 मिनट में expire होगा • गलत OTP 3 बार से ज्यादा नहीं</Text>
+              <Feather name="shield" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>Firebase द्वारा secure OTP • Google का infrastructure</Text>
             </View>
 
             <Button title="लॉगिन करें" onPress={handleVerifyOtp} loading={loading} />
 
-            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); }}>
+            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setConfirmationResult(null); }}>
               <Feather name="refresh-cw" size={13} color={colors.primary} />
               <Text style={[styles.resendText, { color: colors.primary }]}>OTP नहीं आया? नया OTP लें</Text>
             </TouchableOpacity>
@@ -244,10 +251,6 @@ const styles = StyleSheet.create({
   otpInfoText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_400Regular', lineHeight: 16 },
   resendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 12 },
   resendText: { fontSize: 13.5, fontFamily: 'Inter_500Medium' },
-  pendingCard: { borderWidth: 2, borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 8 },
-  pendingTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: '#E65100', marginBottom: 12 },
-  pendingText: { fontSize: 14, fontFamily: 'Inter_400Regular', color: '#795548', textAlign: 'center', lineHeight: 22, marginBottom: 20 },
-  retryBtn: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
   registerLink: { marginTop: 16, alignItems: 'center' },
   registerText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
 });

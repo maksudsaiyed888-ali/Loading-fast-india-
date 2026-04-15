@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeFirestore, getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: 'AIzaSyCuQVMzWcAwU9_iOKqeEb0U9PmdiI5dwno',
   authDomain: 'loding-fast.firebaseapp.com',
   projectId: 'loding-fast',
@@ -21,4 +22,6 @@ try {
   db = getFirestore(app);
 }
 
-export { db };
+const auth = getAuth(app);
+
+export { db, auth };

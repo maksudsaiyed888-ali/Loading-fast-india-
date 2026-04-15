@@ -63,8 +63,6 @@ interface AppContextType {
   getOpenVyapariTrips: () => VyapariTrip[];
   generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<string>;
   verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
-  generateLoginOtp: (phone: string, role: 'driver' | 'vyapari') => Promise<{ success: boolean; smsSent?: boolean; pendingVerification?: boolean; error?: string; errorCode?: string }>;
-  verifyLoginOtp: (phone: string, otp: string, role: 'driver' | 'vyapari') => Promise<{ success: boolean; error?: string; errorCode?: string }>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
 }
@@ -267,38 +265,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
-  const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}:8080`;
-
-  const generateLoginOtp = async (phone: string, role: 'driver' | 'vyapari') => {
-    try {
-      const res = await fetch(`${API_BASE}/api/otp/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, role }),
-      });
-      return await res.json() as { success: boolean; smsSent?: boolean; pendingVerification?: boolean; error?: string; errorCode?: string };
-    } catch {
-      return { success: false, error: 'Network error. Internet check करें।' };
-    }
-  };
-
-  const verifyLoginOtp = async (phone: string, otp: string, role: 'driver' | 'vyapari') => {
-    try {
-      const res = await fetch(`${API_BASE}/api/otp/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, otp, role }),
-      });
-      const data = await res.json() as { success: boolean; user?: { id: string; name: string; phone: string; email: string }; error?: string; errorCode?: string };
-      if (data.success && data.user) {
-        await login({ id: data.user.id, role, name: data.user.name, phone: data.user.phone, email: data.user.email });
-      }
-      return data;
-    } catch {
-      return { success: false, error: 'Network error. Internet check करें।' };
-    }
-  };
-
   const currentDriver = user?.role === 'driver' ? drivers.find((d) => d.id === user.id) ?? null : null;
   const currentVyapari = user?.role === 'vyapari' ? vyaparis.find((v) => v.id === user.id) ?? null : null;
 
@@ -314,7 +280,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         vyapariTrips, addVyapariTrip, cancelVyapariTrip, confirmVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
         generateDeliveryOtp, verifyDeliveryOtp,
-        generateLoginOtp, verifyLoginOtp,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         currentDriver, currentVyapari,
       }}
