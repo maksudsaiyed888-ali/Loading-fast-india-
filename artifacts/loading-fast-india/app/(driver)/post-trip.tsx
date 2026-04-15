@@ -27,6 +27,8 @@ export default function PostTripScreen() {
     description: '',
     usePerTon: false,
     paymentType: 'sender' as 'sender' | 'receiver',
+    receiverName: '', receiverPhone: '', receiverCity: '',
+    receiverAddress: '', receiverGst: '',
   });
 
   const set = (k: string, v: string | boolean) => setForm((p) => ({ ...p, [k]: v }));
@@ -47,6 +49,9 @@ export default function PostTripScreen() {
     if (!form.loadTons || parseFloat(form.loadTons) <= 0) { Alert.alert('त्रुटि', 'माल का वजन जरूरी है'); return; }
     const total = parseFloat(form.totalRent) || 0;
     if (total <= 0) { Alert.alert('त्रुटि', 'किराया जरूरी है'); return; }
+    if (!form.receiverName.trim()) { Alert.alert('त्रुटि', 'Receiver (Consignee) का नाम जरूरी है'); return; }
+    if (!form.receiverPhone.trim() || form.receiverPhone.trim().length < 10) { Alert.alert('त्रुटि', 'Receiver का सही मोबाइल नंबर जरूरी है'); return; }
+    if (!form.receiverCity.trim()) { Alert.alert('त्रुटि', 'Receiver का शहर जरूरी है'); return; }
 
     setLoading(true);
     try {
@@ -75,9 +80,14 @@ export default function PostTripScreen() {
         createdAt: new Date().toISOString(),
         paymentType: form.paymentType,
         paymentReceived: false,
+        receiverName: form.receiverName.trim(),
+        receiverPhone: form.receiverPhone.trim(),
+        receiverCity: form.receiverCity.trim(),
+        receiverAddress: form.receiverAddress.trim() || undefined,
+        receiverGst: form.receiverGst.trim() || undefined,
       });
       Alert.alert('ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सभी नज़दीकी व्यापारियों को दिख रही है।');
-      setForm({ fromCity: '', fromState: 'राजस्थान', toCity: '', toState: 'राजस्थान', loadTons: '', rentPerTon: '', totalRent: '', tripDate: new Date().toISOString().split('T')[0], description: '', usePerTon: false, paymentType: 'sender' });
+      setForm({ fromCity: '', fromState: 'राजस्थान', toCity: '', toState: 'राजस्थान', loadTons: '', rentPerTon: '', totalRent: '', tripDate: new Date().toISOString().split('T')[0], description: '', usePerTon: false, paymentType: 'sender', receiverName: '', receiverPhone: '', receiverCity: '', receiverAddress: '', receiverGst: '' });
     } finally {
       setLoading(false);
     }
@@ -208,6 +218,23 @@ export default function PostTripScreen() {
 
             <Input label="विवरण (वैकल्पिक)" placeholder="माल का प्रकार, शर्तें आदि" value={form.description} onChangeText={(v) => set('description', v)} multiline numberOfLines={3} />
 
+            {/* ── Receiver (Consignee) Section ── */}
+            <View style={[styles.receiverSection, { backgroundColor: colors.card, borderColor: '#1565C0' }]}>
+              <View style={styles.receiverHeader}>
+                <Feather name="user-check" size={18} color="#1565C0" />
+                <Text style={[styles.receiverHeaderText, { color: '#1565C0' }]}>Receiver (Consignee) विवरण</Text>
+                <View style={styles.requiredBadge}><Text style={styles.requiredBadgeText}>जरूरी</Text></View>
+              </View>
+              <Text style={[styles.receiverNote, { color: colors.mutedForeground }]}>
+                Delivery के समय Receiver के mobile पर OTP भेजा जाएगा — सही नंबर डालें
+              </Text>
+              <Input label="Receiver का नाम" placeholder="जैसे: Ramesh Kumar" value={form.receiverName} onChangeText={(v) => set('receiverName', v)} icon="user" required />
+              <Input label="Receiver का मोबाइल नंबर" placeholder="10 अंक का नंबर" value={form.receiverPhone} onChangeText={(v) => set('receiverPhone', v.replace(/[^0-9]/g, '').slice(0, 10))} keyboardType="phone-pad" icon="phone" required />
+              <Input label="Receiver का शहर" placeholder="जैसे: मुंबई" value={form.receiverCity} onChangeText={(v) => set('receiverCity', v)} icon="map-pin" required />
+              <Input label="पता (वैकल्पिक)" placeholder="गली, मोहल्ला, पिन कोड" value={form.receiverAddress} onChangeText={(v) => set('receiverAddress', v)} icon="home" />
+              <Input label="GST नंबर (वैकल्पिक)" placeholder="Receiver का GST नंबर" value={form.receiverGst} onChangeText={(v) => set('receiverGst', v.toUpperCase())} icon="file-text" />
+            </View>
+
             <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={loading} style={{ marginTop: 8 }} />
           </>
         )}
@@ -240,6 +267,12 @@ const styles = StyleSheet.create({
   paymentWarning: { flexDirection: 'row', gap: 10, padding: 12, borderRadius: 10, borderWidth: 1.5, marginBottom: 14, alignItems: 'flex-start' },
   paymentWarningTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: '#E65100', marginBottom: 4 },
   paymentWarningText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: '#BF360C', lineHeight: 17 },
+  receiverSection: { borderWidth: 2, borderRadius: 14, padding: 14, marginBottom: 14 },
+  receiverHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  receiverHeaderText: { fontSize: 15, fontFamily: 'Inter_700Bold', flex: 1 },
+  requiredBadge: { backgroundColor: '#dc2626', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  requiredBadgeText: { color: '#fff', fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  receiverNote: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17, marginBottom: 12 },
   commPreviewRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   commLabel: { fontSize: 13, fontFamily: 'Inter_400Regular' },
   commValue: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },

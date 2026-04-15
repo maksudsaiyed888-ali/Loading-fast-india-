@@ -115,8 +115,8 @@ export default function MyTripsScreen() {
   const handleVerifyOtp = async () => {
     const trip = otpTrip;
     if (!trip) return;
-    if (otpInput.length !== 4) {
-      Alert.alert('OTP गलत है', '4 अंकों का OTP डालें।');
+    if (otpInput.length !== 6) {
+      Alert.alert('OTP गलत है', '6 अंकों का OTP डालें।');
       return;
     }
     setVerifyingOtp(true);
@@ -510,15 +510,27 @@ export default function MyTripsScreen() {
                   <Text style={[styles.tripInfoSub, { color: colors.mutedForeground }]}>
                     {deliveryTrip.vehicleTypeName} • {deliveryTrip.loadTons} टन
                   </Text>
+                  {deliveryTrip.receiverName ? (
+                    <View style={[styles.receiverInfoBox, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
+                      <Feather name="user-check" size={14} color="#1565C0" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.receiverInfoName, { color: '#1565C0' }]}>{deliveryTrip.receiverName}</Text>
+                        <Text style={[styles.receiverInfoPhone, { color: '#1565C0' }]}>📞 {deliveryTrip.receiverPhone} • {deliveryTrip.receiverCity}</Text>
+                        {deliveryTrip.receiverAddress ? <Text style={[styles.receiverInfoPhone, { color: '#1565C0' }]}>🏠 {deliveryTrip.receiverAddress}</Text> : null}
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               )}
 
               {!generatedOtp ? (
                 <>
-                  <View style={[styles.infoNote, { backgroundColor: '#eff6ff', borderColor: '#2563eb30' }]}>
-                    <Feather name="info" size={14} color="#2563eb" />
-                    <Text style={[styles.infoNoteText, { color: '#1d4ed8' }]}>
-                      OTP Generate होगा — आप और व्यापारी दोनों देख सकेंगे। व्यापारी के ऐप पर भी दिखेगा।
+                  <View style={[styles.infoNote, { backgroundColor: '#E8F5E9', borderColor: '#2E7D3230' }]}>
+                    <Feather name="send" size={14} color="#2E7D32" />
+                    <Text style={[styles.infoNoteText, { color: '#1B5E20' }]}>
+                      {deliveryTrip?.receiverPhone
+                        ? `OTP Generate होगा और Receiver (${deliveryTrip.receiverPhone}) के mobile पर SMS भेजा जाएगा।`
+                        : 'OTP Generate होगा। Receiver को यह OTP बताएं।'}
                     </Text>
                   </View>
 
@@ -552,52 +564,58 @@ export default function MyTripsScreen() {
                     disabled={savingDelivery}
                     activeOpacity={0.8}
                   >
-                    {savingDelivery ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="key" size={18} color="#fff" />}
+                    {savingDelivery ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={18} color="#fff" />}
                     <Text style={styles.saveBtnText}>
-                      {savingDelivery ? 'OTP बन रहा है...' : 'OTP Generate करें'}
+                      {savingDelivery ? 'OTP भेजा जा रहा है...' : 'Receiver को OTP भेजें'}
                     </Text>
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
-                  <View style={[styles.otpDisplayCard, { backgroundColor: '#1e40af' }]}>
-                    <Text style={styles.otpDisplayLabel}>यह OTP व्यापारी को दिखाएं</Text>
-                    <Text style={styles.otpDisplayNumber}>{generatedOtp}</Text>
-                    <Text style={styles.otpDisplaySub}>व्यापारी के ऐप पर भी यही OTP दिख रहा है</Text>
-                  </View>
+                  {deliveryTrip?.receiverPhone ? (
+                    <View style={[styles.otpSentCard, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
+                      <Text style={styles.otpSentIcon}>📱</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.otpSentTitle, { color: '#1B5E20' }]}>OTP भेजा गया!</Text>
+                        <Text style={[styles.otpSentSub, { color: '#2E7D32' }]}>
+                          Receiver के mobile <Text style={{ fontFamily: 'Inter_700Bold' }}>{deliveryTrip.receiverPhone}</Text> पर SMS गया है।
+                          {'\n'}Receiver से OTP लेकर नीचे दर्ज करें।
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={[styles.otpDisplayCard, { backgroundColor: '#1e40af' }]}>
+                      <Text style={styles.otpDisplayLabel}>Receiver को यह OTP बताएं</Text>
+                      <Text style={styles.otpDisplayNumber}>{generatedOtp}</Text>
+                      <Text style={styles.otpDisplaySub}>Receiver इस OTP को आपको confirm करेगा</Text>
+                    </View>
+                  )}
 
-                  <View style={[styles.infoNote, { backgroundColor: '#f0fdf4', borderColor: '#16a34a30', marginTop: 16 }]}>
-                    <Feather name="check-circle" size={14} color="#16a34a" />
-                    <Text style={[styles.infoNoteText, { color: '#15803d' }]}>
-                      व्यापारी ने OTP देख लिया हो तो नीचे वही OTP डालकर ट्रिप Complete करें
-                    </Text>
-                  </View>
-
-                  <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 20 }]}>
-                    OTP दर्ज करें (व्यापारी से Confirm करके)
+                  <Text style={[styles.sectionLabel, { color: colors.secondary, marginTop: 16 }]}>
+                    OTP दर्ज करें (Receiver से लेकर)
                   </Text>
                   <TextInput
                     style={[styles.otpInput, {
                       color: colors.foreground,
-                      borderColor: otpInput.length === 4 ? colors.navy : colors.border,
+                      borderColor: otpInput.length === 6 ? colors.navy : colors.border,
                       backgroundColor: colors.card,
                     }]}
-                    placeholder="- - - -"
+                    placeholder="- - - - - -"
                     placeholderTextColor={colors.mutedForeground}
                     value={otpInput}
-                    onChangeText={(t) => setOtpInput(t.replace(/[^0-9]/g, '').slice(0, 4))}
+                    onChangeText={(t) => setOtpInput(t.replace(/[^0-9]/g, '').slice(0, 6))}
                     keyboardType="number-pad"
-                    maxLength={4}
+                    maxLength={6}
                     textAlign="center"
                     autoFocus
                   />
                   <TouchableOpacity
                     style={[styles.saveBtn, {
-                      backgroundColor: (otpInput.length === 4 && !verifyingOtp) ? '#16a34a' : '#94a3b8',
+                      backgroundColor: (otpInput.length === 6 && !verifyingOtp) ? '#16a34a' : '#94a3b8',
                       marginTop: 12,
                     }]}
                     onPress={handleVerifyOtp}
-                    disabled={otpInput.length !== 4 || verifyingOtp}
+                    disabled={otpInput.length !== 6 || verifyingOtp}
                     activeOpacity={0.85}
                   >
                     {verifyingOtp ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="check-circle" size={18} color="#fff" />}
@@ -691,5 +709,12 @@ const styles = StyleSheet.create({
   otpDisplayLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   otpDisplayNumber: { color: '#fff', fontSize: 52, fontFamily: 'Inter_700Bold', letterSpacing: 16, marginVertical: 4 },
   otpDisplaySub: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center' },
-  otpInput: { borderWidth: 2, borderRadius: 16, paddingVertical: 20, fontSize: 36, fontFamily: 'Inter_700Bold', letterSpacing: 12 },
+  otpInput: { borderWidth: 2, borderRadius: 16, paddingVertical: 20, fontSize: 32, fontFamily: 'Inter_700Bold', letterSpacing: 10 },
+  receiverInfoBox: { flexDirection: 'row', gap: 8, padding: 10, borderRadius: 8, borderWidth: 1, marginTop: 8, alignItems: 'flex-start' },
+  receiverInfoName: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  receiverInfoPhone: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  otpSentCard: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 12, borderWidth: 2, marginBottom: 8, alignItems: 'flex-start' },
+  otpSentIcon: { fontSize: 26 },
+  otpSentTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  otpSentSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
 });

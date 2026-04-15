@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { collection, doc, onSnapshot, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import Constants from 'expo-constants';
 import { db } from '@/lib/firebase';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { updateDriverLocation } from '@/lib/location';
@@ -239,13 +240,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
 
+  const sendSmsToReceiver = async (phone: string, otp: string, receiverName: string): Promise<boolean> => {
+    try {
+      const apiKey = (Constants.expoConfig?.extra as Record<string, string>)?.fast2smsKey || '';
+      if (!apiKey) return false;
+      const message = `Loading Fast India: Aapka maal pahunch gaya hai. Delivery OTP: ${otp}. Yeh OTP driver ko de kar maal prapt karein. -LFI`;
+      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&sender_id=FSTSMS&message=${encodeURIComponent(message)}&language=english&route=q&numbers=${phone.replace(/[^0-9]/g, '').slice(-10)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data?.return === true;
+    } catch {
+      return false;
+    }
+  };
+
   const generateDeliveryOtp = async (tripId: string, gpsLat?: number, gpsLng?: number): Promise<string> => {
-    const otp = String(Math.floor(1000 + Math.random() * 9000));
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const trip = trips.find((t) => t.id === tripId);
+    let smsSent = false;
+    if (trip?.receiverPhone) {
+      smsSent = await sendSmsToReceiver(trip.receiverPhone, otp, trip.receiverName || 'Receiver');
+    }
     const updates: Record<string, unknown> = {
       status: 'pending_confirmation',
       tripStatus: 'delivered',
       deliveryOtp: otp,
       deliveredAt: new Date().toISOString(),
+      smsSent,
     };
     if (gpsLat !== undefined) updates.deliveryLat = gpsLat;
     if (gpsLng !== undefined) updates.deliveryLng = gpsLng;

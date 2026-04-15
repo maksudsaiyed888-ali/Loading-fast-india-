@@ -95,6 +95,12 @@ export interface Trip {
   paymentType?: 'sender' | 'receiver';
   paymentReceived?: boolean;
   paymentReceivedAt?: string;
+  receiverName?: string;
+  receiverPhone?: string;
+  receiverCity?: string;
+  receiverAddress?: string;
+  receiverGst?: string;
+  smsSent?: boolean;
 }
 
 export interface Bilty {
