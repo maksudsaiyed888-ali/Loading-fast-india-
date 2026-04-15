@@ -242,13 +242,26 @@ export default function BrowseTripsScreen() {
                 </View>
 
                 {selectedTrip.paymentType === 'receiver' ? (
-                  <View style={[styles.payResponsibility, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
-                    <Text style={styles.payRespIcon}>📦</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.payRespTitle, { color: '#1565C0' }]}>Receiver Pay Trip</Text>
-                      <Text style={[styles.payRespText, { color: '#1565C0' }]}>
-                        इस trip में किराया माल पाने वाला (receiver) देगा — आपको (sender) driver को rent नहीं देना है।
-                      </Text>
+                  <View>
+                    <View style={[styles.payResponsibility, { backgroundColor: '#E3F2FD', borderColor: '#1565C0', marginBottom: 8 }]}>
+                      <Text style={styles.payRespIcon}>📦</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.payRespTitle, { color: '#1565C0' }]}>Receiver Pay Trip</Text>
+                        <Text style={[styles.payRespText, { color: '#1565C0' }]}>
+                          इस trip में किराया माल पाने वाला (receiver) देगा।
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.payResponsibility, { backgroundColor: '#FFF8E1', borderColor: '#F57F17', borderWidth: 2 }]}>
+                      <Text style={styles.payRespIcon}>⚠️</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.payRespTitle, { color: '#E65100' }]}>महत्वपूर्ण चेतावनी</Text>
+                        <Text style={[styles.payRespText, { color: '#BF360C' }]}>
+                          यदि receiver ने payment नहीं की या देरी की, तो{' '}
+                          <Text style={{ fontFamily: 'Inter_700Bold' }}>माल भेजने वाले (आप) को driver को किराया चुकाना होगा।</Text>
+                          {'\n\n'}Receiver pay चुनने से आपकी जिम्मेदारी खत्म नहीं होती — अंतिम जिम्मेदारी sender (आप) की है।
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 ) : (

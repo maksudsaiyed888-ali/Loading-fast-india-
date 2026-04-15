@@ -88,6 +88,19 @@ const sections: Section[] = [
     ],
   },
   {
+    icon: 'alert-triangle',
+    title: 'Receiver Pay — Sender की जिम्मेदारी',
+    color: '#E65100',
+    items: [
+      '🔶 "Receiver Pay" trip में किराया माल पाने वाला (receiver) देता है।',
+      '⚠️ यदि receiver ने payment नहीं की या देरी की, तो माल भेजने वाले (sender) को driver को किराया चुकाना होगा।',
+      '⚠️ "Receiver Pay" चुनने से sender की जिम्मेदारी खत्म नहीं होती — अंतिम देनदारी sender की है।',
+      '🔴 Driver को भुगतान न करने पर IPC 420 (धोखाधड़ी) और IPC 406 (विश्वासघात) के तहत कार्रवाई हो सकती है।',
+      '📌 Trip book करते समय sender यह नियम पढ़कर सहमत होता है — बाद में "मुझे नहीं पता था" मान्य नहीं होगा।',
+      '✅ सलाह: Receiver से पहले ही confirm करें कि वह payment करेगा।',
+    ],
+  },
+  {
     icon: 'alert-octagon',
     title: 'धोखाधड़ी विरोधी नीति (Fraud Prevention)',
     color: colors.red,

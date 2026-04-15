@@ -76,13 +76,26 @@ export default function BookingsScreen() {
               )}
 
               {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && trip.paymentType === 'receiver' && (
-                <View style={[styles.rentDueBanner, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
-                  <Text style={styles.rentDueIcon}>✅</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.rentDueTitle, { color: '#2E7D32' }]}>आपको rent नहीं देना</Text>
-                    <Text style={[styles.rentDueSub, { color: '#1B5E20' }]}>
-                      इस trip में किराया माल पाने वाला (receiver) देगा
-                    </Text>
+                <View>
+                  <View style={[styles.rentDueBanner, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32', marginBottom: 6 }]}>
+                    <Text style={styles.rentDueIcon}>📦</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.rentDueTitle, { color: '#2E7D32' }]}>Receiver Pay Trip</Text>
+                      <Text style={[styles.rentDueSub, { color: '#1B5E20' }]}>
+                        किराया माल पाने वाला (receiver) देगा
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.rentDueBanner, { backgroundColor: '#FFF8E1', borderColor: '#F57F17', marginBottom: 8 }]}>
+                    <Text style={styles.rentDueIcon}>⚠️</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.rentDueTitle, { color: '#E65100' }]}>महत्वपूर्ण चेतावनी</Text>
+                      <Text style={[styles.rentDueSub, { color: '#BF360C', lineHeight: 18 }]}>
+                        यदि receiver ने payment नहीं की या देरी की, तो{' '}
+                        <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (माल भेजने वाले) को driver को किराया देना होगा।{'\n'}</Text>
+                        अंतिम जिम्मेदारी sender (आप) की है।
+                      </Text>
+                    </View>
                   </View>
                 </View>
               )}
