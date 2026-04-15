@@ -249,7 +249,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(url);
       const data = await res.json();
       return data?.return === true;
-    } catch {
+    } catch (_e) {
       return false;
     }
   };

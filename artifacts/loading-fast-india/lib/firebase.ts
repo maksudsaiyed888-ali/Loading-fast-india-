@@ -18,7 +18,7 @@ try {
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
   });
-} catch {
+} catch (_e) {
   db = getFirestore(app);
 }
 
