@@ -1,25 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { auth, firebaseConfig } from '@/lib/firebase';
 
 const ADMIN_PASS = 'LFI@Admin2024';
 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login, drivers, vyaparis } = useApp();
-
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const { login, drivers, vyaparis, sendLoginOtp, verifyLoginOtp } = useApp();
 
   const [role, setRole] = useState<'driver' | 'vyapari' | 'admin'>('driver');
   const [phone, setPhone] = useState('');
@@ -27,13 +21,14 @@ export default function LoginScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [adminPass, setAdminPass] = useState('');
   const [loading, setLoading] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
 
   const handleRoleChange = (r: 'driver' | 'vyapari' | 'admin') => {
     setRole(r);
     setStep(1);
     setPhone('');
     setOtp('');
-    setConfirmationResult(null);
+    setSmsSent(false);
   };
 
   const handleGetOtp = async () => {
@@ -49,18 +44,13 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const result = await signInWithPhoneNumber(auth, '+91' + phone.trim(), recaptchaVerifier.current!);
-      setConfirmationResult(result);
-      setStep(2);
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? '';
-      if (msg.includes('too-many-requests')) {
-        Alert.alert('बहुत ज्यादा कोशिश', 'कुछ देर बाद दोबारा try करें।');
-      } else if (msg.includes('invalid-phone-number')) {
-        Alert.alert('गलत नंबर', 'सही 10 अंकों का नंबर दर्ज करें।');
-      } else {
+      const result = await sendLoginOtp(phone.trim());
+      if (!result.success) {
         Alert.alert('OTP Error', 'OTP नहीं भेजा जा सका। दोबारा कोशिश करें।');
+        return;
       }
+      setSmsSent(result.smsSent ?? false);
+      setStep(2);
     } finally {
       setLoading(false);
     }
@@ -71,13 +61,16 @@ export default function LoginScreen() {
       Alert.alert('त्रुटि', '6 अंकों का OTP दर्ज करें');
       return;
     }
-    if (!confirmationResult) {
-      Alert.alert('त्रुटि', 'पहले OTP भेजें');
-      return;
-    }
     setLoading(true);
     try {
-      await confirmationResult.confirm(otp.trim());
+      const ok = await verifyLoginOtp(phone.trim(), otp.trim());
+      if (!ok) {
+        Alert.alert('गलत OTP', 'OTP गलत है या expire हो गया। नया OTP लें।', [
+          { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); setSmsSent(false); } },
+          { text: 'ठीक है' },
+        ]);
+        return;
+      }
       const roleList = role === 'driver' ? drivers : vyaparis;
       const found = roleList.find((u) => u.phone === phone.trim());
       if (!found) {
@@ -86,15 +79,6 @@ export default function LoginScreen() {
       }
       await login({ id: found.id, role: role as 'driver' | 'vyapari', name: found.name, phone: found.phone, email: (found as { email?: string }).email ?? '' });
       router.replace(role === 'driver' ? '/(driver)' : '/(vyapari)');
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? '';
-      if (msg.includes('invalid-verification-code') || msg.includes('code-expired')) {
-        Alert.alert('गलत OTP', 'OTP गलत है या expire हो गया। नया OTP लें।', [
-          { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); setConfirmationResult(null); } },
-        ]);
-      } else {
-        Alert.alert('त्रुटि', 'OTP verify नहीं हुआ। दोबारा कोशिश करें।');
-      }
     } finally {
       setLoading(false);
     }
@@ -116,12 +100,6 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 0) }]}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification
-      />
-
       <TouchableOpacity onPress={() => router.back()} style={styles.back}>
         <Feather name="arrow-left" size={22} color={colors.foreground} />
       </TouchableOpacity>
@@ -186,12 +164,19 @@ export default function LoginScreen() {
           </>
         ) : (
           <>
-            <View style={[styles.smsBanner, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
-              <Feather name="message-square" size={18} color="#388E3C" />
+            <View style={[styles.smsBanner, {
+              backgroundColor: smsSent ? '#E8F5E9' : '#FFF8E1',
+              borderColor: smsSent ? '#4CAF50' : '#FFA000',
+            }]}>
+              <Feather name="message-square" size={18} color={smsSent ? '#388E3C' : '#F57C00'} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.smsBannerTitle, { color: '#388E3C' }]}>OTP भेज दिया गया</Text>
-                <Text style={[styles.smsBannerSub, { color: '#388E3C' }]}>
-                  {phone} पर 6 अंकों का OTP Google द्वारा SMS से आया होगा
+                <Text style={[styles.smsBannerTitle, { color: smsSent ? '#388E3C' : '#E65100' }]}>
+                  {smsSent ? 'OTP भेज दिया गया' : 'OTP Generate हो गया'}
+                </Text>
+                <Text style={[styles.smsBannerSub, { color: smsSent ? '#388E3C' : '#BF360C' }]}>
+                  {smsSent
+                    ? `${phone} पर 6 अंकों का OTP SMS से भेजा गया`
+                    : `OTP बन गया है — नीचे दर्ज करें (SMS unavailable)`}
                 </Text>
               </View>
             </View>
@@ -208,13 +193,13 @@ export default function LoginScreen() {
             />
 
             <View style={[styles.otpInfo, { borderColor: colors.border }]}>
-              <Feather name="shield" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>Firebase द्वारा secure OTP • Google का infrastructure</Text>
+              <Feather name="clock" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>OTP 10 मिनट में expire हो जाएगा</Text>
             </View>
 
             <Button title="लॉगिन करें" onPress={handleVerifyOtp} loading={loading} />
 
-            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setConfirmationResult(null); }}>
+            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setSmsSent(false); }}>
               <Feather name="refresh-cw" size={13} color={colors.primary} />
               <Text style={[styles.resendText, { color: colors.primary }]}>OTP नहीं आया? नया OTP लें</Text>
             </TouchableOpacity>

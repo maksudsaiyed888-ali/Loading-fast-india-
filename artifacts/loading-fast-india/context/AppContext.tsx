@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { collection, doc, onSnapshot, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import Constants from 'expo-constants';
 import { db } from '@/lib/firebase';
@@ -64,6 +64,8 @@ interface AppContextType {
   getOpenVyapariTrips: () => VyapariTrip[];
   generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<string>;
   verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
+  sendLoginOtp: (phone: string) => Promise<{ success: boolean; smsSent?: boolean }>;
+  verifyLoginOtp: (phone: string, otp: string) => Promise<boolean>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
 }
@@ -286,6 +288,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const fast2smsKey = (Constants.expoConfig?.extra as Record<string, string>)?.fast2smsKey || '';
+
+  const sendLoginOtp = async (phone: string): Promise<{ success: boolean; smsSent?: boolean }> => {
+    try {
+      const otp = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      await setDoc(doc(db, 'loginOtps', phone), { otp, expiresAt, createdAt: new Date().toISOString() });
+      let smsSent = false;
+      if (fast2smsKey) {
+        try {
+          const msg = `Loading Fast India Login OTP: ${otp}. 10 minute mein use karein. -LFI`;
+          const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&sender_id=FSTSMS&message=${encodeURIComponent(msg)}&language=english&route=q&numbers=${phone}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          smsSent = data?.return === true;
+        } catch (_e) { }
+      }
+      return { success: true, smsSent };
+    } catch (_e) {
+      return { success: false };
+    }
+  };
+
+  const verifyLoginOtp = async (phone: string, otp: string): Promise<boolean> => {
+    try {
+      const snap = await getDoc(doc(db, 'loginOtps', phone));
+      if (!snap.exists()) return false;
+      const data = snap.data();
+      if (!data?.otp || data.otp !== otp.trim()) return false;
+      if (data.expiresAt && new Date(data.expiresAt) < new Date()) return false;
+      await updateDoc(doc(db, 'loginOtps', phone), { otp: '', used: true });
+      return true;
+    } catch (_e) {
+      return false;
+    }
+  };
+
   const currentDriver = user?.role === 'driver' ? drivers.find((d) => d.id === user.id) ?? null : null;
   const currentVyapari = user?.role === 'vyapari' ? vyaparis.find((v) => v.id === user.id) ?? null : null;
 
@@ -301,6 +340,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
         vyapariTrips, addVyapariTrip, cancelVyapariTrip, confirmVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
         generateDeliveryOtp, verifyDeliveryOtp,
+        sendLoginOtp, verifyLoginOtp,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         currentDriver, currentVyapari,
       }}
