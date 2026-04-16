@@ -22,6 +22,7 @@ export default function LoginScreen() {
   const [adminPass, setAdminPass] = useState('');
   const [loading, setLoading] = useState(false);
   const [smsSent, setSmsSent] = useState(false);
+  const [displayOtp, setDisplayOtp] = useState('');
 
   const handleRoleChange = (r: 'driver' | 'vyapari' | 'admin') => {
     setRole(r);
@@ -29,6 +30,7 @@ export default function LoginScreen() {
     setPhone('');
     setOtp('');
     setSmsSent(false);
+    setDisplayOtp('');
   };
 
   const handleGetOtp = async () => {
@@ -50,6 +52,8 @@ export default function LoginScreen() {
         return;
       }
       setSmsSent(result.smsSent ?? false);
+      setDisplayOtp(result.otp ?? '');
+      if (result.otp) setOtp(result.otp);
       setStep(2);
     } finally {
       setLoading(false);
@@ -164,22 +168,21 @@ export default function LoginScreen() {
           </>
         ) : (
           <>
-            <View style={[styles.smsBanner, {
-              backgroundColor: smsSent ? '#E8F5E9' : '#FFF8E1',
-              borderColor: smsSent ? '#4CAF50' : '#FFA000',
-            }]}>
-              <Feather name="message-square" size={18} color={smsSent ? '#388E3C' : '#F57C00'} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.smsBannerTitle, { color: smsSent ? '#388E3C' : '#E65100' }]}>
-                  {smsSent ? 'OTP भेज दिया गया' : 'OTP Generate हो गया'}
-                </Text>
-                <Text style={[styles.smsBannerSub, { color: smsSent ? '#388E3C' : '#BF360C' }]}>
-                  {smsSent
-                    ? `${phone} पर 6 अंकों का OTP SMS से भेजा गया`
-                    : `OTP बन गया है — नीचे दर्ज करें (SMS unavailable)`}
-                </Text>
+            {smsSent ? (
+              <View style={[styles.smsBanner, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                <Feather name="message-square" size={18} color="#388E3C" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.smsBannerTitle, { color: '#388E3C' }]}>OTP भेज दिया गया</Text>
+                  <Text style={[styles.smsBannerSub, { color: '#388E3C' }]}>{phone} पर SMS से OTP आया होगा</Text>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={[styles.otpDisplayBox, { backgroundColor: '#0A2540', borderColor: '#1565C0' }]}>
+                <Text style={styles.otpDisplayLabel}>आपका OTP</Text>
+                <Text style={styles.otpDisplayCode}>{displayOtp}</Text>
+                <Text style={styles.otpDisplayNote}>⚠️ SMS नहीं आया — यह OTP नीचे दर्ज करें</Text>
+              </View>
+            )}
 
             <Input
               label="OTP दर्ज करें"
@@ -199,7 +202,7 @@ export default function LoginScreen() {
 
             <Button title="लॉगिन करें" onPress={handleVerifyOtp} loading={loading} />
 
-            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setSmsSent(false); }}>
+            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setSmsSent(false); setDisplayOtp(''); }}>
               <Feather name="refresh-cw" size={13} color={colors.primary} />
               <Text style={[styles.resendText, { color: colors.primary }]}>OTP नहीं आया? नया OTP लें</Text>
             </TouchableOpacity>
@@ -238,4 +241,8 @@ const styles = StyleSheet.create({
   resendText: { fontSize: 13.5, fontFamily: 'Inter_500Medium' },
   registerLink: { marginTop: 16, alignItems: 'center' },
   registerText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  otpDisplayBox: { borderRadius: 16, borderWidth: 2, padding: 20, alignItems: 'center', marginBottom: 20, gap: 6 },
+  otpDisplayLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Inter_500Medium' },
+  otpDisplayCode: { color: '#fff', fontSize: 48, fontFamily: 'Inter_700Bold', letterSpacing: 12 },
+  otpDisplayNote: { color: '#FFA726', fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },
 });

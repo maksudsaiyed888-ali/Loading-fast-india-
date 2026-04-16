@@ -64,7 +64,7 @@ interface AppContextType {
   getOpenVyapariTrips: () => VyapariTrip[];
   generateDeliveryOtp: (tripId: string, gpsLat?: number, gpsLng?: number) => Promise<string>;
   verifyDeliveryOtp: (tripId: string, otp: string) => Promise<boolean>;
-  sendLoginOtp: (phone: string) => Promise<{ success: boolean; smsSent?: boolean }>;
+  sendLoginOtp: (phone: string) => Promise<{ success: boolean; smsSent?: boolean; otp?: string }>;
   verifyLoginOtp: (phone: string, otp: string) => Promise<boolean>;
   currentDriver: Driver | null;
   currentVyapari: Vyapari | null;
@@ -290,7 +290,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fast2smsKey = (Constants.expoConfig?.extra as Record<string, string>)?.fast2smsKey || '';
 
-  const sendLoginOtp = async (phone: string): Promise<{ success: boolean; smsSent?: boolean }> => {
+  const sendLoginOtp = async (phone: string): Promise<{ success: boolean; smsSent?: boolean; otp?: string }> => {
     try {
       const otp = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -305,7 +305,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           smsSent = data?.return === true;
         } catch (_e) { }
       }
-      return { success: true, smsSent };
+      if (smsSent) {
+        return { success: true, smsSent: true };
+      }
+      return { success: true, smsSent: false, otp };
     } catch (_e) {
       return { success: false };
     }
