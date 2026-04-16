@@ -1,25 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { auth, firebaseConfig } from '@/lib/firebase';
 
 const ADMIN_PASS = 'LFI@Admin2024';
 
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { login, drivers, vyaparis } = useApp();
-
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const { login, drivers, vyaparis, sendLoginOtp, verifyLoginOtp } = useApp();
 
   const [role, setRole] = useState<'driver' | 'vyapari' | 'admin'>('driver');
   const [phone, setPhone] = useState('');
@@ -27,13 +21,16 @@ export default function LoginScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [adminPass, setAdminPass] = useState('');
   const [loading, setLoading] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
+  const [displayOtp, setDisplayOtp] = useState('');
 
   const handleRoleChange = (r: 'driver' | 'vyapari' | 'admin') => {
     setRole(r);
     setStep(1);
     setPhone('');
     setOtp('');
-    setConfirmationResult(null);
+    setSmsSent(false);
+    setDisplayOtp('');
   };
 
   const handleGetOtp = async () => {
@@ -49,18 +46,15 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      const result = await signInWithPhoneNumber(auth, '+91' + phone.trim(), recaptchaVerifier.current!);
-      setConfirmationResult(result);
-      setStep(2);
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? '';
-      if (msg.includes('too-many-requests')) {
-        Alert.alert('बहुत ज्यादा कोशिश', 'कुछ देर बाद दोबारा try करें।');
-      } else if (msg.includes('invalid-phone-number')) {
-        Alert.alert('गलत नंबर', 'सही 10 अंकों का नंबर दर्ज करें।');
-      } else {
-        Alert.alert('OTP Error', `OTP नहीं भेजा जा सका। (${msg || 'Network error'})`);
+      const result = await sendLoginOtp(phone.trim());
+      if (!result.success) {
+        Alert.alert('OTP Error', 'OTP नहीं बना। Internet connection check करें।');
+        return;
       }
+      setSmsSent(result.smsSent ?? false);
+      setDisplayOtp(result.otp ?? '');
+      if (result.otp) setOtp(result.otp);
+      setStep(2);
     } finally {
       setLoading(false);
     }
@@ -71,30 +65,24 @@ export default function LoginScreen() {
       Alert.alert('त्रुटि', '6 अंकों का OTP दर्ज करें');
       return;
     }
-    if (!confirmationResult) {
-      Alert.alert('त्रुटि', 'पहले OTP भेजें');
-      return;
-    }
     setLoading(true);
     try {
-      await confirmationResult.confirm(otp.trim());
+      const ok = await verifyLoginOtp(phone.trim(), otp.trim());
+      if (!ok) {
+        Alert.alert('गलत OTP', 'OTP गलत है या expire हो गया।', [
+          { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); setSmsSent(false); setDisplayOtp(''); } },
+          { text: 'ठीक है' },
+        ]);
+        return;
+      }
       const roleList = role === 'driver' ? drivers : vyaparis;
       const found = roleList.find((u) => u.phone === phone.trim());
       if (!found) {
-        Alert.alert('त्रुटि', 'User नहीं मिला। Support से संपर्क करें।');
+        Alert.alert('त्रुटि', 'User नहीं मिला।');
         return;
       }
       await login({ id: found.id, role: role as 'driver' | 'vyapari', name: found.name, phone: found.phone, email: (found as { email?: string }).email ?? '' });
       router.replace(role === 'driver' ? '/(driver)' : '/(vyapari)');
-    } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message ?? '';
-      if (msg.includes('invalid-verification-code') || msg.includes('code-expired')) {
-        Alert.alert('गलत OTP', 'OTP गलत है या expire हो गया। नया OTP लें।', [
-          { text: 'नया OTP लें', onPress: () => { setStep(1); setOtp(''); setConfirmationResult(null); } },
-        ]);
-      } else {
-        Alert.alert('त्रुटि', 'OTP verify नहीं हुआ। दोबारा कोशिश करें।');
-      }
     } finally {
       setLoading(false);
     }
@@ -116,12 +104,6 @@ export default function LoginScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + (Platform.OS === 'web' ? 67 : 0) }]}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification
-      />
-
       <TouchableOpacity onPress={() => router.back()} style={styles.back}>
         <Feather name="arrow-left" size={22} color={colors.foreground} />
       </TouchableOpacity>
@@ -146,15 +128,7 @@ export default function LoginScreen() {
 
         {role === 'admin' ? (
           <>
-            <Input
-              label="Admin Password"
-              placeholder="पासवर्ड दर्ज करें"
-              value={adminPass}
-              onChangeText={setAdminPass}
-              secureTextEntry
-              icon="lock"
-              required
-            />
+            <Input label="Admin Password" placeholder="पासवर्ड दर्ज करें" value={adminPass} onChangeText={setAdminPass} secureTextEntry icon="lock" required />
             <Button title="लॉगिन करें" onPress={handleAdminLogin} loading={loading} />
           </>
         ) : step === 1 ? (
@@ -162,69 +136,52 @@ export default function LoginScreen() {
             <View style={[styles.infoBanner, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
               <Feather name="smartphone" size={16} color={colors.primary} />
               <Text style={[styles.infoBannerText, { color: colors.primary }]}>
-                पंजीकृत मोबाइल नंबर डालें — OTP Google द्वारा FREE SMS से आएगा
+                पंजीकृत मोबाइल नंबर डालें — OTP मिलेगा
               </Text>
             </View>
-
-            <Input
-              label="मोबाइल नंबर"
-              placeholder="10 अंकों का नंबर"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              maxLength={10}
-              icon="phone"
-              required
-            />
+            <Input label="मोबाइल नंबर" placeholder="10 अंकों का नंबर" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} icon="phone" required />
             <View style={[styles.rememberBox, { backgroundColor: colors.accent, borderColor: colors.border }]}>
               <Feather name="check-circle" size={14} color={colors.primary} />
-              <Text style={[styles.rememberText, { color: colors.mutedForeground }]}>
-                लॉगिन हमेशा याद रहेगा — दोबारा login की जरूरत नहीं
-              </Text>
+              <Text style={[styles.rememberText, { color: colors.mutedForeground }]}>लॉगिन हमेशा याद रहेगा — दोबारा login की जरूरत नहीं</Text>
             </View>
             <Button title="OTP भेजें →" onPress={handleGetOtp} loading={loading} />
           </>
         ) : (
           <>
-            <View style={[styles.smsBanner, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
-              <Feather name="message-square" size={18} color="#388E3C" />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.smsBannerTitle, { color: '#388E3C' }]}>OTP भेज दिया गया</Text>
-                <Text style={[styles.smsBannerSub, { color: '#388E3C' }]}>
-                  {phone} पर 6 अंकों का OTP Google द्वारा SMS से आया होगा
-                </Text>
+            {smsSent ? (
+              <View style={[styles.smsBanner, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                <Feather name="message-square" size={18} color="#388E3C" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.smsBannerTitle, { color: '#388E3C' }]}>OTP SMS से आया</Text>
+                  <Text style={[styles.smsBannerSub, { color: '#388E3C' }]}>{phone} पर OTP भेजा गया</Text>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={[styles.otpDisplayBox, { backgroundColor: '#0A2540', borderColor: '#1e40af' }]}>
+                <Text style={styles.otpDisplayLabel}>आपका Login OTP</Text>
+                <Text style={styles.otpDisplayCode}>{displayOtp}</Text>
+                <Text style={styles.otpDisplayNote}>यह OTP नीचे पहले से भरा हुआ है — सीधे Login करें</Text>
+              </View>
+            )}
 
-            <Input
-              label="OTP दर्ज करें"
-              placeholder="6 अंकों का OTP"
-              value={otp}
-              onChangeText={setOtp}
-              keyboardType="numeric"
-              maxLength={6}
-              icon="key"
-              required
-            />
+            <Input label="OTP दर्ज करें" placeholder="6 अंकों का OTP" value={otp} onChangeText={setOtp} keyboardType="numeric" maxLength={6} icon="key" required />
 
             <View style={[styles.otpInfo, { borderColor: colors.border }]}>
-              <Feather name="shield" size={13} color={colors.mutedForeground} />
-              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>Firebase द्वारा secure OTP • Google का infrastructure • बिल्कुल FREE</Text>
+              <Feather name="clock" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.otpInfoText, { color: colors.mutedForeground }]}>OTP 10 मिनट में expire हो जाएगा</Text>
             </View>
 
             <Button title="लॉगिन करें" onPress={handleVerifyOtp} loading={loading} />
 
-            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setConfirmationResult(null); }}>
+            <TouchableOpacity style={styles.resendRow} onPress={() => { setStep(1); setOtp(''); setSmsSent(false); setDisplayOtp(''); }}>
               <Feather name="refresh-cw" size={13} color={colors.primary} />
-              <Text style={[styles.resendText, { color: colors.primary }]}>OTP नहीं आया? नया OTP लें</Text>
+              <Text style={[styles.resendText, { color: colors.primary }]}>नया OTP लें</Text>
             </TouchableOpacity>
           </>
         )}
 
         <TouchableOpacity style={styles.registerLink} onPress={() => router.back()}>
-          <Text style={[styles.registerText, { color: colors.primary }]}>
-            खाता नहीं है? रजिस्टर करें
-          </Text>
+          <Text style={[styles.registerText, { color: colors.primary }]}>खाता नहीं है? रजिस्टर करें</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -247,6 +204,10 @@ const styles = StyleSheet.create({
   smsBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 20 },
   smsBannerTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   smsBannerSub: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  otpDisplayBox: { borderRadius: 16, borderWidth: 2, padding: 20, alignItems: 'center', marginBottom: 20, gap: 6 },
+  otpDisplayLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Inter_500Medium' },
+  otpDisplayCode: { color: '#fff', fontSize: 48, fontFamily: 'Inter_700Bold', letterSpacing: 12 },
+  otpDisplayNote: { color: '#93c5fd', fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center' },
   otpInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, borderRadius: 8, borderWidth: 1, marginBottom: 16, marginTop: 4 },
   otpInfoText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_400Regular', lineHeight: 16 },
   resendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 12 },
