@@ -352,7 +352,7 @@ export interface VyapariTrip {
   ratePerTon: number;
   tripDate: string;
   description: string;
-  status: 'open' | 'accepted' | 'completed' | 'cancelled';
+  status: 'open' | 'low_priority' | 'accepted' | 'completed' | 'cancelled';
   createdAt: string;
   paymentType?: 'sender' | 'receiver';
   advanceUTR?: string;

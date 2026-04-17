@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { INDIA_STATES, GOODS_CATEGORIES, VyapariTrip } from '@/lib/types';
 import { generateId } from '@/lib/utils';
+import { sendRefreshNotifications } from '@/lib/notifications';
 
 const LOW_RATE_THRESHOLD = 300;
 const isLowRate = (r: number) => r === 0 || r < LOW_RATE_THRESHOLD;
@@ -29,7 +30,7 @@ export default function VyapariHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, currentVyapari, getAvailableTrips, getVyapariBookings, bilties, refreshAll,
-    addVyapariTrip, cancelVyapariTrip, updateVyapariTrip, getVyapariOwnTrips } = useApp();
+    addVyapariTrip, cancelVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, markVyapariTripLowPriority, drivers } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -159,74 +160,20 @@ export default function VyapariHomeScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>मेरी पोस्ट की ट्रिप्स</Text>
             {myPostedTrips.slice(0, 3).map((t) => (
-              <View key={t.id} style={[styles.postedCard, {
-                backgroundColor: colors.card,
-                borderColor: t.status === 'open' && isLowRate(t.ratePerTon) ? '#f97316' + '60' : colors.border,
-              }]}>
-                <View style={styles.postedCardRow}>
-                  <View style={[styles.statusBadge, { backgroundColor: t.status === 'open' ? colors.success + '20' : colors.muted }]}>
-                    <Text style={[styles.statusText, { color: t.status === 'open' ? colors.success : colors.mutedForeground }]}>
-                      {t.status === 'open' ? '🟢 Open' : t.status === 'accepted' ? '✅ Accept' : '❌ Cancel'}
-                    </Text>
-                  </View>
-                  <Text style={[styles.postedDate, { color: colors.mutedForeground }]}>{t.tripDate}</Text>
-                </View>
-                <Text style={[styles.postedRoute, { color: colors.foreground }]}>
-                  {t.fromCity} → {t.toCity}
-                </Text>
-                <Text style={[styles.postedMeta, { color: colors.mutedForeground }]}>
-                  {t.goodsCategory} • {t.weightTons} टन {t.ratePerTon > 0 ? `• ₹${t.ratePerTon}/टन` : '• भाड़ा नहीं'}
-                </Text>
-
-                {/* ⚠️ Low Rate Warning */}
-                {t.status === 'open' && isLowRate(t.ratePerTon) && (
-                  <View style={[styles.lowRateBanner, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
-                    <Feather name="alert-triangle" size={12} color="#f97316" />
-                    <Text style={[styles.lowRateText, { color: '#c2410c' }]}>
-                      {t.ratePerTon === 0
-                        ? 'भाड़ा नहीं दिया — ड्राइवर नहीं आएंगे! Edit करके बढ़ाएं।'
-                        : `₹${t.ratePerTon}/टन कम है — ₹${LOW_RATE_THRESHOLD}+ डालें`}
-                    </Text>
-                  </View>
-                )}
-
-                {t.status === 'open' && (
-                  <View style={styles.btnRow}>
-                    <TouchableOpacity
-                      style={[styles.editBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
-                      onPress={() => openEdit(t)}
-                    >
-                      <Feather name="edit-2" size={13} color={colors.primary} />
-                      <Text style={[styles.editBtnText, { color: colors.primary }]}>
-                        {isLowRate(t.ratePerTon) ? 'भाड़ा बढ़ाएं' : 'Edit'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.cancelBtn, { borderColor: '#ef4444' }]}
-                      onPress={() => {
-                        Alert.alert(
-                          'ट्रिप रद्द करें?',
-                          `${t.fromCity} → ${t.toCity} यह ट्रिप रद्द होगी।`,
-                          [
-                            { text: 'नहीं', style: 'cancel' },
-                            {
-                              text: 'हाँ, रद्द करें',
-                              style: 'destructive',
-                              onPress: async () => {
-                                await cancelVyapariTrip(t.id);
-                                Alert.alert('✅', 'ट्रिप रद्द हो गई।');
-                              },
-                            },
-                          ]
-                        );
-                      }}
-                    >
-                      <Feather name="x-circle" size={14} color="#ef4444" />
-                      <Text style={styles.cancelBtnText}>रद्द करें</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
+              <PostedTripCard
+                key={t.id}
+                trip={t}
+                colors={colors}
+                drivers={drivers}
+                onEdit={() => openEdit(t)}
+                onCancel={async () => {
+                  Alert.alert('ट्रिप रद्द करें?', `${t.fromCity} → ${t.toCity} यह ट्रिप रद्द होगी।`, [
+                    { text: 'नहीं', style: 'cancel' },
+                    { text: 'हाँ, रद्द करें', style: 'destructive', onPress: async () => { await cancelVyapariTrip(t.id); Alert.alert('✅', 'ट्रिप रद्द हो गई।'); } },
+                  ]);
+                }}
+                onMarkLowPriority={markVyapariTripLowPriority}
+              />
             ))}
           </View>
         )}
@@ -489,6 +436,171 @@ function ActionBtn({ icon, label, onPress, color }: { icon: string; label: strin
 const actionStyles = StyleSheet.create({
   btn: { flex: 1, alignItems: 'center', gap: 8, padding: 18, borderRadius: 14, borderWidth: 1.5 },
   label: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+});
+
+const LOW_PRIORITY_MINUTES = 7;
+
+function PostedTripCard({
+  trip, colors, drivers, onEdit, onCancel, onMarkLowPriority,
+}: {
+  trip: VyapariTrip;
+  colors: ReturnType<typeof useColors>;
+  drivers: import('@/lib/types').Driver[];
+  onEdit: () => void;
+  onCancel: () => void;
+  onMarkLowPriority: (id: string) => Promise<void>;
+}) {
+  const [elapsedMin, setElapsedMin] = useState(() =>
+    Math.floor((Date.now() - new Date(trip.createdAt).getTime()) / 60000)
+  );
+  const [renotifying, setRenotifying] = useState(false);
+  const markedRef = useRef(false);
+
+  useEffect(() => {
+    if (trip.status !== 'open' && trip.status !== 'low_priority') return;
+    const tick = setInterval(() => {
+      const mins = Math.floor((Date.now() - new Date(trip.createdAt).getTime()) / 60000);
+      setElapsedMin(mins);
+      if (!markedRef.current && mins >= LOW_PRIORITY_MINUTES && trip.status === 'open') {
+        markedRef.current = true;
+        onMarkLowPriority(trip.id).catch(() => {});
+      }
+    }, 30000);
+    return () => clearInterval(tick);
+  }, [trip.id, trip.status, trip.createdAt]);
+
+  const handleRenotify = async () => {
+    setRenotifying(true);
+    try {
+      sendRefreshNotifications(drivers, 23.0, 72.5, trip.fromCity, trip.toCity, trip.goodsCategory);
+      Alert.alert('🔔 Notification भेजी!', 'सभी नज़दीकी drivers को फिर से notification भेजी गई।');
+    } finally {
+      setRenotifying(false);
+    }
+  };
+
+  const isActive = trip.status === 'open' || trip.status === 'low_priority';
+  const isLowPri = trip.status === 'low_priority' || (isActive && elapsedMin >= LOW_PRIORITY_MINUTES);
+  const borderColor = isLowPri ? '#f97316' + '80' : isActive ? colors.success + '40' : colors.border;
+
+  const statusLabel =
+    trip.status === 'accepted' ? '✅ Driver मिल गया' :
+    trip.status === 'completed' ? '✓ Complete' :
+    trip.status === 'cancelled' ? '❌ Cancelled' :
+    isLowPri ? '⬇️ Low Priority' : '🟢 Open';
+  const statusColor =
+    trip.status === 'accepted' ? '#16a34a' :
+    trip.status === 'cancelled' ? '#ef4444' :
+    isLowPri ? '#f97316' : colors.success;
+
+  return (
+    <View style={[ptStyles.card, { backgroundColor: colors.card, borderColor }]}>
+      <View style={ptStyles.topRow}>
+        <View style={[ptStyles.badge, { backgroundColor: statusColor + '18' }]}>
+          <Text style={[ptStyles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+        </View>
+        <Text style={[ptStyles.timer, { color: isLowPri ? '#f97316' : colors.mutedForeground }]}>
+          {elapsedMin < 60 ? `${elapsedMin} मिनट पहले` : `${Math.floor(elapsedMin / 60)} घंटे पहले`}
+        </Text>
+      </View>
+
+      <Text style={[ptStyles.route, { color: colors.foreground }]}>{trip.fromCity} → {trip.toCity}</Text>
+      <Text style={[ptStyles.meta, { color: colors.mutedForeground }]}>
+        {trip.goodsCategory} • {trip.weightTons} टन {trip.ratePerTon > 0 ? `• ₹${trip.ratePerTon}/टन` : ''}
+      </Text>
+
+      {/* Countdown progress bar (only for active trips) */}
+      {isActive && (
+        <View style={ptStyles.progressWrap}>
+          <View style={[ptStyles.progressBar, {
+            backgroundColor: isLowPri ? '#f97316' : colors.success,
+            width: `${Math.min(100, (elapsedMin / (LOW_PRIORITY_MINUTES * 2)) * 100)}%`,
+          }]} />
+          <Text style={[ptStyles.progressLabel, { color: isLowPri ? '#f97316' : colors.success }]}>
+            {isLowPri
+              ? `${elapsedMin} मिनट — Low Priority, Re-notify करें`
+              : `${LOW_PRIORITY_MINUTES - elapsedMin} मिनट बाकी — Priority High`}
+          </Text>
+        </View>
+      )}
+
+      {/* Low Rate Warning */}
+      {isActive && isLowRate(trip.ratePerTon) && (
+        <View style={[ptStyles.warnBox, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
+          <Feather name="alert-triangle" size={12} color="#f97316" />
+          <Text style={[ptStyles.warnText, { color: '#c2410c' }]}>
+            {trip.ratePerTon === 0 ? 'भाड़ा नहीं — Driver नहीं आएंगे! Edit करें।' : `₹${trip.ratePerTon}/टन कम है`}
+          </Text>
+        </View>
+      )}
+
+      {/* Low Priority re-notify box */}
+      {isActive && isLowPri && (
+        <View style={[ptStyles.lowPriBox, { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' }]}>
+          <Feather name="clock" size={13} color="#E65100" />
+          <Text style={[ptStyles.lowPriText, { color: '#E65100' }]}>
+            {LOW_PRIORITY_MINUTES}+ मिनट हो गए — कोई Driver नहीं मिला
+          </Text>
+        </View>
+      )}
+
+      {isActive && (
+        <View style={ptStyles.btnRow}>
+          {isLowPri && (
+            <TouchableOpacity
+              style={[ptStyles.renotifyBtn, { backgroundColor: '#FF8F00', opacity: renotifying ? 0.6 : 1 }]}
+              onPress={handleRenotify}
+              disabled={renotifying}
+              activeOpacity={0.8}
+            >
+              <Feather name="bell" size={13} color="#fff" />
+              <Text style={ptStyles.renotifyText}>{renotifying ? '...' : 'Re-notify Drivers'}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[ptStyles.editBtn, { borderColor: colors.primary, backgroundColor: colors.primary + '12' }]}
+            onPress={onEdit}
+          >
+            <Feather name="edit-2" size={13} color={colors.primary} />
+            <Text style={[ptStyles.editBtnText, { color: colors.primary }]}>
+              {isLowRate(trip.ratePerTon) ? 'भाड़ा बढ़ाएं' : 'Edit'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[ptStyles.cancelBtn, { borderColor: '#ef4444' }]}
+            onPress={onCancel}
+          >
+            <Feather name="x-circle" size={14} color="#ef4444" />
+            <Text style={ptStyles.cancelBtnText}>रद्द करें</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const ptStyles = StyleSheet.create({
+  card: { borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 10, gap: 6 },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badge: { borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  timer: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  route: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  progressWrap: { height: 20, justifyContent: 'center', marginTop: 2 },
+  progressBar: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 4, minWidth: 4 },
+  progressLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', zIndex: 1 },
+  warnBox: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, padding: 7 },
+  warnText: { fontSize: 11, fontFamily: 'Inter_400Regular', flex: 1 },
+  lowPriBox: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, padding: 7 },
+  lowPriText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
+  btnRow: { flexDirection: 'row', gap: 7, marginTop: 2 },
+  renotifyBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8 },
+  renotifyText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  editBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1 },
+  editBtnText: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  cancelBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1 },
+  cancelBtnText: { color: '#ef4444', fontSize: 12, fontFamily: 'Inter_500Medium' },
 });
 
 const styles = StyleSheet.create({

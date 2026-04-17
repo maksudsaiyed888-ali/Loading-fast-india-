@@ -27,6 +27,12 @@ export default function DriverHomeScreen() {
   const myBilties = bilties.filter((b) => b.driverId === user?.id);
   const openVyapariTrips = getOpenVyapariTrips();
   const myAcceptedVyapariTrips = user ? vyapariTrips.filter(t => t.acceptedByDriverId === user.id && (t.status === 'accepted' || t.status === 'completed')) : [];
+  const recentlyTakenTrips = vyapariTrips.filter(t => {
+    if (t.status !== 'accepted') return false;
+    if (t.acceptedByDriverId === user?.id) return false;
+    const minsAgo = (Date.now() - new Date(t.acceptedAt || t.createdAt).getTime()) / 60000;
+    return minsAgo <= 30;
+  });
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -97,6 +103,30 @@ export default function DriverHomeScreen() {
                 onConfirmTrip={confirmVyapariTrip}
                 onCompleteTrip={completeVyapariTrip}
               />
+            ))}
+          </View>
+        )}
+
+        {recentlyTakenTrips.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🔒 अभी-अभी Booked हुई (Taken)</Text>
+            {recentlyTakenTrips.map((vt) => (
+              <View key={vt.id} style={[takenStyles.card, { backgroundColor: colors.card, borderColor: '#94a3b840' }]}>
+                <View style={takenStyles.row}>
+                  <View style={[takenStyles.badge, { backgroundColor: '#94a3b818' }]}>
+                    <Text style={[takenStyles.badgeText, { color: '#64748b' }]}>🔒 किसी और ने ले लिया</Text>
+                  </View>
+                  <Text style={[takenStyles.time, { color: colors.mutedForeground }]}>
+                    {Math.floor((Date.now() - new Date(vt.acceptedAt || vt.createdAt).getTime()) / 60000)} मिनट पहले
+                  </Text>
+                </View>
+                <Text style={[takenStyles.route, { color: colors.mutedForeground }]}>
+                  {vt.fromCity} → {vt.toCity}
+                </Text>
+                <Text style={[takenStyles.meta, { color: colors.mutedForeground }]}>
+                  {vt.goodsCategory} • {vt.weightTons} टन
+                </Text>
+              </View>
             ))}
           </View>
         )}
@@ -308,11 +338,13 @@ function VyapariTripCard({
     );
   };
 
-  const statusColor = isCompleted ? '#7C3AED' : isConfirmed ? '#16a34a' : colors.navy;
-  const statusLabel = isCompleted ? '✅ Completed' : isConfirmed ? '✅ Accepted' : '📦 व्यापारी लोड';
+  const ageMin = Math.floor((Date.now() - new Date(trip.createdAt).getTime()) / 60000);
+  const isLowPri = trip.status === 'low_priority' || (!isConfirmed && !isCompleted && ageMin >= 7);
+  const statusColor = isCompleted ? '#7C3AED' : isConfirmed ? '#16a34a' : isLowPri ? '#f97316' : colors.navy;
+  const statusLabel = isCompleted ? '✅ Completed' : isConfirmed ? '✅ Accepted' : isLowPri ? '⬇️ Low Priority' : '📦 व्यापारी लोड';
 
   return (
-    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: isCompleted ? '#7C3AED40' : isConfirmed ? '#16a34a40' : hasPaid ? colors.primary + '40' : colors.navy + '30' }]}>
+    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: isCompleted ? '#7C3AED40' : isConfirmed ? '#16a34a40' : isLowPri ? '#f9731640' : hasPaid ? colors.primary + '40' : colors.navy + '30' }]}>
       {/* Header */}
       <View style={vtStyles.row}>
         <View style={[vtStyles.badge, { backgroundColor: statusColor + '18' }]}>
@@ -498,6 +530,16 @@ function VyapariTripCard({
     </View>
   );
 }
+
+const takenStyles = StyleSheet.create({
+  card: { borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 8, opacity: 0.7 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  badge: { borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  time: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  route: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+});
 
 const vtStyles = StyleSheet.create({
   card: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 12 },

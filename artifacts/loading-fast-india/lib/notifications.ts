@@ -115,3 +115,21 @@ export function sendZoneNotifications(
     sendPush(zoneC, `${title} 📍 Zone C`, `${body} — तुरंत संपर्क करें!`);
   }, 20 * 60 * 1000);
 }
+
+export function sendRefreshNotifications(
+  drivers: Driver[],
+  fromLat: number,
+  fromLon: number,
+  fromCity: string,
+  toCity: string,
+  goodsCategory: string,
+): void {
+  const allTokens = drivers
+    .filter((d) => d.pushToken?.startsWith('ExponentPushToken'))
+    .map((d) => d.pushToken as string);
+  sendPush(
+    allTokens,
+    `⬇️ Trip अभी भी उपलब्ध — ${fromCity} → ${toCity}`,
+    `${goodsCategory} • कोई driver नहीं मिला — अभी Accept करें!`,
+  );
+}
