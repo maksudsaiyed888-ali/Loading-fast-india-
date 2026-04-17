@@ -61,6 +61,7 @@ interface AppContextType {
   addVyapariTrip: (t: VyapariTrip) => Promise<void>;
   cancelVyapariTrip: (tripId: string) => Promise<void>;
   confirmVyapariTrip: (tripId: string, driverId: string, driverName: string) => Promise<void>;
+  completeVyapariTrip: (tripId: string) => Promise<void>;
   updateVyapariTrip: (tripId: string, updates: Partial<VyapariTrip>) => Promise<void>;
   getVyapariOwnTrips: (vyapariId: string) => VyapariTrip[];
   getOpenVyapariTrips: () => VyapariTrip[];
@@ -231,6 +232,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await fsUpdate('vyapariTrips', tripId, { status: 'accepted', acceptedByDriverId: driverId, acceptedByDriverName: driverName, acceptedAt: new Date().toISOString() });
   };
 
+  const completeVyapariTrip = async (tripId: string) => {
+    await fsUpdate('vyapariTrips', tripId, { status: 'completed', completedAt: new Date().toISOString() });
+  };
+
   const updateVyapariTrip = async (tripId: string, updates: Partial<VyapariTrip>) => {
     await fsUpdate('vyapariTrips', tripId, updates);
   };
@@ -356,7 +361,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addRating, getUserRatings, getAverageRating, hasRated,
         appRatings, addAppRating, getAppAvgRating, hasRatedApp,
         getDriverVehicles, getDriverTrips, getVyapariBookings, getAvailableTrips,
-        vyapariTrips, addVyapariTrip, cancelVyapariTrip, confirmVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
+        vyapariTrips, addVyapariTrip, cancelVyapariTrip, confirmVyapariTrip, completeVyapariTrip, updateVyapariTrip, getVyapariOwnTrips, getOpenVyapariTrips,
         generateDeliveryOtp, verifyDeliveryOtp,
         sendLoginOtp, verifyLoginOtp,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,

@@ -17,7 +17,7 @@ type Colors = ReturnType<typeof useColors>;
 export default function DriverHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, addCommissionPayment, hasDriverPaidCommission, confirmVyapariTrip } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, vyapariTrips, addCommissionPayment, hasDriverPaidCommission, confirmVyapariTrip, completeVyapariTrip } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
 
@@ -26,6 +26,7 @@ export default function DriverHomeScreen() {
   const activeTrips = myTrips.filter((t) => t.status === 'confirmed');
   const myBilties = bilties.filter((b) => b.driverId === user?.id);
   const openVyapariTrips = getOpenVyapariTrips();
+  const myAcceptedVyapariTrips = user ? vyapariTrips.filter(t => t.acceptedByDriverId === user.id && (t.status === 'accepted' || t.status === 'completed')) : [];
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -81,6 +82,25 @@ export default function DriverHomeScreen() {
           </TouchableOpacity>
         )}
 
+        {myAcceptedVyapariTrips.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🚛 मेरी Accepted Trips</Text>
+            {myAcceptedVyapariTrips.map((vt) => (
+              <VyapariTripCard
+                key={vt.id}
+                trip={vt}
+                colors={colors}
+                driverId={user?.id || ''}
+                driverName={currentDriver?.name || user?.name || ''}
+                hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
+                onPayCommission={addCommissionPayment}
+                onConfirmTrip={confirmVyapariTrip}
+                onCompleteTrip={completeVyapariTrip}
+              />
+            ))}
+          </View>
+        )}
+
         {openVyapariTrips.length > 0 && (
           <View style={{ marginBottom: 16 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📦 व्यापारी की जरूरत</Text>
@@ -94,6 +114,7 @@ export default function DriverHomeScreen() {
                 hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
                 onPayCommission={addCommissionPayment}
                 onConfirmTrip={confirmVyapariTrip}
+                onCompleteTrip={completeVyapariTrip}
               />
             ))}
           </View>
@@ -179,7 +200,7 @@ const actionStyles = StyleSheet.create({
 });
 
 function VyapariTripCard({
-  trip, colors, driverId, driverName, hasPaid, onPayCommission, onConfirmTrip,
+  trip, colors, driverId, driverName, hasPaid, onPayCommission, onConfirmTrip, onCompleteTrip,
 }: {
   trip: VyapariTrip;
   colors: Colors;
@@ -188,17 +209,23 @@ function VyapariTripCard({
   hasPaid: boolean;
   onPayCommission: (c: import('@/lib/types').CommissionPayment) => Promise<void>;
   onConfirmTrip: (tripId: string, driverId: string, driverName: string) => Promise<void>;
+  onCompleteTrip: (tripId: string) => Promise<void>;
 }) {
   const [utr, setUtr] = useState('');
   const [paying, setPaying] = useState(false);
   const [showUtr, setShowUtr] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(trip.status === 'accepted');
-  const [subscribed, setSubscribed] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(trip.status === 'accepted' || trip.status === 'completed');
+  const [isCompleted, setIsCompleted] = useState(trip.status === 'completed');
 
-  const commissionAmt = trip.ratePerTon > 0
-    ? Math.max(50, Math.round(trip.weightTons * trip.ratePerTon * 0.02))
+  const totalRent = trip.ratePerTon > 0 ? trip.weightTons * trip.ratePerTon : 0;
+  const commissionAmt = totalRent > 0
+    ? Math.max(50, Math.round(totalRent * 0.02))
     : 100;
+  const advanceAmt = 1000;
+  const lfiCommission = Math.round(advanceAmt * 0.02);
+  const driverPayout = advanceAmt - lfiCommission;
 
   const handleOpenUpi = () => {
     const upiUrl = `upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&am=${commissionAmt}&cu=INR&tn=Commission-${trip.id.slice(0, 8)}`;
@@ -234,7 +261,7 @@ function VyapariTripCard({
     if (isConfirmed) return;
     Alert.alert(
       'ट्रिप Accept करें?',
-      `${trip.fromCity} → ${trip.toCity} की यह ट्रिप accept करना चाहते हैं?`,
+      `${trip.fromCity} → ${trip.toCity}\n${trip.goodsCategory} • ${trip.weightTons} टन\n\nयह ट्रिप accept करना चाहते हैं?`,
       [
         { text: 'नहीं', style: 'cancel' },
         {
@@ -244,7 +271,7 @@ function VyapariTripCard({
             try {
               await onConfirmTrip(trip.id, driverId, driverName);
               setIsConfirmed(true);
-              Alert.alert('✅ Trip Accept', 'आपने यह ट्रिप accept कर लिया है!');
+              Alert.alert('✅ Trip Accept', 'आपने यह ट्रिप accept कर ली है! व्यापारी से संपर्क करें।');
             } finally {
               setConfirming(false);
             }
@@ -254,25 +281,42 @@ function VyapariTripCard({
     );
   };
 
-  const handleSubscribe = () => {
-    const next = !subscribed;
-    setSubscribed(next);
+  const handleComplete = async () => {
+    if (isCompleted) return;
     Alert.alert(
-      next ? '🔔 Subscribed!' : '🔕 Unsubscribed',
-      next
-        ? `${trip.fromCity} → ${trip.toCity} route के नए loads की notification मिलेगी।`
-        : 'Notification band कर दी गई।'
+      'Trip Complete करें?',
+      `क्या यह trip पूरी हो गई?\n\n✅ Complete होने पर:\nLoading Fast India आपको ₹${driverPayout} भेजेगा\n(₹${advanceAmt} - 2% commission ₹${lfiCommission} = ₹${driverPayout})`,
+      [
+        { text: 'नहीं', style: 'cancel' },
+        {
+          text: 'हाँ, Complete करें',
+          onPress: async () => {
+            setCompleting(true);
+            try {
+              await onCompleteTrip(trip.id);
+              setIsCompleted(true);
+              Alert.alert(
+                '🎉 Trip Completed!',
+                `Trip successfully complete हो गई!\n\nLoading Fast India जल्द ही आपको ₹${driverPayout} UPI पर भेजेगा।\n\nUPI: ${COMMISSION_UPI}`
+              );
+            } finally {
+              setCompleting(false);
+            }
+          },
+        },
+      ]
     );
   };
 
+  const statusColor = isCompleted ? '#7C3AED' : isConfirmed ? '#16a34a' : colors.navy;
+  const statusLabel = isCompleted ? '✅ Completed' : isConfirmed ? '✅ Accepted' : '📦 व्यापारी लोड';
+
   return (
-    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: isConfirmed ? '#16a34a40' : hasPaid ? colors.primary + '40' : colors.navy + '30' }]}>
+    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: isCompleted ? '#7C3AED40' : isConfirmed ? '#16a34a40' : hasPaid ? colors.primary + '40' : colors.navy + '30' }]}>
       {/* Header */}
       <View style={vtStyles.row}>
-        <View style={[vtStyles.badge, { backgroundColor: isConfirmed ? '#16a34a15' : colors.navy + '15' }]}>
-          <Text style={[vtStyles.badgeText, { color: isConfirmed ? '#16a34a' : colors.navy }]}>
-            {isConfirmed ? '✅ Accepted' : '📦 व्यापारी लोड'}
-          </Text>
+        <View style={[vtStyles.badge, { backgroundColor: statusColor + '18' }]}>
+          <Text style={[vtStyles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
         </View>
         <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>{trip.tripDate}</Text>
       </View>
@@ -281,39 +325,100 @@ function VyapariTripCard({
       <Text style={[vtStyles.route, { color: colors.foreground }]}>
         {trip.fromCity} ({trip.fromState}) → {trip.toCity} ({trip.toState})
       </Text>
-      <Text style={[vtStyles.meta, { color: colors.mutedForeground }]}>
-        {trip.goodsCategory} • {trip.weightTons} टन
-        {trip.ratePerTon > 0 ? ` • ₹${trip.ratePerTon}/टन` : ''}
-      </Text>
 
-      {/* ───── CONSOLIDATED ACTION PANEL ───── */}
+      {/* Full Details */}
+      <View style={[vtStyles.detailBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <View style={vtStyles.detailRow}>
+          <Feather name="package" size={13} color={colors.mutedForeground} />
+          <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.goodsCategory}</Text>
+        </View>
+        <View style={vtStyles.detailRow}>
+          <Feather name="layers" size={13} color={colors.mutedForeground} />
+          <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.weightTons} टन</Text>
+        </View>
+        {trip.ratePerTon > 0 && (
+          <View style={vtStyles.detailRow}>
+            <Feather name="tag" size={13} color={colors.mutedForeground} />
+            <Text style={[vtStyles.detailText, { color: colors.foreground }]}>₹{trip.ratePerTon}/टन {totalRent > 0 ? `= ₹${totalRent.toLocaleString('en-IN')} कुल` : ''}</Text>
+          </View>
+        )}
+        {trip.vehicleTypePref ? (
+          <View style={vtStyles.detailRow}>
+            <Feather name="truck" size={13} color={colors.mutedForeground} />
+            <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.vehicleTypePref}</Text>
+          </View>
+        ) : null}
+        {trip.description ? (
+          <View style={vtStyles.detailRow}>
+            <Feather name="info" size={13} color={colors.mutedForeground} />
+            <Text style={[vtStyles.detailText, { color: colors.mutedForeground }]}>{trip.description}</Text>
+          </View>
+        ) : null}
+        <View style={vtStyles.detailRow}>
+          <Feather name="user" size={13} color={colors.mutedForeground} />
+          <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.vyapariName}</Text>
+        </View>
+      </View>
+
+      {/* Settlement info (when accepted or completed) */}
+      {isConfirmed && (
+        <View style={[vtStyles.settlementBox, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+          <Text style={[vtStyles.settlementTitle, { color: '#1B5E20' }]}>💰 Trip Settlement</Text>
+          <View style={vtStyles.settlementRow}>
+            <Text style={[vtStyles.settlementLabel, { color: '#2E7D32' }]}>व्यापारी का Advance</Text>
+            <Text style={[vtStyles.settlementVal, { color: '#1B5E20' }]}>₹{advanceAmt}</Text>
+          </View>
+          <View style={vtStyles.settlementRow}>
+            <Text style={[vtStyles.settlementLabel, { color: '#C62828' }]}>LFI Commission (2%)</Text>
+            <Text style={[vtStyles.settlementVal, { color: '#C62828' }]}>- ₹{lfiCommission}</Text>
+          </View>
+          <View style={[vtStyles.settlementRow, { borderTopWidth: 1, borderTopColor: '#4CAF5050', marginTop: 4, paddingTop: 4 }]}>
+            <Text style={[vtStyles.settlementLabel, { color: '#1B5E20', fontFamily: 'Inter_700Bold' }]}>आपको मिलेगा (LFI से)</Text>
+            <Text style={[vtStyles.settlementVal, { color: '#1B5E20', fontFamily: 'Inter_700Bold', fontSize: 16 }]}>₹{driverPayout}</Text>
+          </View>
+          {!isCompleted && (
+            <Text style={[vtStyles.settlementNote, { color: '#388E3C' }]}>Trip पूरी होने के बाद LFI UPI पर भेजेगा</Text>
+          )}
+          {isCompleted && (
+            <Text style={[vtStyles.settlementNote, { color: '#1565C0', fontFamily: 'Inter_700Bold' }]}>✅ Complete — LFI जल्द ₹{driverPayout} भेजेगा • {COMMISSION_UPI}</Text>
+          )}
+        </View>
+      )}
+
+      {/* ───── ACTION PANEL ───── */}
       <View style={[vtStyles.actionPanel, { borderColor: colors.border + '60' }]}>
 
-        {/* Row 1: Confirm + Subscribe — always visible */}
-        <View style={vtStyles.actionRow}>
-          <TouchableOpacity
-            style={[vtStyles.actionBtn, { backgroundColor: isConfirmed ? '#16a34a' : colors.success, opacity: confirming ? 0.6 : 1, flex: 1.4 }]}
-            onPress={handleConfirm}
-            disabled={confirming || isConfirmed}
-            activeOpacity={0.8}
-          >
-            <Feather name={isConfirmed ? 'check-circle' : 'check-square'} size={15} color="#fff" />
-            <Text style={vtStyles.actionBtnText}>
-              {confirming ? 'हो रहा है...' : isConfirmed ? 'Accepted ✓' : 'Trip Confirm'}
-            </Text>
-          </TouchableOpacity>
+        {!isCompleted && (
+          <View style={vtStyles.actionRow}>
+            {/* Accept / Confirm */}
+            <TouchableOpacity
+              style={[vtStyles.actionBtn, { backgroundColor: isConfirmed ? '#16a34a' : colors.success, opacity: confirming ? 0.6 : 1, flex: 1.4 }]}
+              onPress={handleConfirm}
+              disabled={confirming || isConfirmed}
+              activeOpacity={0.8}
+            >
+              <Feather name={isConfirmed ? 'check-circle' : 'check-square'} size={15} color="#fff" />
+              <Text style={vtStyles.actionBtnText}>
+                {confirming ? 'हो रहा है...' : isConfirmed ? 'Accepted ✓' : 'Trip Accept'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[vtStyles.actionBtn, { backgroundColor: subscribed ? '#f97316' : colors.mutedForeground, flex: 1 }]}
-            onPress={handleSubscribe}
-            activeOpacity={0.8}
-          >
-            <Feather name={subscribed ? 'bell' : 'bell-off'} size={15} color="#fff" />
-            <Text style={vtStyles.actionBtnText}>{subscribed ? 'Subscribed' : 'Notify'}</Text>
-          </TouchableOpacity>
-        </View>
+            {/* Complete Trip (only after accepted) */}
+            {isConfirmed && (
+              <TouchableOpacity
+                style={[vtStyles.actionBtn, { backgroundColor: '#7C3AED', opacity: completing ? 0.6 : 1, flex: 1.4 }]}
+                onPress={handleComplete}
+                disabled={completing}
+                activeOpacity={0.8}
+              >
+                <Feather name="flag" size={15} color="#fff" />
+                <Text style={vtStyles.actionBtnText}>{completing ? 'हो रहा है...' : 'Complete Trip'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-        {/* Row 2: Contact buttons (visible after commission paid) */}
+        {/* Contact buttons (visible after commission paid) */}
         {hasPaid ? (
           <View>
             <Text style={[vtStyles.unlockedTitle, { color: '#16a34a', marginBottom: 6 }]}>
@@ -400,8 +505,16 @@ const vtStyles = StyleSheet.create({
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
   date: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  route: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 4 },
-  meta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 10 },
+  route: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 8 },
+  detailBox: { borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 10, gap: 5 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  detailText: { fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 },
+  settlementBox: { borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 10, gap: 4 },
+  settlementTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  settlementRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  settlementLabel: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  settlementVal: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  settlementNote: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
   actionPanel: { borderTopWidth: 1, paddingTop: 10, gap: 8 },
   actionRow: { flexDirection: 'row', gap: 7 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, paddingHorizontal: 6, borderRadius: 9 },

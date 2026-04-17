@@ -352,10 +352,14 @@ export interface VyapariTrip {
   ratePerTon: number;
   tripDate: string;
   description: string;
-  status: 'open' | 'accepted' | 'cancelled';
+  status: 'open' | 'accepted' | 'completed' | 'cancelled';
   createdAt: string;
   paymentType?: 'sender' | 'receiver';
   advanceUTR?: string;
+  acceptedByDriverId?: string;
+  acceptedByDriverName?: string;
+  acceptedAt?: string;
+  completedAt?: string;
 }
 
 export interface CommissionPayment {
