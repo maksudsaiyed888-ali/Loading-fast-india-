@@ -278,33 +278,38 @@ export default function BrowseTripsScreen() {
                       )}
                     </View>
 
-                    {/* ₹1000 Advance Box */}
+                    {/* ₹1000 Advance Box — Company Look */}
                     <View style={[styles.advanceBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
-                      <View style={styles.advanceHeader}>
-                        <Text style={styles.advanceIcon}>🏦</Text>
+                      <View style={styles.advanceBrandRow}>
+                        <View style={[styles.advanceLogo, { backgroundColor: '#1B5E20' }]}>
+                          <Text style={styles.advanceLogoText}>LFI</Text>
+                        </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.advanceTitle, { color: '#1B5E20' }]}>₹1,000 Advance — Loading Fast India</Text>
-                          <Text style={[styles.advanceSub, { color: '#2E7D32' }]}>Trip share करने से पहले ₹1000 advance देना अनिवार्य है</Text>
+                          <Text style={[styles.advanceBrandName, { color: '#1B5E20' }]}>Loading Fast India</Text>
+                          <Text style={[styles.advanceBrandTag, { color: '#388E3C' }]}>Official Payment Portal</Text>
+                        </View>
+                        <View style={[styles.advanceBadge, { backgroundColor: '#2E7D32' }]}>
+                          <Text style={styles.advanceBadgeText}>Verified</Text>
                         </View>
                       </View>
-                      <View style={[styles.advanceUpiBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
-                        <Text style={[styles.advanceUpiLabel, { color: '#388E3C' }]}>UPI ID</Text>
-                        <Text style={[styles.advanceUpiValue, { color: '#1B5E20' }]}>{ADVANCE_UPI}</Text>
-                        <Text style={[styles.advanceUpiName, { color: '#388E3C' }]}>Loading Fast India</Text>
+                      <View style={[styles.advanceAmtBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
+                        <Text style={[styles.advanceAmtLabel, { color: '#388E3C' }]}>Security Advance Amount</Text>
+                        <Text style={[styles.advanceAmtValue, { color: '#1B5E20' }]}>₹1,000</Text>
+                        <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>Trip share करने से पहले भुगतान करें</Text>
                       </View>
                       <TouchableOpacity
-                        style={[styles.advancePayBtn, { backgroundColor: '#2E7D32' }]}
+                        style={[styles.advancePayBtn, { backgroundColor: '#1B5E20' }]}
                         onPress={openUpiPayment}
                       >
                         <Feather name="smartphone" size={16} color="#fff" />
-                        <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें</Text>
+                        <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें → Unlock</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.advanceDoneBtn, { borderColor: '#2E7D32' }]}
                         onPress={handleAdvanceDone}
                       >
-                        <Feather name="check-circle" size={16} color="#2E7D32" />
-                        <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>Maine ₹1,000 de diya → Aage Barhe</Text>
+                        <Feather name="unlock" size={16} color="#2E7D32" />
+                        <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>Maine ₹1,000 bhej diya — Aage Barhe</Text>
                       </TouchableOpacity>
                     </View>
 
@@ -425,14 +430,17 @@ const styles = StyleSheet.create({
   selectedGoods: { borderRadius: 8, padding: 10, borderWidth: 1, marginTop: 8 },
   selectedGoodsText: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   advanceBox: { borderRadius: 16, borderWidth: 2, padding: 16, marginBottom: 14, gap: 12 },
-  advanceHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  advanceIcon: { fontSize: 26 },
-  advanceTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 3 },
-  advanceSub: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 18 },
-  advanceUpiBox: { borderRadius: 12, borderWidth: 1.5, padding: 12, alignItems: 'center', gap: 2 },
-  advanceUpiLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1 },
-  advanceUpiValue: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  advanceUpiName: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  advanceBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  advanceLogo: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  advanceLogoText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  advanceBrandName: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  advanceBrandTag: { fontSize: 11, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  advanceBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  advanceBadgeText: { color: '#fff', fontSize: 10, fontFamily: 'Inter_700Bold' },
+  advanceAmtBox: { borderRadius: 12, borderWidth: 1.5, padding: 12, alignItems: 'center', gap: 4 },
+  advanceAmtLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1 },
+  advanceAmtValue: { fontSize: 30, fontFamily: 'Inter_700Bold' },
+  advanceAmtNote: { fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center' },
   advancePayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12 },
   advancePayBtnText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' },
   advanceDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 2, backgroundColor: '#F1F8E9' },
