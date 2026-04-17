@@ -41,6 +41,8 @@ export interface Vyapari {
   createdAt: string;
   isVerified: boolean;
   totalBookings: number;
+  advancePaid?: boolean;
+  advancePaidAt?: string;
 }
 
 export interface Vehicle {

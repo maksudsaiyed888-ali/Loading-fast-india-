@@ -21,12 +21,12 @@ const isLowRate = (ratePerTon: number) => ratePerTon === 0 || ratePerTon < LOW_R
 export default function VyapariPostTripScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, updateVyapariTrip, drivers, addAdvanceRequest, getVyapariLatestAdvance } = useApp();
+  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, updateVyapariTrip, drivers, markVyapariAdvancePaid } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [posting, setPosting] = useState(false);
-  const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
 
-  const latestAdvance = user ? getVyapariLatestAdvance(user.id) : undefined;
+  const advancePaid = currentVyapari?.advancePaid === true;
 
   const [form, setForm] = useState({
     fromCity: '', fromState: '', toCity: '', toState: '',
@@ -87,39 +87,19 @@ export default function VyapariPostTripScreen() {
     return true;
   };
 
-  const handleSubmitAdvanceRequest = async () => {
-    if (!validateForm()) return;
-    setSubmittingRequest(true);
+  const handleConfirmAdvancePaid = async () => {
+    setMarkingPaid(true);
     try {
-      await addAdvanceRequest({
-        id: generateId(),
-        vyapariId: user!.id,
-        vyapariName: currentVyapari?.name || user!.name,
-        vyapariPhone: user!.phone,
-        amount: 1000,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        tripData: {
-          fromCity: form.fromCity.trim(),
-          fromState: form.fromState.trim(),
-          toCity: form.toCity.trim(),
-          toState: form.toState.trim(),
-          goodsCategory: form.goodsCategory.trim(),
-          weightTons: Number(form.weightTons),
-          vehicleTypePref: form.vehicleTypePref,
-          ratePerTon: form.ratePerTon ? Number(form.ratePerTon) : 0,
-          tripDate: form.tripDate.trim(),
-          description: form.description.trim(),
-        },
-      });
+      await markVyapariAdvancePaid(user!.id);
     } catch {
-      Alert.alert('त्रुटि', 'Request submit नहीं हो पाई। Internet connection चेक करें।');
+      Alert.alert('त्रुटि', 'Update नहीं हो पाया। Internet connection चेक करें।');
     } finally {
-      setSubmittingRequest(false);
+      setMarkingPaid(false);
     }
   };
 
   const handlePost = async () => {
+    if (!validateForm()) return;
     setPosting(true);
     try {
       await addVyapariTrip({
@@ -399,10 +379,9 @@ export default function VyapariPostTripScreen() {
 
               <Input label="विशेष जानकारी (वैकल्पिक)" placeholder="कोई अतिरिक्त जानकारी..." value={form.description} onChangeText={(v) => set('description', v)} />
 
-              {/* ₹1000 Advance Payment — 3 states */}
-              {(!latestAdvance || latestAdvance.status === 'rejected') ? (
+              {/* ₹1000 Advance — block if not paid */}
+              {!advancePaid ? (
                 <View style={[styles.advanceBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
-                  {/* Company Branding */}
                   <View style={styles.advanceBrandRow}>
                     <View style={[styles.advanceLogo, { backgroundColor: '#1B5E20' }]}>
                       <Text style={styles.advanceLogoText}>LFI</Text>
@@ -415,24 +394,15 @@ export default function VyapariPostTripScreen() {
                       <Text style={styles.advanceBadgeText}>Verified</Text>
                     </View>
                   </View>
-
-                  {latestAdvance?.status === 'rejected' && (
-                    <View style={[styles.advanceRejBox, { backgroundColor: '#FFEBEE', borderColor: '#C62828' }]}>
-                      <Feather name="x-circle" size={18} color="#C62828" />
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.advanceRejTitle, { color: '#B71C1C' }]}>Payment Not Received ✗</Text>
-                        <Text style={[styles.advanceRejSub, { color: '#C62828' }]}>{latestAdvance.rejectionReason || 'Admin को payment नहीं मिली। दोबारा UPI से भेजें।'}</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Amount Box */}
                   <View style={[styles.advanceAmtBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
                     <Text style={[styles.advanceAmtLabel, { color: '#388E3C' }]}>Security Advance Amount</Text>
                     <Text style={[styles.advanceAmtValue, { color: '#1B5E20' }]}>₹1,000</Text>
-                    <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>Trip post करने से पहले एकबार भुगतान करें</Text>
+                    <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>एकबार भुगतान करें — हमेशा के लिए Unlock</Text>
                   </View>
-
+                  <View style={[styles.advanceBlockNote, { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' }]}>
+                    <Feather name="lock" size={14} color="#E65100" />
+                    <Text style={[styles.advanceBlockText, { color: '#E65100' }]}>Payment ना हो तब तक trip post BLOCKED है</Text>
+                  </View>
                   <TouchableOpacity
                     style={[styles.advancePayBtn, { backgroundColor: '#1B5E20' }]}
                     onPress={() => {
@@ -441,54 +411,37 @@ export default function VyapariPostTripScreen() {
                     }}
                   >
                     <Feather name="smartphone" size={16} color="#fff" />
-                    <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें</Text>
+                    <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें → Unlock</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.advanceDoneBtn, { borderColor: '#2E7D32', opacity: submittingRequest ? 0.6 : 1 }]}
-                    disabled={submittingRequest}
+                    style={[styles.advanceDoneBtn, { borderColor: '#2E7D32', opacity: markingPaid ? 0.6 : 1 }]}
+                    disabled={markingPaid}
                     onPress={() => Alert.alert(
                       'Payment Confirm करें',
                       'क्या आपने Loading Fast India को ₹1,000 UPI से भेज दिया?',
                       [
-                        { text: 'हाँ, भेज दिया ✓', onPress: handleSubmitAdvanceRequest },
+                        { text: 'हाँ, भेज दिया ✓', onPress: handleConfirmAdvancePaid },
                         { text: 'नहीं', style: 'cancel' },
                       ]
                     )}
                   >
-                    <Feather name="check-circle" size={16} color="#2E7D32" />
+                    <Feather name="unlock" size={16} color="#2E7D32" />
                     <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>
-                      {submittingRequest ? 'Request भेजी जा रही है...' : 'मैंने ₹1,000 भेज दिया — Verify करें'}
+                      {markingPaid ? 'Unlock हो रहा है...' : 'Maine ₹1,000 bhej diya — Unlock Karein'}
                     </Text>
                   </TouchableOpacity>
                 </View>
-              ) : latestAdvance.status === 'pending' ? (
-                <View style={[styles.advancePendingBox, { backgroundColor: '#FFF8E1', borderColor: '#F57F17' }]}>
-                  <View style={styles.advanceBrandRow}>
-                    <View style={[styles.advanceLogo, { backgroundColor: '#E65100' }]}>
-                      <Text style={styles.advanceLogoText}>LFI</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.advanceBrandName, { color: '#E65100' }]}>Payment Verification Pending</Text>
-                      <Text style={[styles.advanceBrandTag, { color: '#F57F17' }]}>Loading Fast India</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.advanceAmtBox, { backgroundColor: '#fff', borderColor: '#FFB300' }]}>
-                    <Feather name="clock" size={28} color="#F57F17" />
-                    <Text style={[styles.advanceAmtLabel, { color: '#E65100', marginTop: 6 }]}>Admin Verify कर रहा है</Text>
-                    <Text style={[styles.advanceAmtNote, { color: '#F57F17' }]}>आपकी ₹1,000 payment जाँची जा रही है।{'\n'}Approve होते ही trip automatically post हो जाएगी।</Text>
-                  </View>
-                  <View style={[styles.advancePendingNote, { backgroundColor: '#FFF3E0', borderColor: '#FFB300' }]}>
-                    <Feather name="info" size={14} color="#E65100" />
-                    <Text style={[styles.advancePendingNoteText, { color: '#E65100' }]}>अगर payment नहीं भेजी तो Admin reject करेगा और trip post नहीं होगी।</Text>
-                  </View>
-                </View>
               ) : (
-                /* approved */
-                <View style={[styles.advanceApprovedBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
-                  <Feather name="check-circle" size={36} color="#2E7D32" />
-                  <Text style={[styles.advanceApprovedTitle, { color: '#1B5E20' }]}>Payment Verified ✓</Text>
-                  <Text style={[styles.advanceApprovedSub, { color: '#388E3C' }]}>आपकी trip successfully post हो गई!{'\n'}Driver tab में देखें।</Text>
-                </View>
+                <>
+                  <View style={[styles.advancePaidBadge, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                    <Feather name="unlock" size={20} color="#2E7D32" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.advancePaidTitle, { color: '#1B5E20' }]}>Security Advance दे दिया ✓ — Unlocked</Text>
+                      <Text style={[styles.advancePaidSub, { color: '#388E3C' }]}>Trip post करने की permission मिल गई है</Text>
+                    </View>
+                  </View>
+                  <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
+                </>
               )}
               <View style={{ height: 30 }} />
             </ScrollView>
@@ -718,15 +671,8 @@ const styles = StyleSheet.create({
   advancePaidBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 12 },
   advancePaidTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   advancePaidSub: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  advanceRejBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1.5 },
-  advanceRejTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
-  advanceRejSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2, lineHeight: 17 },
-  advancePendingBox: { borderRadius: 16, borderWidth: 2, padding: 16, marginBottom: 14, gap: 12, alignItems: 'center' },
-  advancePendingNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, width: '100%' as const },
-  advancePendingNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 17 },
-  advanceApprovedBox: { borderRadius: 16, borderWidth: 2, padding: 24, marginBottom: 14, alignItems: 'center', gap: 10 },
-  advanceApprovedTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  advanceApprovedSub: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20 },
+  advanceBlockNote: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1.5 },
+  advanceBlockText: { fontSize: 13, fontFamily: 'Inter_700Bold', flex: 1 },
   lowRateBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, borderWidth: 1, borderRadius: 8, padding: 8, marginTop: 8 },
   lowRateText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },

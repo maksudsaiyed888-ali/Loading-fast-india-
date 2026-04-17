@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import { db } from '@/lib/firebase';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { updateDriverLocation } from '@/lib/location';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip, CommissionPayment, AdvanceRequest } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip, CommissionPayment } from '@/lib/types';
 
 const USER_KEY = '@lfi_user';
 
@@ -51,11 +51,7 @@ interface AppContextType {
   commissionPayments: CommissionPayment[];
   addCommissionPayment: (c: CommissionPayment) => Promise<void>;
   hasDriverPaidCommission: (driverId: string, vyapariTripId: string) => boolean;
-  advanceRequests: AdvanceRequest[];
-  addAdvanceRequest: (r: AdvanceRequest) => Promise<void>;
-  approveAdvanceRequest: (id: string) => Promise<void>;
-  rejectAdvanceRequest: (id: string, reason: string) => Promise<void>;
-  getVyapariLatestAdvance: (vyapariId: string) => AdvanceRequest | undefined;
+  markVyapariAdvancePaid: (vyapariId: string) => Promise<void>;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -103,7 +99,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [appRatings, setAppRatings] = useState<AppRating[]>([]);
   const [vyapariTrips, setVyapariTrips] = useState<VyapariTrip[]>([]);
   const [commissionPayments, setCommissionPayments] = useState<CommissionPayment[]>([]);
-  const [advanceRequests, setAdvanceRequests] = useState<AdvanceRequest[]>([]);
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
@@ -132,7 +127,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     listen<AppRating>('appRatings', setAppRatings);
     listen<VyapariTrip>('vyapariTrips', setVyapariTrips);
     listen<CommissionPayment>('commissionPayments', setCommissionPayments);
-    listen<AdvanceRequest>('advanceRequests', setAdvanceRequests);
 
     AsyncStorage.getItem(USER_KEY).then((saved) => {
       if (saved) setUser(JSON.parse(saved));
@@ -247,43 +241,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const hasDriverPaidCommission = (driverId: string, vyapariTripId: string) =>
     commissionPayments.some((c) => c.driverId === driverId && c.vyapariTripId === vyapariTripId);
 
-  const addAdvanceRequest = async (r: AdvanceRequest) => {
-    await fsSet('advanceRequests', r);
+  const markVyapariAdvancePaid = async (vyapariId: string) => {
+    await fsUpdate('vyaparis', vyapariId, { advancePaid: true, advancePaidAt: new Date().toISOString() });
   };
-
-  const approveAdvanceRequest = async (id: string) => {
-    const req = advanceRequests.find((r) => r.id === id);
-    if (!req) return;
-    await fsUpdate('advanceRequests', id, { status: 'approved', reviewedAt: new Date().toISOString() });
-    const tripId = `vt_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const newTrip: VyapariTrip = {
-      id: tripId,
-      vyapariId: req.vyapariId,
-      vyapariName: req.vyapariName,
-      vyapariPhone: req.vyapariPhone,
-      fromCity: req.tripData.fromCity,
-      fromState: req.tripData.fromState,
-      toCity: req.tripData.toCity,
-      toState: req.tripData.toState,
-      goodsCategory: req.tripData.goodsCategory,
-      weightTons: req.tripData.weightTons,
-      vehicleTypePref: req.tripData.vehicleTypePref,
-      ratePerTon: req.tripData.ratePerTon,
-      tripDate: req.tripData.tripDate,
-      description: req.tripData.description,
-      status: 'open',
-      paymentType: 'sender',
-      createdAt: new Date().toISOString(),
-    };
-    await fsSet('vyapariTrips', newTrip);
-  };
-
-  const rejectAdvanceRequest = async (id: string, reason: string) => {
-    await fsUpdate('advanceRequests', id, { status: 'rejected', reviewedAt: new Date().toISOString(), rejectionReason: reason });
-  };
-
-  const getVyapariLatestAdvance = (vyapariId: string): AdvanceRequest | undefined =>
-    advanceRequests.filter((r) => r.vyapariId === vyapariId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
 
@@ -396,7 +356,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         generateDeliveryOtp, verifyDeliveryOtp,
         sendLoginOtp, verifyLoginOtp,
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
-        advanceRequests, addAdvanceRequest, approveAdvanceRequest, rejectAdvanceRequest, getVyapariLatestAdvance,
+        markVyapariAdvancePaid,
         currentDriver, currentVyapari,
       }}
     >
