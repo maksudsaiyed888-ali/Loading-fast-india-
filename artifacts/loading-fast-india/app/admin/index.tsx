@@ -16,7 +16,7 @@ type Tab = 'drivers' | 'vyaparis' | 'trips' | 'complaints';
 export default function AdminScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, login, logout, drivers, vyaparis, trips, complaints, vehicles } = useApp();
+  const { user, login, logout, drivers, vyaparis, trips, complaints, vehicles, resetVyapariAdvancePaid } = useApp();
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState<Tab>('drivers');
 
@@ -128,8 +128,10 @@ export default function AdminScreen() {
             <View key={v.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.cardName, { color: colors.foreground }]}>{v.name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: colors.navy + '20' }]}>
-                  <Text style={[styles.statusText, { color: colors.navy }]}>व्यापारी</Text>
+                <View style={[styles.statusBadge, { backgroundColor: v.advancePaid ? '#E8F5E9' : '#FFF3E0' }]}>
+                  <Text style={[styles.statusText, { color: v.advancePaid ? '#2E7D32' : '#E65100' }]}>
+                    {v.advancePaid ? '✅ Unlocked' : '🔒 Blocked'}
+                  </Text>
                 </View>
               </View>
               <DataRow label="Business" value={v.businessName} />
@@ -138,6 +140,26 @@ export default function AdminScreen() {
               <DataRow label="Aadhaar" value={maskAadhaar(v.aadhaarNumber)} />
               <DataRow label="GST" value={v.gstNumber || 'N/A'} />
               <DataRow label="Joined" value={formatDate(v.createdAt)} />
+              {v.advancePaid && (
+                <>
+                  <DataRow label="Advance UTR" value={v.advanceUTR || 'N/A'} />
+                  <DataRow label="Paid On" value={v.advancePaidAt ? formatDate(v.advancePaidAt) : 'N/A'} />
+                  <TouchableOpacity
+                    style={[styles.blockBtn, { backgroundColor: '#B71C1C' }]}
+                    onPress={() => Alert.alert(
+                      '🔒 Block करें?',
+                      `${v.name} (${v.phone}) को फिर से BLOCK करें?\n\nUTR: ${v.advanceUTR || 'N/A'}\n\nयह Vyapari का Unlock हट जाएगा।`,
+                      [
+                        { text: 'हाँ, Block करें', style: 'destructive', onPress: () => resetVyapariAdvancePaid(v.id).then(() => Alert.alert('✅ Done', `${v.name} अब BLOCKED है।`)) },
+                        { text: 'रहने दो', style: 'cancel' },
+                      ]
+                    )}
+                  >
+                    <Feather name="lock" size={14} color="#fff" />
+                    <Text style={styles.blockBtnText}>Block करें (Advance Reset)</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           ))
         )}
@@ -250,5 +272,7 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 15, fontFamily: 'Inter_700Bold', flex: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   statusText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  blockBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 10, marginTop: 8 },
+  blockBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
 });
 
