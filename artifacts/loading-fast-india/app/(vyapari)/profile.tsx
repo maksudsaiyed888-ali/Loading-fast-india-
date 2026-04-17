@@ -10,6 +10,7 @@ import { useColors } from '@/hooks/useColors';
 import ComplaintModal from '@/components/ComplaintModal';
 import AppRatingModal from '@/components/AppRatingModal';
 import PrivacyPolicyModal from '@/components/PrivacyPolicyModal';
+import AdminQuickModal from '@/components/AdminQuickModal';
 import { maskAadhaar, getInitials } from '@/lib/utils';
 import { APP_NAME } from '@/lib/types';
 
@@ -20,6 +21,7 @@ export default function VyapariProfileScreen() {
   const [showComplaint, setShowComplaint] = useState(false);
   const [showAppRating, setShowAppRating] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const myBookings = user ? getVyapariBookings(user.id) : [];
   const completedBookings = myBookings.filter((t) => t.status === 'completed').length;
@@ -208,6 +210,14 @@ export default function VyapariProfileScreen() {
           <Text style={[styles.updateBtnText, { color: colors.primary }]}>अपडेट चेक करें</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.adminBtn, { backgroundColor: '#1a1a2e' }]}
+          onPress={() => setShowAdmin(true)}
+        >
+          <Feather name="shield" size={16} color="#fff" />
+          <Text style={styles.adminBtnText}>Admin Panel</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={[styles.logoutBtn, { borderColor: colors.destructive }]} onPress={handleLogout}>
           <Feather name="log-out" size={18} color={colors.destructive} />
           <Text style={[styles.logoutText, { color: colors.destructive }]}>लॉगआउट</Text>
@@ -217,6 +227,7 @@ export default function VyapariProfileScreen() {
       <ComplaintModal visible={showComplaint} onClose={() => setShowComplaint(false)} />
       <AppRatingModal visible={showAppRating} onClose={() => setShowAppRating(false)} />
       <PrivacyPolicyModal visible={showPrivacyPolicy} onClose={() => setShowPrivacyPolicy(false)} />
+      <AdminQuickModal visible={showAdmin} onClose={() => setShowAdmin(false)} />
     </View>
   );
 }
@@ -278,6 +289,8 @@ const styles = StyleSheet.create({
   complaintBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   updateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
   updateBtnText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  adminBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 12, marginBottom: 10 },
+  adminBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 20 },
   logoutText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
   ratingOverview: { flexDirection: 'row', gap: 16, marginBottom: 10 },
