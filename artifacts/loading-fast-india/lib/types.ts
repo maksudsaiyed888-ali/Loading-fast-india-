@@ -355,6 +355,7 @@ export interface VyapariTrip {
   status: 'open' | 'accepted' | 'cancelled';
   createdAt: string;
   paymentType?: 'sender' | 'receiver';
+  advanceUTR?: string;
 }
 
 export interface CommissionPayment {

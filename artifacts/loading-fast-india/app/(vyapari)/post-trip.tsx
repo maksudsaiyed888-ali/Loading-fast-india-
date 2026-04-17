@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -21,19 +21,14 @@ const isLowRate = (ratePerTon: number) => ratePerTon === 0 || ratePerTon < LOW_R
 export default function VyapariPostTripScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, updateVyapariTrip, drivers, markVyapariAdvancePaid } = useApp();
+  const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, updateVyapariTrip, drivers } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [posting, setPosting] = useState(false);
-  const [markingPaid, setMarkingPaid] = useState(false);
-  const [utrModal, setUtrModal] = useState(false);
-  const [utrValue, setUtrValue] = useState('');
-
-  const advancePaid = currentVyapari?.advancePaid === true;
 
   const [form, setForm] = useState({
     fromCity: '', fromState: '', toCity: '', toState: '',
     goodsCategory: '', weightTons: '', ratePerTon: '',
-    tripDate: '', vehicleTypePref: '', description: '',
+    tripDate: '', vehicleTypePref: '', description: '', tripUTR: '',
   });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -86,25 +81,8 @@ export default function VyapariPostTripScreen() {
     if (!form.weightTons.trim() || isNaN(Number(form.weightTons)) || Number(form.weightTons) <= 0) { Alert.alert('त्रुटि', 'वज़न (टन में) 0 से अधिक सही संख्या डालें'); return false; }
     if (form.ratePerTon.trim() && (isNaN(Number(form.ratePerTon)) || Number(form.ratePerTon) < 0)) { Alert.alert('त्रुटि', 'रेट प्रति टन सही संख्या डालें'); return false; }
     if (!form.tripDate.trim()) { Alert.alert('त्रुटि', 'तारीख जरूरी है'); return false; }
+    if (form.tripUTR.trim().length < 8) { Alert.alert('UTR जरूरी है', '₹1,000 UPI से भेजें, फिर UPI app से Transaction ID / UTR number copy करके यहाँ डालें।'); return false; }
     return true;
-  };
-
-  const handleConfirmAdvancePaid = async () => {
-    const utr = utrValue.trim();
-    if (utr.length < 8) {
-      Alert.alert('UTR जरूरी है', 'UPI payment करने के बाद आपको Transaction ID / UTR number मिलता है।\n\nWO ID यहाँ डालें — वो कम से कम 8 अक्षर का होना चाहिए।');
-      return;
-    }
-    setUtrModal(false);
-    setMarkingPaid(true);
-    try {
-      await markVyapariAdvancePaid(user!.id, utr);
-      setUtrValue('');
-    } catch {
-      Alert.alert('त्रुटि', 'Update नहीं हो पाया। Internet connection चेक करें।');
-    } finally {
-      setMarkingPaid(false);
-    }
   };
 
   const handlePost = async () => {
@@ -129,6 +107,7 @@ export default function VyapariPostTripScreen() {
         status: 'open',
         createdAt: new Date().toISOString(),
         paymentType: 'sender',
+        advanceUTR: form.tripUTR.trim().toUpperCase(),
       });
       let fromLat = 23.0;
       let fromLon = 72.5;
@@ -150,7 +129,7 @@ export default function VyapariPostTripScreen() {
         form.goodsCategory.trim(),
         currentVyapari?.name || user!.name,
       );
-      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
+      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '', tripUTR: '' });
       setShowModal(false);
       Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। सभी ड्राइवरों को notification भेजी गई।');
     } finally {
@@ -388,132 +367,73 @@ export default function VyapariPostTripScreen() {
 
               <Input label="विशेष जानकारी (वैकल्पिक)" placeholder="कोई अतिरिक्त जानकारी..." value={form.description} onChangeText={(v) => set('description', v)} />
 
-              {/* ₹1000 Advance — block if not paid */}
-              {!advancePaid ? (
-                <View style={[styles.advanceBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
-                  <View style={styles.advanceBrandRow}>
-                    <View style={[styles.advanceLogo, { backgroundColor: '#1B5E20' }]}>
-                      <Text style={styles.advanceLogoText}>LFI</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.advanceBrandName, { color: '#1B5E20' }]}>Loading Fast India</Text>
-                      <Text style={[styles.advanceBrandTag, { color: '#388E3C' }]}>Official Payment Portal</Text>
-                    </View>
-                    <View style={[styles.advanceBadge, { backgroundColor: '#2E7D32' }]}>
-                      <Text style={styles.advanceBadgeText}>Verified</Text>
-                    </View>
+              {/* ₹1000 Advance — required every trip */}
+              <View style={[styles.advanceBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
+                <View style={styles.advanceBrandRow}>
+                  <View style={[styles.advanceLogo, { backgroundColor: '#1B5E20' }]}>
+                    <Text style={styles.advanceLogoText}>LFI</Text>
                   </View>
-                  <View style={[styles.advanceAmtBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
-                    <Text style={[styles.advanceAmtLabel, { color: '#388E3C' }]}>Security Advance Amount</Text>
-                    <Text style={[styles.advanceAmtValue, { color: '#1B5E20' }]}>₹1,000</Text>
-                    <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>एकबार भुगतान करें — हमेशा के लिए Unlock</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.advanceBrandName, { color: '#1B5E20' }]}>Loading Fast India</Text>
+                    <Text style={[styles.advanceBrandTag, { color: '#388E3C' }]}>Official Payment Portal</Text>
                   </View>
-                  <View style={[styles.advanceSafetyNote, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
-                    <Feather name="info" size={14} color="#1565C0" />
-                    <Text style={[styles.advanceSafetyText, { color: '#0D47A1' }]}>
-                      यह ₹1,000 advance <Text style={{ fontFamily: 'Inter_700Bold' }}>driver और व्यापारी की safety</Text> के लिए है।{'\n\n'}
-                      <Text style={{ fontFamily: 'Inter_700Bold' }}>आपको फायदा:</Text> Loading के समय driver को ₹1,000 कम किराया देना होगा।{'\n\n'}
-                      <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver को फायदा:</Text> Trip पूरी होने के बाद Loading Fast India यह ₹1,000 driver को दे देगा।
-                    </Text>
+                  <View style={[styles.advanceBadge, { backgroundColor: '#2E7D32' }]}>
+                    <Text style={styles.advanceBadgeText}>Verified</Text>
                   </View>
-                  <View style={[styles.advanceSafetyNote, { backgroundColor: '#FCE4EC', borderColor: '#C62828' }]}>
-                    <Feather name="refresh-ccw" size={14} color="#C62828" />
-                    <Text style={[styles.advanceSafetyText, { color: '#B71C1C' }]}>
-                      <Text style={{ fontFamily: 'Inter_700Bold' }}>Cancellation Refund Policy:{'\n'}</Text>
-                      🟢 <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver cancel करे</Text> → पूरा ₹1,000 वापस मिलेगा{'\n'}
-                      🔴 <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (व्यापारी) cancel करें</Text> → सिर्फ ₹500 वापस मिलेगा
-                    </Text>
-                  </View>
-                  <View style={[styles.advanceBlockNote, { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' }]}>
-                    <Feather name="lock" size={14} color="#E65100" />
-                    <Text style={[styles.advanceBlockText, { color: '#E65100' }]}>Payment ना हो तब तक trip post BLOCKED है</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.advancePayBtn, { backgroundColor: '#1B5E20' }]}
-                    onPress={() => {
-                      const url = 'upi://pay?pa=maksudsaiyed888@oksbi&pn=Loading%20Fast%20India&am=1000&cu=INR&tn=LFI+Security+Advance';
-                      require('react-native').Linking.openURL(url).catch(() => {});
-                    }}
-                  >
-                    <Feather name="smartphone" size={16} color="#fff" />
-                    <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें → Unlock</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.advanceDoneBtn, { borderColor: '#2E7D32', opacity: markingPaid ? 0.6 : 1 }]}
-                    disabled={markingPaid}
-                    onPress={() => { setUtrValue(''); setUtrModal(true); }}
-                  >
-                    <Feather name="unlock" size={16} color="#2E7D32" />
-                    <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>
-                      {markingPaid ? 'Unlock हो रहा है...' : 'Maine ₹1,000 bhej diya — UTR डालें'}
-                    </Text>
-                  </TouchableOpacity>
                 </View>
-              ) : (
-                <>
-                  <View style={[styles.advancePaidBadge, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
-                    <Feather name="unlock" size={20} color="#2E7D32" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.advancePaidTitle, { color: '#1B5E20' }]}>Security Advance दे दिया ✓ — Unlocked</Text>
-                      <Text style={[styles.advancePaidSub, { color: '#388E3C' }]}>Trip post करने की permission मिल गई है</Text>
-                    </View>
-                  </View>
-                  <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
-                </>
-              )}
+                <View style={[styles.advanceAmtBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
+                  <Text style={[styles.advanceAmtLabel, { color: '#388E3C' }]}>हर Trip पर Security Advance</Text>
+                  <Text style={[styles.advanceAmtValue, { color: '#1B5E20' }]}>₹1,000</Text>
+                  <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>हर नई trip post करने से पहले भुगतान करें</Text>
+                </View>
+                <View style={[styles.advanceSafetyNote, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
+                  <Feather name="info" size={14} color="#1565C0" />
+                  <Text style={[styles.advanceSafetyText, { color: '#0D47A1' }]}>
+                    यह ₹1,000 advance <Text style={{ fontFamily: 'Inter_700Bold' }}>driver और व्यापारी की safety</Text> के लिए है।{'\n\n'}
+                    <Text style={{ fontFamily: 'Inter_700Bold' }}>आपको फायदा:</Text> Loading के समय driver को ₹1,000 कम किराया देना होगा।{'\n\n'}
+                    <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver को फायदा:</Text> Trip पूरी होने के बाद Loading Fast India यह ₹1,000 driver को दे देगा।
+                  </Text>
+                </View>
+                <View style={[styles.advanceSafetyNote, { backgroundColor: '#FCE4EC', borderColor: '#C62828' }]}>
+                  <Feather name="refresh-ccw" size={14} color="#C62828" />
+                  <Text style={[styles.advanceSafetyText, { color: '#B71C1C' }]}>
+                    <Text style={{ fontFamily: 'Inter_700Bold' }}>Cancellation Refund Policy:{'\n'}</Text>
+                    🟢 <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver cancel करे</Text> → पूरा ₹1,000 वापस मिलेगा{'\n'}
+                    🔴 <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (व्यापारी) cancel करें</Text> → सिर्फ ₹500 वापस मिलेगा
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.advancePayBtn, { backgroundColor: '#1B5E20' }]}
+                  onPress={() => {
+                    const url = 'upi://pay?pa=maksudsaiyed888@oksbi&pn=Loading%20Fast%20India&am=1000&cu=INR&tn=LFI+Trip+Advance';
+                    require('react-native').Linking.openURL(url).catch(() => {});
+                  }}
+                >
+                  <Feather name="smartphone" size={16} color="#fff" />
+                  <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें</Text>
+                </TouchableOpacity>
+                <Text style={[styles.utrLabel, { color: colors.foreground, marginTop: 4 }]}>UPI Transaction ID / UTR Number *</Text>
+                <TextInput
+                  style={[styles.utrInput, { borderColor: form.tripUTR.trim().length >= 8 ? '#2E7D32' : colors.border, color: colors.foreground, backgroundColor: '#fff' }]}
+                  placeholder="जैसे: 316741234567 या T2604171234..."
+                  placeholderTextColor={colors.mutedForeground}
+                  value={form.tripUTR}
+                  onChangeText={(v) => set('tripUTR', v)}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+                <Text style={[styles.utrHint, { color: colors.mutedForeground }]}>
+                  PhonePe / GPay / Paytm → History → इस transaction पर click करें → UTR copy करें
+                </Text>
+              </View>
+
+              <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
               <View style={{ height: 30 }} />
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* UTR Verification Modal */}
-      <Modal visible={utrModal} transparent animationType="fade" onRequestClose={() => setUtrModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.utrOverlay}>
-          <View style={[styles.utrCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.utrHeader, { backgroundColor: '#1B5E20' }]}>
-              <View style={styles.utrLogo}>
-                <Text style={styles.utrLogoText}>LFI</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.utrHeaderTitle}>Loading Fast India</Text>
-                <Text style={styles.utrHeaderSub}>Payment Verification</Text>
-              </View>
-              <TouchableOpacity onPress={() => setUtrModal(false)}>
-                <Feather name="x" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.utrBody}>
-              <View style={[styles.utrInfoBox, { backgroundColor: '#FFF9C4', borderColor: '#F9A825' }]}>
-                <Feather name="info" size={14} color="#E65100" />
-                <Text style={[styles.utrInfoText, { color: '#5D4037' }]}>
-                  UPI payment करने के बाद आपके UPI app में <Text style={{ fontFamily: 'Inter_700Bold' }}>Transaction ID / UTR Number</Text> मिलता है। वही ID यहाँ डालें।
-                </Text>
-              </View>
-              <Text style={[styles.utrLabel, { color: colors.foreground }]}>UPI Transaction ID / UTR Number *</Text>
-              <TextInput
-                style={[styles.utrInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.accent }]}
-                placeholder="जैसे: 316741234567 या T2604171234..."
-                placeholderTextColor={colors.mutedForeground}
-                value={utrValue}
-                onChangeText={setUtrValue}
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
-              <Text style={[styles.utrHint, { color: colors.mutedForeground }]}>
-                PhonePe / GPay / Paytm → History → इस transaction पर click करें → UTR/Transaction ID copy करें
-              </Text>
-              <TouchableOpacity
-                style={[styles.utrConfirmBtn, { backgroundColor: utrValue.trim().length >= 8 ? '#1B5E20' : '#9E9E9E' }]}
-                onPress={handleConfirmAdvancePaid}
-              >
-                <Feather name="check-circle" size={18} color="#fff" />
-                <Text style={styles.utrConfirmText}>UTR से Verify करें → Unlock</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </View>
   );
 }
