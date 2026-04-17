@@ -252,7 +252,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const apiKey = (Constants.expoConfig?.extra as Record<string, string>)?.fast2smsKey || '';
       if (!apiKey) return false;
       const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
-      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&variables_values=${otp}&route=otp&numbers=${cleanPhone}`;
+      const msg = `Loading Fast India Delivery OTP is ${otp} Give this OTP to driver to receive your goods`;
+      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&sender_id=FSTSMS&message=${encodeURIComponent(msg)}&language=english&route=q&numbers=${cleanPhone}`;
       const res = await fetchWithTimeout(url, 5000);
       const data = await res.json();
       return data?.return === true;
@@ -303,7 +304,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let smsSent = false;
       if (fast2smsKey) {
         try {
-          const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&variables_values=${otp}&route=otp&numbers=${phone}`;
+          const msg = `Loading Fast India Login OTP is ${otp} Valid for 10 minutes`;
+          const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&sender_id=FSTSMS&message=${encodeURIComponent(msg)}&language=english&route=q&numbers=${phone}`;
           const res = await fetchWithTimeout(url, 5000);
           const data = await res.json();
           smsSent = data?.return === true;
