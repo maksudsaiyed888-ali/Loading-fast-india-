@@ -408,6 +408,12 @@ export default function VyapariPostTripScreen() {
                     <Text style={[styles.advanceAmtValue, { color: '#1B5E20' }]}>₹1,000</Text>
                     <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>एकबार भुगतान करें — हमेशा के लिए Unlock</Text>
                   </View>
+                  <View style={[styles.advanceSafetyNote, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
+                    <Feather name="info" size={14} color="#1565C0" />
+                    <Text style={[styles.advanceSafetyText, { color: '#0D47A1' }]}>
+                      यह ₹1,000 advance <Text style={{ fontFamily: 'Inter_700Bold' }}>driver और व्यापारी की safety</Text> के लिए है। Trip पूरी होने के बाद यह राशि <Text style={{ fontFamily: 'Inter_700Bold' }}>driver को दे दी जाएगी।</Text>
+                    </Text>
+                  </View>
                   <View style={[styles.advanceBlockNote, { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' }]}>
                     <Feather name="lock" size={14} color="#E65100" />
                     <Text style={[styles.advanceBlockText, { color: '#E65100' }]}>Payment ना हो तब तक trip post BLOCKED है</Text>
@@ -721,6 +727,8 @@ const styles = StyleSheet.create({
   advancePaidBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 12 },
   advancePaidTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   advancePaidSub: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  advanceSafetyNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1.5 },
+  advanceSafetyText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 18 },
   advanceBlockNote: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1.5 },
   advanceBlockText: { fontSize: 13, fontFamily: 'Inter_700Bold', flex: 1 },
   lowRateBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, borderWidth: 1, borderRadius: 8, padding: 8, marginTop: 8 },
