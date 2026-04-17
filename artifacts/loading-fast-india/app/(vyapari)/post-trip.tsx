@@ -411,7 +411,9 @@ export default function VyapariPostTripScreen() {
                   <View style={[styles.advanceSafetyNote, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
                     <Feather name="info" size={14} color="#1565C0" />
                     <Text style={[styles.advanceSafetyText, { color: '#0D47A1' }]}>
-                      यह ₹1,000 advance <Text style={{ fontFamily: 'Inter_700Bold' }}>driver और व्यापारी की safety</Text> के लिए है। Trip पूरी होने के बाद यह राशि <Text style={{ fontFamily: 'Inter_700Bold' }}>driver को दे दी जाएगी।</Text>
+                      यह ₹1,000 advance <Text style={{ fontFamily: 'Inter_700Bold' }}>driver और व्यापारी की safety</Text> के लिए है।{'\n\n'}
+                      <Text style={{ fontFamily: 'Inter_700Bold' }}>आपको फायदा:</Text> Loading के समय driver को ₹1,000 कम किराया देना होगा।{'\n\n'}
+                      <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver को फायदा:</Text> Trip पूरी होने के बाद Loading Fast India यह ₹1,000 driver को दे देगा।
                     </Text>
                   </View>
                   <View style={[styles.advanceBlockNote, { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' }]}>

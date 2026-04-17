@@ -335,20 +335,21 @@ export default function BrowseTripsScreen() {
                     <View style={[styles.paymentBreakdown, { backgroundColor: colors.accent, borderColor: colors.primary + '40' }]}>
                       <Text style={[styles.payTitle, { color: colors.secondary }]}>Payment Breakdown</Text>
                       <PayRow label="कुल किराया" value={formatCurrency(selectedTrip.totalRent)} />
-                      <PayRow label="✅ ₹1,000 Advance (LFI को दिया)" value={formatCurrency(ADVANCE_AMOUNT)} highlight />
-                      <PayRow label="2% Commission (LFI)" value={formatCurrency(calcCommission(selectedTrip.totalRent))} highlight />
+                      <PayRow label="2% Commission (LFI)" value={`- ${formatCurrency(calcCommission(selectedTrip.totalRent))}`} highlight />
+                      <PayRow label="₹1,000 Advance (LFI आपकी ओर से Driver को देगा)" value={`- ${formatCurrency(ADVANCE_AMOUNT)}`} highlight />
                       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                      <PayRow label="ड्राइवर को किराया (loading पर)" value={formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent))} bold />
+                      <PayRow label="आपको Loading पर देना होगा" value={formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent) - ADVANCE_AMOUNT)} bold />
                     </View>
 
                     {/* Rent reminder */}
                     <View style={[styles.senderPayBox, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
                       <View style={styles.senderPayTop}>
                         <Text style={styles.senderPayIcon}>💰</Text>
-                        <Text style={[styles.senderPayTitle, { color: '#B71C1C' }]}>Rent याद रखें — आपको देना होगा</Text>
+                        <Text style={[styles.senderPayTitle, { color: '#B71C1C' }]}>Rent याद रखें — Loading पर देना होगा</Text>
                       </View>
                       <Text style={[styles.senderPayText, { color: '#BF360C' }]}>
-                        Driver को loading के समय <Text style={{ fontFamily: 'Inter_700Bold' }}>{formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent))}</Text> किराया दें।
+                        Driver को loading के समय <Text style={{ fontFamily: 'Inter_700Bold' }}>{formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent) - ADVANCE_AMOUNT)}</Text> किराया दें।{'\n'}
+                        <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 12 }}>बाकी ₹1,000 Loading Fast India trip पूरी होने पर driver को दे देगा।</Text>
                       </Text>
                     </View>
 
