@@ -126,6 +126,8 @@ export default function VyapariPostTripScreen() {
         form.toCity.trim(),
         form.goodsCategory.trim(),
         currentVyapari?.name || user!.name,
+        form.weightTons.trim(),
+        form.ratePerTon.trim(),
       );
       setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
       setShowModal(false);

@@ -94,10 +94,20 @@ export function sendZoneNotifications(
   toCity: string,
   goodsCategory: string,
   vyapariName: string,
+  weightTons?: string,
+  ratePerTon?: string,
 ): void {
   const initialR = getInitialRadius(vehicleTypePref);
   const title = `🚛 नई ट्रिप — ${fromCity} → ${toCity}`;
-  const body = `${vyapariName} को ${goodsCategory} पहुँचाना है`;
+
+  const rentPart = ratePerTon && Number(ratePerTon) > 0
+    ? ` • ₹${Number(ratePerTon).toLocaleString('en-IN')}/टन`
+    : '';
+  const weightPart = weightTons && Number(weightTons) > 0
+    ? ` • ${weightTons} टन`
+    : '';
+  const body = `${goodsCategory}${weightPart}${rentPart} — ${vyapariName}`;
+
   const notified = new Set<string>();
 
   const zoneA = filterZone(drivers, fromLat, fromLon, 0, initialR, notified);
