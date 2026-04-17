@@ -15,8 +15,66 @@ import { sendZoneNotifications } from '@/lib/notifications';
 type Colors = ReturnType<typeof useColors>;
 
 const LOW_RATE_THRESHOLD = 300;
+const RATE_PER_KM_PER_TON = 2.2; // ₹2.2 per ton per km (standard Indian freight)
 
 const isLowRate = (ratePerTon: number) => ratePerTon === 0 || ratePerTon < LOW_RATE_THRESHOLD;
+
+// Major Indian city coordinates
+const CITY_COORDS: Record<string, [number, number]> = {
+  'mumbai': [19.076, 72.877], 'delhi': [28.704, 77.102], 'bangalore': [12.972, 77.594],
+  'bengaluru': [12.972, 77.594], 'hyderabad': [17.385, 78.487], 'ahmedabad': [23.022, 72.572],
+  'chennai': [13.083, 80.270], 'kolkata': [22.573, 88.364], 'surat': [21.170, 72.831],
+  'pune': [18.520, 73.856], 'jaipur': [26.913, 75.787], 'lucknow': [26.847, 80.947],
+  'kanpur': [26.449, 80.331], 'nagpur': [21.145, 79.088], 'indore': [22.720, 75.857],
+  'bhopal': [23.259, 77.412], 'visakhapatnam': [17.686, 83.218], 'vizag': [17.686, 83.218],
+  'patna': [25.595, 85.138], 'vadodara': [22.307, 73.181], 'ghaziabad': [28.669, 77.438],
+  'ludhiana': [30.901, 75.857], 'agra': [27.176, 78.008], 'nashik': [19.998, 73.789],
+  'faridabad': [28.408, 77.313], 'meerut': [28.984, 77.706], 'rajkot': [22.308, 70.800],
+  'varanasi': [25.317, 82.974], 'srinagar': [34.083, 74.797], 'aurangabad': [19.877, 75.343],
+  'dhanbad': [23.796, 86.430], 'amritsar': [31.634, 74.873], 'allahabad': [25.435, 81.846],
+  'prayagraj': [25.435, 81.846], 'ranchi': [23.344, 85.310], 'howrah': [22.588, 88.310],
+  'coimbatore': [11.017, 76.956], 'jabalpur': [23.181, 79.987], 'gwalior': [26.218, 78.182],
+  'vijayawada': [16.506, 80.648], 'jodhpur': [26.292, 73.017], 'madurai': [9.919, 78.120],
+  'raipur': [21.251, 81.630], 'kota': [25.183, 75.833], 'guwahati': [26.144, 91.736],
+  'chandigarh': [30.733, 76.779], 'solapur': [17.686, 75.905], 'hubli': [15.365, 75.124],
+  'dharwad': [15.460, 75.010], 'bareilly': [28.367, 79.416], 'moradabad': [28.839, 78.776],
+  'mysore': [12.295, 76.639], 'mysuru': [12.295, 76.639], 'tiruppur': [11.109, 77.341],
+  'gurgaon': [28.459, 77.026], 'gurugram': [28.459, 77.026], 'noida': [28.535, 77.391],
+  'aligarh': [27.882, 78.082], 'jalandhar': [31.324, 75.578], 'bhubaneswar': [20.296, 85.826],
+  'salem': [11.664, 78.145], 'warangal': [17.977, 79.601], 'guntur': [16.300, 80.436],
+  'bhiwandi': [19.296, 73.059], 'saharanpur': [29.968, 77.547], 'gorakhpur': [26.760, 83.373],
+  'bikaner': [28.022, 73.312], 'amravati': [20.937, 77.750], 'dehradun': [30.316, 78.032],
+  'durgapur': [23.479, 87.320], 'asansol': [23.683, 86.982], 'nanded': [19.160, 77.316],
+  'kolhapur': [16.705, 74.243], 'ajmer': [26.449, 74.638], 'latur': [18.400, 76.560],
+  'siliguri': [26.725, 88.395], 'jammu': [32.735, 74.868], 'jamshedpur': [22.802, 86.185],
+  'jhansi': [25.448, 78.568], 'ulhasnagar': [19.217, 73.155], 'nellore': [14.446, 79.987],
+  'mangalore': [12.914, 74.856], 'mangaluru': [12.914, 74.856], 'belgaum': [15.851, 74.496],
+  'belagavi': [15.851, 74.496], 'bhavnagar': [21.752, 72.152], 'malegaon': [20.553, 74.528],
+  'thiruvananthapuram': [8.524, 76.936], 'trivandrum': [8.524, 76.936],
+  'kochi': [9.931, 76.267], 'ernakulam': [9.994, 76.296], 'kozhikode': [11.259, 75.782],
+  'calicut': [11.259, 75.782], 'thrissur': [10.524, 76.214], 'tirunelveli': [8.727, 77.701],
+};
+
+function haversineKmLocal(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getSuggestedRate(fromCity: string, toCity: string): { rate: number; km: number } | null {
+  const f = fromCity.trim().toLowerCase();
+  const t = toCity.trim().toLowerCase();
+  const fc = CITY_COORDS[f];
+  const tc = CITY_COORDS[t];
+  if (!fc || !tc) return null;
+  const km = Math.round(haversineKmLocal(fc[0], fc[1], tc[0], tc[1]) * 1.25); // road ~25% more than aerial
+  if (km < 20) return null;
+  const raw = km * RATE_PER_KM_PER_TON;
+  const rate = Math.ceil(raw / 50) * 50; // round up to nearest ₹50
+  return { rate, km };
+}
 
 export default function VyapariPostTripScreen() {
   const colors = useColors();
@@ -341,22 +399,57 @@ export default function VyapariPostTripScreen() {
               <GoodsCategoryPicker value={form.goodsCategory} onSelect={(v) => set('goodsCategory', v)} colors={colors} />
               <Input label="वज़न (टन में)" placeholder="जैसे: 5" value={form.weightTons} onChangeText={(v) => set('weightTons', v)} keyboardType="numeric" icon="package" required />
               <Input label="रेंट डालें (₹)" placeholder="रेंट डालें" value={form.ratePerTon} onChangeText={(v) => set('ratePerTon', v)} keyboardType="numeric" icon="dollar-sign" />
-              {form.ratePerTon.trim() && isLowRate(Number(form.ratePerTon)) && (
-                <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
-                  <Feather name="alert-triangle" size={12} color="#f97316" />
-                  <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
-                    ₹{LOW_RATE_THRESHOLD}+ डालने पर ड्राइवर जल्दी मिलेंगे
-                  </Text>
-                </View>
-              )}
-              {(!form.ratePerTon.trim() || Number(form.ratePerTon) === 0) && (
-                <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
-                  <Feather name="info" size={12} color="#f97316" />
-                  <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
-                    भाड़ा (Rate) जरूर डालें — नहीं डालने पर ड्राइवर interest नहीं लेते
-                  </Text>
-                </View>
-              )}
+              {(() => {
+                const suggestion = getSuggestedRate(form.fromCity, form.toCity);
+                const enteredRate = Number(form.ratePerTon);
+                const showDistSuggestion = suggestion && form.ratePerTon.trim() && enteredRate > 0 && enteredRate < suggestion.rate * 0.75;
+                const showEmptyHint = !form.ratePerTon.trim() || enteredRate === 0;
+                const showLowHint = form.ratePerTon.trim() && isLowRate(enteredRate) && !showDistSuggestion;
+                return (
+                  <>
+                    {showDistSuggestion && suggestion && (
+                      <View style={[styles.distSuggestBox, { backgroundColor: '#EFF6FF', borderColor: '#1D4ED8' }]}>
+                        <View style={styles.distSuggestRow}>
+                          <Feather name="trending-up" size={14} color="#1D4ED8" />
+                          <Text style={[styles.distSuggestTitle, { color: '#1E40AF' }]}>
+                            दूरी के हिसाब से उचित किराया
+                          </Text>
+                        </View>
+                        <Text style={[styles.distSuggestSub, { color: '#1E3A8A' }]}>
+                          {form.fromCity} → {form.toCity} ≈ {suggestion.km} km{'\n'}
+                          बाज़ार भाव: <Text style={{ fontFamily: 'Inter_700Bold' }}>₹{suggestion.rate}/टन</Text>
+                          {' '}(₹2.2/km/टन){'\n'}
+                          आपने डाला: <Text style={{ fontFamily: 'Inter_700Bold', color: '#DC2626' }}>₹{enteredRate}/टन</Text> — यह बहुत कम है।
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.distSuggestBtn, { backgroundColor: '#1D4ED8' }]}
+                          onPress={() => set('ratePerTon', String(suggestion.rate))}
+                          activeOpacity={0.8}
+                        >
+                          <Feather name="check-circle" size={14} color="#fff" />
+                          <Text style={styles.distSuggestBtnText}>₹{suggestion.rate}/टन use करें</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    {showLowHint && (
+                      <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
+                        <Feather name="alert-triangle" size={12} color="#f97316" />
+                        <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
+                          ₹{LOW_RATE_THRESHOLD}+ डालने पर ड्राइवर जल्दी मिलेंगे
+                        </Text>
+                      </View>
+                    )}
+                    {showEmptyHint && (
+                      <View style={[styles.rateHint, { backgroundColor: '#fff7ed', borderColor: '#f97316' + '50' }]}>
+                        <Feather name="info" size={12} color="#f97316" />
+                        <Text style={[styles.rateHintText, { color: '#c2410c' }]}>
+                          भाड़ा (Rate) जरूर डालें — नहीं डालने पर ड्राइवर interest नहीं लेते
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                );
+              })()}
               {/* Sender pays — fixed, no option */}
               <View style={[styles.senderPayNote, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
                 <Text style={styles.senderPayNoteIcon}>💰</Text>
@@ -619,6 +712,12 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   rateHint: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 7, padding: 7, marginBottom: 10 },
   rateHintText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
+  distSuggestBox: { borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 10, gap: 8 },
+  distSuggestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  distSuggestTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  distSuggestSub: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  distSuggestBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8 },
+  distSuggestBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
   editRouteBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 10, padding: 10, marginBottom: 14 },
   editRouteText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', flex: 1 },
   fab: { position: 'absolute', bottom: 90, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
