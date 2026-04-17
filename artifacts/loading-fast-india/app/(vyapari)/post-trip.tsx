@@ -24,6 +24,7 @@ export default function VyapariPostTripScreen() {
   const { user, currentVyapari, getVyapariOwnTrips, addVyapariTrip, updateVyapariTrip, drivers } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [advancePaid, setAdvancePaid] = useState(false);
 
   const [form, setForm] = useState({
     fromCity: '', fromState: '', toCity: '', toState: '',
@@ -302,12 +303,12 @@ export default function VyapariPostTripScreen() {
       </Modal>
 
       {/* ── Post Trip Modal ── */}
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => { setShowModal(false); setAdvancePaid(false); }}>
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: colors.background }]}>
             <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>🚚 ट्रिप डालें</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
+              <TouchableOpacity onPress={() => { setShowModal(false); setAdvancePaid(false); }}>
                 <Feather name="x" size={22} color={colors.foreground} />
               </TouchableOpacity>
             </View>
@@ -361,7 +362,58 @@ export default function VyapariPostTripScreen() {
 
               <Input label="विशेष जानकारी (वैकल्पिक)" placeholder="कोई अतिरिक्त जानकारी..." value={form.description} onChangeText={(v) => set('description', v)} />
 
-              <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
+              {/* ₹1000 Advance Payment */}
+              {!advancePaid ? (
+                <View style={[styles.advanceBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
+                  <View style={styles.advanceHeader}>
+                    <Text style={styles.advanceIcon}>🏦</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.advanceTitle, { color: '#1B5E20' }]}>₹1,000 Security Advance — जरूरी</Text>
+                      <Text style={[styles.advanceSub, { color: '#2E7D32' }]}>Trip post करने से पहले ₹1,000 Loading Fast India को देना अनिवार्य है</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.advanceUpiBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
+                    <Text style={[styles.advanceUpiLabel, { color: '#388E3C' }]}>UPI ID</Text>
+                    <Text style={[styles.advanceUpiValue, { color: '#1B5E20' }]}>maksudsaiyed888@oksbi</Text>
+                    <Text style={[styles.advanceUpiName, { color: '#388E3C' }]}>Loading Fast India</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.advancePayBtn, { backgroundColor: '#2E7D32' }]}
+                    onPress={() => {
+                      const url = 'upi://pay?pa=maksudsaiyed888@oksbi&pn=Loading%20Fast%20India&am=1000&cu=INR&tn=LFI+Security+Advance';
+                      require('react-native').Linking.openURL(url).catch(() => {});
+                    }}
+                  >
+                    <Feather name="smartphone" size={16} color="#fff" />
+                    <Text style={styles.advancePayBtnText}>UPI से ₹1,000 भेजें</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.advanceDoneBtn, { borderColor: '#2E7D32' }]}
+                    onPress={() => Alert.alert(
+                      '₹1,000 Advance Confirm',
+                      'क्या आपने Loading Fast India (maksudsaiyed888@oksbi) को ₹1,000 भेज दिया?',
+                      [
+                        { text: 'हाँ, भेज दिया ✓', onPress: () => setAdvancePaid(true) },
+                        { text: 'नहीं', style: 'cancel' },
+                      ]
+                    )}
+                  >
+                    <Feather name="check-circle" size={16} color="#2E7D32" />
+                    <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>Maine ₹1,000 de diya → Trip Post Karein</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <View style={[styles.advancePaidBadge, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                    <Feather name="check-circle" size={20} color="#2E7D32" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.advancePaidTitle, { color: '#1B5E20' }]}>₹1,000 Security Advance दे दिया ✓</Text>
+                      <Text style={[styles.advancePaidSub, { color: '#388E3C' }]}>Loading Fast India को advance confirm है</Text>
+                    </View>
+                  </View>
+                  <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
+                </>
+              )}
               <View style={{ height: 30 }} />
             </ScrollView>
           </View>
@@ -571,6 +623,22 @@ const styles = StyleSheet.create({
   senderPayNoteIcon: { fontSize: 22 },
   senderPayNoteTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   senderPayNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
+  advanceBox: { borderRadius: 16, borderWidth: 2, padding: 14, marginBottom: 14, gap: 10 },
+  advanceHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  advanceIcon: { fontSize: 26 },
+  advanceTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  advanceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
+  advanceUpiBox: { borderRadius: 10, borderWidth: 1.5, padding: 10, alignItems: 'center', gap: 2 },
+  advanceUpiLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1 },
+  advanceUpiValue: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  advanceUpiName: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  advancePayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 10 },
+  advancePayBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_700Bold' },
+  advanceDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, borderRadius: 10, borderWidth: 2, backgroundColor: '#F1F8E9' },
+  advanceDoneBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  advancePaidBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 12 },
+  advancePaidTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  advancePaidSub: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
   lowRateBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, borderWidth: 1, borderRadius: 8, padding: 8, marginTop: 8 },
   lowRateText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
