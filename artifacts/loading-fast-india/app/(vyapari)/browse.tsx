@@ -336,7 +336,7 @@ export default function BrowseTripsScreen() {
                       <Text style={[styles.payTitle, { color: colors.secondary }]}>Payment Breakdown</Text>
                       <PayRow label="कुल किराया" value={formatCurrency(selectedTrip.totalRent)} />
                       <PayRow label="2% Commission (LFI)" value={`- ${formatCurrency(calcCommission(selectedTrip.totalRent))}`} highlight />
-                      <PayRow label="₹1,000 Advance (LFI आपकी ओर से Driver को देगा)" value={`- ${formatCurrency(ADVANCE_AMOUNT)}`} highlight />
+                      <PayRow label="₹1,000 Booking Security (पहले ही Pay हो चुकी है)" value={`- ${formatCurrency(ADVANCE_AMOUNT)}`} highlight />
                       <View style={[styles.divider, { backgroundColor: colors.border }]} />
                       <PayRow label="आपको Loading पर देना होगा" value={formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent) - ADVANCE_AMOUNT)} bold />
                     </View>
@@ -348,8 +348,9 @@ export default function BrowseTripsScreen() {
                         <Text style={[styles.senderPayTitle, { color: '#B71C1C' }]}>Rent याद रखें — Loading पर देना होगा</Text>
                       </View>
                       <Text style={[styles.senderPayText, { color: '#BF360C' }]}>
-                        Driver को loading के समय <Text style={{ fontFamily: 'Inter_700Bold' }}>{formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent) - ADVANCE_AMOUNT)}</Text> किराया दें।{'\n'}
-                        <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 12 }}>बाकी ₹1,000 Loading Fast India trip पूरी होने पर driver को दे देगा।</Text>
+                        ₹1,000 Booking Security पहले ही pay हो चुकी है।{'\n'}
+                        <Text style={{ fontFamily: 'Inter_700Bold' }}>Truck load होने के बाद आप driver को सिर्फ बाकी किराया directly pay करें।</Text>{'\n'}
+                        <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 12 }}>बाकी किराया: {formatCurrency(selectedTrip.totalRent - calcCommission(selectedTrip.totalRent) - ADVANCE_AMOUNT)}</Text>
                       </Text>
                     </View>
 
