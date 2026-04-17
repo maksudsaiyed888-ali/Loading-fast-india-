@@ -51,7 +51,7 @@ interface AppContextType {
   commissionPayments: CommissionPayment[];
   addCommissionPayment: (c: CommissionPayment) => Promise<void>;
   hasDriverPaidCommission: (driverId: string, vyapariTripId: string) => boolean;
-  markVyapariAdvancePaid: (vyapariId: string) => Promise<void>;
+  markVyapariAdvancePaid: (vyapariId: string, utr: string) => Promise<void>;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -241,8 +241,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const hasDriverPaidCommission = (driverId: string, vyapariTripId: string) =>
     commissionPayments.some((c) => c.driverId === driverId && c.vyapariTripId === vyapariTripId);
 
-  const markVyapariAdvancePaid = async (vyapariId: string) => {
-    await fsUpdate('vyaparis', vyapariId, { advancePaid: true, advancePaidAt: new Date().toISOString() });
+  const markVyapariAdvancePaid = async (vyapariId: string, utr: string) => {
+    await fsUpdate('vyaparis', vyapariId, { advancePaid: true, advancePaidAt: new Date().toISOString(), advanceUTR: utr.trim().toUpperCase() });
   };
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');

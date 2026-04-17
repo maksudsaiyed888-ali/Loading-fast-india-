@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, FlatList } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -25,6 +25,8 @@ export default function VyapariPostTripScreen() {
   const [showModal, setShowModal] = useState(false);
   const [posting, setPosting] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [utrModal, setUtrModal] = useState(false);
+  const [utrValue, setUtrValue] = useState('');
 
   const advancePaid = currentVyapari?.advancePaid === true;
 
@@ -88,9 +90,16 @@ export default function VyapariPostTripScreen() {
   };
 
   const handleConfirmAdvancePaid = async () => {
+    const utr = utrValue.trim();
+    if (utr.length < 8) {
+      Alert.alert('UTR जरूरी है', 'UPI payment करने के बाद आपको Transaction ID / UTR number मिलता है।\n\nWO ID यहाँ डालें — वो कम से कम 8 अक्षर का होना चाहिए।');
+      return;
+    }
+    setUtrModal(false);
     setMarkingPaid(true);
     try {
-      await markVyapariAdvancePaid(user!.id);
+      await markVyapariAdvancePaid(user!.id, utr);
+      setUtrValue('');
     } catch {
       Alert.alert('त्रुटि', 'Update नहीं हो पाया। Internet connection चेक करें।');
     } finally {
@@ -416,18 +425,11 @@ export default function VyapariPostTripScreen() {
                   <TouchableOpacity
                     style={[styles.advanceDoneBtn, { borderColor: '#2E7D32', opacity: markingPaid ? 0.6 : 1 }]}
                     disabled={markingPaid}
-                    onPress={() => Alert.alert(
-                      'Payment Confirm करें',
-                      'क्या आपने Loading Fast India को ₹1,000 UPI से भेज दिया?',
-                      [
-                        { text: 'हाँ, भेज दिया ✓', onPress: handleConfirmAdvancePaid },
-                        { text: 'नहीं', style: 'cancel' },
-                      ]
-                    )}
+                    onPress={() => { setUtrValue(''); setUtrModal(true); }}
                   >
                     <Feather name="unlock" size={16} color="#2E7D32" />
                     <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>
-                      {markingPaid ? 'Unlock हो रहा है...' : 'Maine ₹1,000 bhej diya — Unlock Karein'}
+                      {markingPaid ? 'Unlock हो रहा है...' : 'Maine ₹1,000 bhej diya — UTR डालें'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -447,6 +449,54 @@ export default function VyapariPostTripScreen() {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      {/* UTR Verification Modal */}
+      <Modal visible={utrModal} transparent animationType="fade" onRequestClose={() => setUtrModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.utrOverlay}>
+          <View style={[styles.utrCard, { backgroundColor: colors.card }]}>
+            <View style={[styles.utrHeader, { backgroundColor: '#1B5E20' }]}>
+              <View style={styles.utrLogo}>
+                <Text style={styles.utrLogoText}>LFI</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.utrHeaderTitle}>Loading Fast India</Text>
+                <Text style={styles.utrHeaderSub}>Payment Verification</Text>
+              </View>
+              <TouchableOpacity onPress={() => setUtrModal(false)}>
+                <Feather name="x" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.utrBody}>
+              <View style={[styles.utrInfoBox, { backgroundColor: '#FFF9C4', borderColor: '#F9A825' }]}>
+                <Feather name="info" size={14} color="#E65100" />
+                <Text style={[styles.utrInfoText, { color: '#5D4037' }]}>
+                  UPI payment करने के बाद आपके UPI app में <Text style={{ fontFamily: 'Inter_700Bold' }}>Transaction ID / UTR Number</Text> मिलता है। वही ID यहाँ डालें।
+                </Text>
+              </View>
+              <Text style={[styles.utrLabel, { color: colors.foreground }]}>UPI Transaction ID / UTR Number *</Text>
+              <TextInput
+                style={[styles.utrInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.accent }]}
+                placeholder="जैसे: 316741234567 या T2604171234..."
+                placeholderTextColor={colors.mutedForeground}
+                value={utrValue}
+                onChangeText={setUtrValue}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <Text style={[styles.utrHint, { color: colors.mutedForeground }]}>
+                PhonePe / GPay / Paytm → History → इस transaction पर click करें → UTR/Transaction ID copy करें
+              </Text>
+              <TouchableOpacity
+                style={[styles.utrConfirmBtn, { backgroundColor: utrValue.trim().length >= 8 ? '#1B5E20' : '#9E9E9E' }]}
+                onPress={handleConfirmAdvancePaid}
+              >
+                <Feather name="check-circle" size={18} color="#fff" />
+                <Text style={styles.utrConfirmText}>UTR से Verify करें → Unlock</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -690,4 +740,19 @@ const styles = StyleSheet.create({
   sheetBody: { padding: 20 },
   formNote: { borderRadius: 10, padding: 10, fontSize: 13, fontFamily: 'Inter_400Regular', marginBottom: 16 },
   fieldGroup: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  utrOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  utrCard: { width: '100%', borderRadius: 20, overflow: 'hidden', elevation: 10, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 12 },
+  utrHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
+  utrLogo: { width: 42, height: 42, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center' },
+  utrLogoText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  utrHeaderTitle: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
+  utrHeaderSub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontFamily: 'Inter_400Regular' },
+  utrBody: { padding: 18, gap: 14 },
+  utrInfoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 10, borderWidth: 1.5, padding: 12 },
+  utrInfoText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 19 },
+  utrLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: -8 },
+  utrInput: { borderWidth: 1.5, borderRadius: 12, padding: 14, fontSize: 16, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
+  utrHint: { fontSize: 11.5, fontFamily: 'Inter_400Regular', lineHeight: 17, marginTop: -6 },
+  utrConfirmBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 12, marginTop: 4 },
+  utrConfirmText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' },
 });

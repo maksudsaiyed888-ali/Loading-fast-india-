@@ -43,6 +43,7 @@ export interface Vyapari {
   totalBookings: number;
   advancePaid?: boolean;
   advancePaidAt?: string;
+  advanceUTR?: string;
 }
 
 export interface Vehicle {
