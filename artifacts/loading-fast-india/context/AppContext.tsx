@@ -242,16 +242,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open');
 
-  const sendSmsToReceiver = async (phone: string, otp: string, receiverName: string): Promise<boolean> => {
+  const fetchWithTimeout = (url: string, ms = 5000): Promise<Response> => {
+    const timeout = new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+    return Promise.race([fetch(url), timeout]);
+  };
+
+  const sendSmsToReceiver = async (phone: string, otp: string, _receiverName: string): Promise<boolean> => {
     try {
       const apiKey = (Constants.expoConfig?.extra as Record<string, string>)?.fast2smsKey || '';
       if (!apiKey) return false;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000);
       const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
       const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&variables_values=${otp}&route=otp&numbers=${cleanPhone}`;
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timer);
+      const res = await fetchWithTimeout(url, 5000);
       const data = await res.json();
       return data?.return === true;
     } catch (_e) {
@@ -301,11 +303,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let smsSent = false;
       if (fast2smsKey) {
         try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 5000);
           const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&variables_values=${otp}&route=otp&numbers=${phone}`;
-          const res = await fetch(url, { signal: controller.signal });
-          clearTimeout(timer);
+          const res = await fetchWithTimeout(url, 5000);
           const data = await res.json();
           smsSent = data?.return === true;
         } catch (_e) { }
