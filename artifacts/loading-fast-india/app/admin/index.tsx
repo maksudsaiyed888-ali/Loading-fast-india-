@@ -11,14 +11,16 @@ import Button from '@/components/ui/Button';
 import { maskAadhaar, formatDate, formatCurrency } from '@/lib/utils';
 
 const ADMIN_PASS = 'LFI@Admin2024';
-type Tab = 'drivers' | 'vyaparis' | 'trips' | 'complaints';
+type Tab = 'advances' | 'drivers' | 'vyaparis' | 'trips' | 'complaints';
 
 export default function AdminScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, login, logout, drivers, vyaparis, trips, complaints, vehicles } = useApp();
+  const { user, login, logout, drivers, vyaparis, trips, complaints, vehicles, advanceRequests, approveAdvanceRequest, rejectAdvanceRequest } = useApp();
   const [password, setPassword] = useState('');
-  const [tab, setTab] = useState<Tab>('drivers');
+  const [tab, setTab] = useState<Tab>('advances');
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const isAdmin = user?.role === 'admin';
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -52,7 +54,34 @@ export default function AdminScreen() {
     );
   }
 
+  const pendingAdvances = advanceRequests.filter((r) => r.status === 'pending');
+
+  const handleApprove = (id: string, vyapariName: string) => {
+    Alert.alert(
+      'Payment Approve?',
+      `${vyapariName} का ₹1,000 payment received confirm करें? Trip automatically post हो जाएगी।`,
+      [
+        { text: 'Approve ✓', onPress: () => approveAdvanceRequest(id) },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleReject = (id: string) => {
+    setRejectingId(id);
+    setRejectReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!rejectingId) return;
+    if (!rejectReason.trim()) { Alert.alert('कारण जरूरी है', 'Reject करने का कारण लिखें'); return; }
+    await rejectAdvanceRequest(rejectingId, rejectReason.trim());
+    setRejectingId(null);
+    setRejectReason('');
+  };
+
   const TABS: { key: Tab; label: string; count: number; icon: string }[] = [
+    { key: 'advances', label: 'Payments', count: pendingAdvances.length, icon: 'credit-card' },
     { key: 'drivers', label: 'Drivers', count: drivers.length, icon: 'truck' },
     { key: 'vyaparis', label: 'Vyaparis', count: vyaparis.length, icon: 'briefcase' },
     { key: 'trips', label: 'Trips', count: trips.length, icon: 'map' },
@@ -99,7 +128,62 @@ export default function AdminScreen() {
         ))}
       </View>
 
+      {/* Reject Reason Modal */}
+      {rejectingId && (
+        <View style={[adStyles.rejectOverlay, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+          <View style={[adStyles.rejectSheet, { backgroundColor: colors.background }]}>
+            <Text style={[adStyles.rejectTitle, { color: colors.foreground }]}>Reject करने का कारण</Text>
+            <Text style={[adStyles.rejectSub, { color: colors.mutedForeground }]}>Vyapari को यह message dikhega</Text>
+            <Input label="कारण लिखें" value={rejectReason} onChangeText={setRejectReason} placeholder="जैसे: Payment received नहीं हुई..." required />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+              <TouchableOpacity style={[adStyles.rejectCancelBtn, { borderColor: colors.border }]} onPress={() => setRejectingId(null)}>
+                <Text style={[adStyles.rejectCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[adStyles.rejectConfirmBtn, { backgroundColor: '#C62828' }]} onPress={confirmReject}>
+                <Text style={adStyles.rejectConfirmText}>Reject करें</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
+        {tab === 'advances' && (
+          advanceRequests.length === 0 ? <EmptyState label="कोई payment request नहीं" /> :
+          [...advanceRequests].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => (
+            <View key={r.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: r.status === 'pending' ? '#F57F17' : r.status === 'approved' ? '#2E7D32' : '#C62828', borderWidth: r.status === 'pending' ? 2 : 1 }]}>
+              <View style={styles.cardHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardName, { color: colors.foreground }]}>{r.vyapariName}</Text>
+                  <Text style={[adStyles.tripRoute, { color: colors.mutedForeground }]}>{r.tripData.fromCity} → {r.tripData.toCity} • {r.tripData.weightTons}T</Text>
+                </View>
+                <View style={[styles.statusBadge, { backgroundColor: r.status === 'pending' ? '#FFF8E1' : r.status === 'approved' ? '#E8F5E9' : '#FFEBEE' }]}>
+                  <Text style={[styles.statusText, { color: r.status === 'pending' ? '#E65100' : r.status === 'approved' ? '#2E7D32' : '#C62828' }]}>
+                    {r.status === 'pending' ? '⏳ Pending' : r.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                  </Text>
+                </View>
+              </View>
+              <DataRow label="Phone" value={r.vyapariPhone} />
+              <DataRow label="Amount" value={`₹${r.amount.toLocaleString()}`} />
+              <DataRow label="Goods" value={r.tripData.goodsCategory} />
+              <DataRow label="Date" value={formatDate(r.createdAt)} />
+              {r.status === 'rejected' && r.rejectionReason && <DataRow label="Reason" value={r.rejectionReason} />}
+              {r.status === 'pending' && (
+                <View style={adStyles.actionRow}>
+                  <TouchableOpacity style={[adStyles.approveBtn, { backgroundColor: '#2E7D32' }]} onPress={() => handleApprove(r.id, r.vyapariName)}>
+                    <Feather name="check" size={16} color="#fff" />
+                    <Text style={adStyles.approveBtnText}>Approve — Trip Post</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[adStyles.rejectBtn, { borderColor: '#C62828' }]} onPress={() => handleReject(r.id)}>
+                    <Feather name="x" size={16} color="#C62828" />
+                    <Text style={[adStyles.rejectBtnText, { color: '#C62828' }]}>Reject</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))
+        )}
+
         {tab === 'drivers' && (
           drivers.length === 0 ? <EmptyState label="कोई ड्राइवर नहीं" /> :
           drivers.map((d) => (
@@ -250,4 +334,21 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 15, fontFamily: 'Inter_700Bold', flex: 1 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   statusText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+});
+
+const adStyles = StyleSheet.create({
+  tripRoute: { fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  approveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 10 },
+  approveBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  rejectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 18, borderRadius: 10, borderWidth: 1.5 },
+  rejectBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  rejectOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, justifyContent: 'center', padding: 20 },
+  rejectSheet: { borderRadius: 16, padding: 20, gap: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 10 },
+  rejectTitle: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  rejectSub: { fontSize: 13, fontFamily: 'Inter_400Regular', marginBottom: 8 },
+  rejectCancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+  rejectCancelText: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  rejectConfirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  rejectConfirmText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_700Bold' },
 });

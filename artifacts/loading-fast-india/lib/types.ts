@@ -375,6 +375,30 @@ export interface AppRating {
   createdAt: string;
 }
 
+export interface AdvanceRequest {
+  id: string;
+  vyapariId: string;
+  vyapariName: string;
+  vyapariPhone: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  tripData: {
+    fromCity: string;
+    fromState: string;
+    toCity: string;
+    toState: string;
+    goodsCategory: string;
+    weightTons: number;
+    vehicleTypePref: string;
+    ratePerTon: number;
+    tripDate: string;
+    description: string;
+  };
+}
+
 export const COMMISSION_PERCENT = 2;
 export const COMMISSION_UPI = 'maksudsaiyed888@oksbi';
 export const APP_NAME = 'Loading Fast India';
