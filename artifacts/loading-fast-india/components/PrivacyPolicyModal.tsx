@@ -88,6 +88,18 @@ const sections: Section[] = [
     ],
   },
   {
+    icon: 'truck',
+    title: 'किराया वसूली — Driver की जिम्मेदारी',
+    color: '#E65100',
+    items: [
+      '⚠️ गाड़ी में माल loading के समय या उससे पहले व्यापारी से पूरा किराया लें।',
+      '⚠️ माल loading के बाद किराया pending छोड़ना Driver की खुद की जिम्मेदारी है।',
+      '🔴 Pending किराया छोड़ा तो Loading Fast India (LFI) जिम्मेदार नहीं होगा।',
+      '📌 किराया विवाद में LFI कोई गारंटी या भुगतान नहीं देगा।',
+      '✅ सलाह: Loading से पहले ही किराया नकद या UPI से confirm करें।',
+    ],
+  },
+  {
     icon: 'alert-triangle',
     title: 'Receiver Pay — Sender की जिम्मेदारी',
     color: '#E65100',

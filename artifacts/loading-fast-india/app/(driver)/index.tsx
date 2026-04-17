@@ -482,6 +482,15 @@ function VyapariTripCard({
                 <Text style={vtStyles.actionBtnText}>Chat</Text>
               </TouchableOpacity>
             </View>
+            {/* Rent collection warning */}
+            <View style={[vtStyles.rentWarning, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+              <Feather name="alert-triangle" size={14} color="#E65100" />
+              <Text style={[vtStyles.rentWarningText, { color: '#BF360C' }]}>
+                <Text style={{ fontFamily: 'Inter_700Bold' }}>⚠️ जरूरी निर्देश:{'\n'}</Text>
+                गाड़ी में माल loading के समय या उससे पहले व्यापारी से पूरा किराया लें।{'\n\n'}
+                <Text style={{ fontFamily: 'Inter_700Bold' }}>Pending किराया छोड़ा तो LFI जिम्मेदार नहीं।</Text>
+              </Text>
+            </View>
           </View>
         ) : (
           /* Commission gate */
@@ -569,6 +578,8 @@ const vtStyles = StyleSheet.create({
   upiBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
   utrInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'Inter_400Regular' },
   alreadyPaid: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center', marginTop: 2 },
+  rentWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1.5, marginTop: 8 },
+  rentWarningText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 19 },
 });
 
 const styles = StyleSheet.create({
