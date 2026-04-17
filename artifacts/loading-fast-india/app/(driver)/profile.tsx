@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -182,6 +182,26 @@ export default function DriverProfileScreen() {
           <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
         </TouchableOpacity>
 
+        {/* Customer Care */}
+        <View style={[styles.careCard, { backgroundColor: '#E3F2FD', borderColor: '#1565C0' }]}>
+          <View style={styles.careHeader}>
+            <Feather name="headphones" size={18} color="#1565C0" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.careTitle, { color: '#0D47A1' }]}>Loading Fast India — Customer Care</Text>
+              <Text style={[styles.careSub, { color: '#1565C0' }]}>कोई भी समस्या हो तो call करें</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={[styles.careNumBtn, { backgroundColor: '#1565C0' }]} onPress={() => Linking.openURL('tel:8401023589')}>
+            <Feather name="phone" size={15} color="#fff" />
+            <Text style={styles.careNumText}>8401023589</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.careNumBtn, { backgroundColor: '#1565C0' }]} onPress={() => Linking.openURL('tel:9227016371')}>
+            <Feather name="phone" size={15} color="#fff" />
+            <Text style={styles.careNumText}>9227016371</Text>
+          </TouchableOpacity>
+          <Text style={[styles.careTiming, { color: '#1565C0' }]}>सोमवार–शनिवार • सुबह 9 बजे – रात 8 बजे</Text>
+        </View>
+
         <TouchableOpacity
           style={[styles.complaintBtn, { borderColor: colors.warning }]}
           onPress={() => setShowComplaint(true)}
@@ -276,6 +296,13 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
   commNote: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 8 },
   policyText: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 22 },
+  careCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 12, gap: 8 },
+  careHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  careTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  careSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  careNumBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  careNumText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
+  careTiming: { fontSize: 11, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 2 },
   complaintBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
   complaintBtnText: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
   updateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
