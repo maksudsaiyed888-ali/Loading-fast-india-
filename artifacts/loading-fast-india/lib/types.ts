@@ -126,6 +126,8 @@ export interface Bilty {
   goodsCategory?: string;
   goodsType?: string;
   needsColdStorage?: boolean;
+  advancePaid?: boolean;
+  advanceAmount?: number;
 }
 
 export interface Complaint {
