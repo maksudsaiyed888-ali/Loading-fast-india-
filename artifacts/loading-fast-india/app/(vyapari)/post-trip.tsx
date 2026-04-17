@@ -365,20 +365,29 @@ export default function VyapariPostTripScreen() {
               {/* ₹1000 Advance Payment */}
               {!advancePaid ? (
                 <View style={[styles.advanceBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
-                  <View style={styles.advanceHeader}>
-                    <Text style={styles.advanceIcon}>🏦</Text>
+                  {/* Company Branding */}
+                  <View style={styles.advanceBrandRow}>
+                    <View style={[styles.advanceLogo, { backgroundColor: '#1B5E20' }]}>
+                      <Text style={styles.advanceLogoText}>LFI</Text>
+                    </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.advanceTitle, { color: '#1B5E20' }]}>₹1,000 Security Advance — जरूरी</Text>
-                      <Text style={[styles.advanceSub, { color: '#2E7D32' }]}>Trip post करने से पहले ₹1,000 Loading Fast India को देना अनिवार्य है</Text>
+                      <Text style={[styles.advanceBrandName, { color: '#1B5E20' }]}>Loading Fast India</Text>
+                      <Text style={[styles.advanceBrandTag, { color: '#388E3C' }]}>Official Payment Portal</Text>
+                    </View>
+                    <View style={[styles.advanceBadge, { backgroundColor: '#2E7D32' }]}>
+                      <Text style={styles.advanceBadgeText}>Verified</Text>
                     </View>
                   </View>
-                  <View style={[styles.advanceUpiBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
-                    <Text style={[styles.advanceUpiLabel, { color: '#388E3C' }]}>UPI ID</Text>
-                    <Text style={[styles.advanceUpiValue, { color: '#1B5E20' }]}>maksudsaiyed888@oksbi</Text>
-                    <Text style={[styles.advanceUpiName, { color: '#388E3C' }]}>Loading Fast India</Text>
+
+                  {/* Amount Box */}
+                  <View style={[styles.advanceAmtBox, { backgroundColor: '#fff', borderColor: '#4CAF50' }]}>
+                    <Text style={[styles.advanceAmtLabel, { color: '#388E3C' }]}>Security Advance Amount</Text>
+                    <Text style={[styles.advanceAmtValue, { color: '#1B5E20' }]}>₹1,000</Text>
+                    <Text style={[styles.advanceAmtNote, { color: '#2E7D32' }]}>Trip post करने से पहले एकबार भुगतान करें</Text>
                   </View>
+
                   <TouchableOpacity
-                    style={[styles.advancePayBtn, { backgroundColor: '#2E7D32' }]}
+                    style={[styles.advancePayBtn, { backgroundColor: '#1B5E20' }]}
                     onPress={() => {
                       const url = 'upi://pay?pa=maksudsaiyed888@oksbi&pn=Loading%20Fast%20India&am=1000&cu=INR&tn=LFI+Security+Advance';
                       require('react-native').Linking.openURL(url).catch(() => {});
@@ -390,8 +399,8 @@ export default function VyapariPostTripScreen() {
                   <TouchableOpacity
                     style={[styles.advanceDoneBtn, { borderColor: '#2E7D32' }]}
                     onPress={() => Alert.alert(
-                      '₹1,000 Advance Confirm',
-                      'क्या आपने Loading Fast India (maksudsaiyed888@oksbi) को ₹1,000 भेज दिया?',
+                      'Payment Confirm करें',
+                      'क्या आपने Loading Fast India को ₹1,000 का Security Advance भेज दिया?',
                       [
                         { text: 'हाँ, भेज दिया ✓', onPress: () => setAdvancePaid(true) },
                         { text: 'नहीं', style: 'cancel' },
@@ -399,7 +408,7 @@ export default function VyapariPostTripScreen() {
                     )}
                   >
                     <Feather name="check-circle" size={16} color="#2E7D32" />
-                    <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>Maine ₹1,000 de diya → Trip Post Karein</Text>
+                    <Text style={[styles.advanceDoneBtnText, { color: '#2E7D32' }]}>मैंने ₹1,000 भेज दिया — आगे बढ़ें</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -623,18 +632,21 @@ const styles = StyleSheet.create({
   senderPayNoteIcon: { fontSize: 22 },
   senderPayNoteTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 2 },
   senderPayNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
-  advanceBox: { borderRadius: 16, borderWidth: 2, padding: 14, marginBottom: 14, gap: 10 },
-  advanceHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  advanceIcon: { fontSize: 26 },
-  advanceTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 3 },
-  advanceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
-  advanceUpiBox: { borderRadius: 10, borderWidth: 1.5, padding: 10, alignItems: 'center', gap: 2 },
-  advanceUpiLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1 },
-  advanceUpiValue: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  advanceUpiName: { fontSize: 11, fontFamily: 'Inter_400Regular' },
-  advancePayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 10 },
-  advancePayBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_700Bold' },
-  advanceDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 11, borderRadius: 10, borderWidth: 2, backgroundColor: '#F1F8E9' },
+  advanceBox: { borderRadius: 16, borderWidth: 2, padding: 16, marginBottom: 14, gap: 12 },
+  advanceBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  advanceLogo: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  advanceLogoText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+  advanceBrandName: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  advanceBrandTag: { fontSize: 11, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  advanceBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  advanceBadgeText: { color: '#fff', fontSize: 10, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+  advanceAmtBox: { borderRadius: 12, borderWidth: 1.5, padding: 14, alignItems: 'center', gap: 4 },
+  advanceAmtLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textTransform: 'uppercase', letterSpacing: 1 },
+  advanceAmtValue: { fontSize: 32, fontFamily: 'Inter_700Bold' },
+  advanceAmtNote: { fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center' },
+  advancePayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 12 },
+  advancePayBtnText: { color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' },
+  advanceDoneBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 2, backgroundColor: '#F1F8E9' },
   advanceDoneBtnText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   advancePaidBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 12 },
   advancePaidTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
