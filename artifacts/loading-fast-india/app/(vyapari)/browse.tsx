@@ -353,6 +353,16 @@ export default function BrowseTripsScreen() {
                       </Text>
                     </View>
 
+                    {/* Refund Policy */}
+                    <View style={[styles.refundBox, { backgroundColor: '#FCE4EC', borderColor: '#C62828' }]}>
+                      <Feather name="refresh-ccw" size={13} color="#C62828" />
+                      <Text style={[styles.refundText, { color: '#B71C1C' }]}>
+                        <Text style={{ fontFamily: 'Inter_700Bold' }}>Cancellation Refund Policy:{'\n'}</Text>
+                        🟢 <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver cancel करे</Text> → पूरा ₹1,000 वापस{'\n'}
+                        🔴 <Text style={{ fontFamily: 'Inter_700Bold' }}>आप cancel करें</Text> → सिर्फ ₹500 वापस
+                      </Text>
+                    </View>
+
                     <Button title="ट्रिप Confirm करें ✓" onPress={handleBookTrip} loading={loading} />
                     <View style={{ height: 24 }} />
                   </>
@@ -454,4 +464,6 @@ const styles = StyleSheet.create({
   divider: { height: 1, marginVertical: 8 },
   legalNote: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
   legalText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  refundBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 12 },
+  refundText: { flex: 1, fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 20 },
 });

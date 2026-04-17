@@ -416,6 +416,14 @@ export default function VyapariPostTripScreen() {
                       <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver को फायदा:</Text> Trip पूरी होने के बाद Loading Fast India यह ₹1,000 driver को दे देगा।
                     </Text>
                   </View>
+                  <View style={[styles.advanceSafetyNote, { backgroundColor: '#FCE4EC', borderColor: '#C62828' }]}>
+                    <Feather name="refresh-ccw" size={14} color="#C62828" />
+                    <Text style={[styles.advanceSafetyText, { color: '#B71C1C' }]}>
+                      <Text style={{ fontFamily: 'Inter_700Bold' }}>Cancellation Refund Policy:{'\n'}</Text>
+                      🟢 <Text style={{ fontFamily: 'Inter_700Bold' }}>Driver cancel करे</Text> → पूरा ₹1,000 वापस मिलेगा{'\n'}
+                      🔴 <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (व्यापारी) cancel करें</Text> → सिर्फ ₹500 वापस मिलेगा
+                    </Text>
+                  </View>
                   <View style={[styles.advanceBlockNote, { backgroundColor: '#FFF3E0', borderColor: '#FF8F00' }]}>
                     <Feather name="lock" size={14} color="#E65100" />
                     <Text style={[styles.advanceBlockText, { color: '#E65100' }]}>Payment ना हो तब तक trip post BLOCKED है</Text>
