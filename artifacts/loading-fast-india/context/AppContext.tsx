@@ -246,9 +246,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const apiKey = (Constants.expoConfig?.extra as Record<string, string>)?.fast2smsKey || '';
       if (!apiKey) return false;
-      const message = `Loading Fast India: Aapka maal pahunch gaya hai. Delivery OTP: ${otp}. Yeh OTP driver ko de kar maal prapt karein. -LFI`;
-      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&sender_id=FSTSMS&message=${encodeURIComponent(message)}&language=english&route=q&numbers=${phone.replace(/[^0-9]/g, '').slice(-10)}`;
-      const res = await fetch(url);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
+      const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${apiKey}&variables_values=${otp}&route=otp&numbers=${cleanPhone}`;
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
       const data = await res.json();
       return data?.return === true;
     } catch (_e) {
@@ -298,9 +301,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let smsSent = false;
       if (fast2smsKey) {
         try {
-          const msg = `Loading Fast India Login OTP: ${otp}. 10 minute mein use karein. -LFI`;
-          const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&sender_id=FSTSMS&message=${encodeURIComponent(msg)}&language=english&route=q&numbers=${phone}`;
-          const res = await fetch(url);
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 5000);
+          const url = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&variables_values=${otp}&route=otp&numbers=${phone}`;
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(timer);
           const data = await res.json();
           smsSent = data?.return === true;
         } catch (_e) { }
