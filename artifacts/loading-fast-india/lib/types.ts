@@ -360,6 +360,9 @@ export interface VyapariTrip {
   acceptedByDriverName?: string;
   acceptedAt?: string;
   completedAt?: string;
+  receiverName?: string;
+  receiverPhone?: string;
+  receiverAddress?: string;
 }
 
 export interface CommissionPayment {

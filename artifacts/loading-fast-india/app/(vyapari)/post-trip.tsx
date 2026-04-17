@@ -29,6 +29,7 @@ export default function VyapariPostTripScreen() {
     fromCity: '', fromState: '', toCity: '', toState: '',
     goodsCategory: '', weightTons: '', ratePerTon: '',
     tripDate: '', vehicleTypePref: '', description: '',
+    receiverName: '', receiverPhone: '', receiverAddress: '',
   });
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -81,6 +82,8 @@ export default function VyapariPostTripScreen() {
     if (!form.weightTons.trim() || isNaN(Number(form.weightTons)) || Number(form.weightTons) <= 0) { Alert.alert('त्रुटि', 'वज़न (टन में) 0 से अधिक सही संख्या डालें'); return false; }
     if (form.ratePerTon.trim() && (isNaN(Number(form.ratePerTon)) || Number(form.ratePerTon) < 0)) { Alert.alert('त्रुटि', 'रेट प्रति टन सही संख्या डालें'); return false; }
     if (!form.tripDate.trim()) { Alert.alert('त्रुटि', 'तारीख जरूरी है'); return false; }
+    if (!form.receiverName.trim()) { Alert.alert('त्रुटि', 'माल प्राप्तकर्ता (Receiver) का नाम जरूरी है'); return false; }
+    if (!form.receiverPhone.trim() || form.receiverPhone.trim().length < 10) { Alert.alert('त्रुटि', 'Receiver का मोबाइल नंबर (10 अंक) जरूरी है'); return false; }
     return true;
   };
 
@@ -106,6 +109,9 @@ export default function VyapariPostTripScreen() {
         status: 'open',
         createdAt: new Date().toISOString(),
         paymentType: 'sender',
+        receiverName: form.receiverName.trim(),
+        receiverPhone: form.receiverPhone.trim(),
+        receiverAddress: form.receiverAddress.trim() || undefined,
       });
       let fromLat = 23.0;
       let fromLon = 72.5;
@@ -129,7 +135,7 @@ export default function VyapariPostTripScreen() {
         form.weightTons.trim(),
         form.ratePerTon.trim(),
       );
-      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '' });
+      setForm({ fromCity: '', fromState: '', toCity: '', toState: '', goodsCategory: '', weightTons: '', ratePerTon: '', tripDate: '', vehicleTypePref: '', description: '', receiverName: '', receiverPhone: '', receiverAddress: '' });
       setShowModal(false);
       Alert.alert('✅ ट्रिप पोस्ट हुई!', 'आपकी ट्रिप सफलतापूर्वक पोस्ट हो गई। सभी ड्राइवरों को notification भेजी गई।');
     } finally {
@@ -367,6 +373,10 @@ export default function VyapariPostTripScreen() {
 
               <Input label="विशेष जानकारी (वैकल्पिक)" placeholder="कोई अतिरिक्त जानकारी..." value={form.description} onChangeText={(v) => set('description', v)} />
 
+              <Text style={[styles.fieldGroup, { color: colors.secondary, marginTop: 8 }]}>📦 माल प्राप्तकर्ता (Receiver) की जानकारी</Text>
+              <Input label="Receiver का नाम *" placeholder="जैसे: Suresh Kumar" value={form.receiverName} onChangeText={(v) => set('receiverName', v)} />
+              <Input label="Receiver का मोबाइल नंबर *" placeholder="10 अंकों का नंबर" value={form.receiverPhone} onChangeText={(v) => set('receiverPhone', v)} keyboardType="phone-pad" maxLength={10} />
+              <Input label="Receiver का पता (वैकल्पिक)" placeholder="गोदाम / दुकान का पता..." value={form.receiverAddress} onChangeText={(v) => set('receiverAddress', v)} />
 
               <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
               <View style={{ height: 30 }} />
