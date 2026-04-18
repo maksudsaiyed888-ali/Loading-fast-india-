@@ -20,6 +20,9 @@ export default function DriverHomeScreen() {
   const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, vyapariTrips, addCommissionPayment, hasDriverPaidCommission, confirmVyapariTrip, completeVyapariTrip } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
+  const [showManualSearch, setShowManualSearch] = useState(false);
+  const [searchFrom, setSearchFrom] = useState('');
+  const [searchTo, setSearchTo] = useState('');
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const myVehicles = user ? getDriverVehicles(user.id) : [];
@@ -35,6 +38,19 @@ export default function DriverHomeScreen() {
   const returnCity = lastCompletedVyapariTrip?.toCity?.trim().toLowerCase();
   const returnLoadTrips = returnCity
     ? openVyapariTrips.filter(t => t.fromCity.trim().toLowerCase() === returnCity)
+    : [];
+
+  // Manual search results
+  const manualResults = (searchFrom.trim().length >= 2 || searchTo.trim().length >= 2)
+    ? openVyapariTrips.filter(t => {
+        const from = t.fromCity.trim().toLowerCase();
+        const to = t.toCity.trim().toLowerCase();
+        const sf = searchFrom.trim().toLowerCase();
+        const st = searchTo.trim().toLowerCase();
+        const fromMatch = sf.length < 2 || from.includes(sf);
+        const toMatch = st.length < 2 || to.includes(st);
+        return fromMatch && toMatch;
+      })
     : [];
 
   const recentlyTakenTrips = vyapariTrips.filter(t => {
@@ -145,6 +161,68 @@ export default function DriverHomeScreen() {
             ))}
           </View>
         )}
+
+        {/* Manual Load Search */}
+        <View style={{ marginBottom: 16 }}>
+          <TouchableOpacity
+            style={[styles.manualSearchToggle, { backgroundColor: showManualSearch ? colors.primary : colors.primary + '15', borderColor: colors.primary }]}
+            onPress={() => setShowManualSearch(p => !p)}
+            activeOpacity={0.8}
+          >
+            <Feather name="search" size={15} color={showManualSearch ? '#fff' : colors.primary} />
+            <Text style={[styles.manualSearchToggleText, { color: showManualSearch ? '#fff' : colors.primary }]}>
+              🔍 खुद से शहर चुनें — Trip ढूंढें
+            </Text>
+            <Feather name={showManualSearch ? 'chevron-up' : 'chevron-down'} size={15} color={showManualSearch ? '#fff' : colors.primary} />
+          </TouchableOpacity>
+
+          {showManualSearch && (
+            <View style={[styles.manualSearchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TextInput
+                style={[styles.manualSearchInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                placeholder="📍 कहाँ से — शहर का नाम (जैसे: Ahmedabad)"
+                placeholderTextColor={colors.mutedForeground}
+                value={searchFrom}
+                onChangeText={setSearchFrom}
+                autoCorrect={false}
+              />
+              <TextInput
+                style={[styles.manualSearchInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
+                placeholder="🏁 कहाँ तक — शहर का नाम (जैसे: Junagadh)"
+                placeholderTextColor={colors.mutedForeground}
+                value={searchTo}
+                onChangeText={setSearchTo}
+                autoCorrect={false}
+              />
+              {(searchFrom.trim().length >= 2 || searchTo.trim().length >= 2) && (
+                manualResults.length > 0 ? (
+                  <>
+                    <Text style={[styles.manualResultCount, { color: colors.success }]}>
+                      ✅ {manualResults.length} trip{manualResults.length > 1 ? 's' : ''} मिली
+                    </Text>
+                    {manualResults.map((vt) => (
+                      <VyapariTripCard
+                        key={vt.id}
+                        trip={vt}
+                        colors={colors}
+                        driverId={user?.id || ''}
+                        driverName={currentDriver?.name || user?.name || ''}
+                        hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
+                        onPayCommission={addCommissionPayment}
+                        onConfirmTrip={confirmVyapariTrip}
+                        onCompleteTrip={completeVyapariTrip}
+                      />
+                    ))}
+                  </>
+                ) : (
+                  <Text style={[styles.manualNoResult, { color: colors.mutedForeground }]}>
+                    😔 इस route पर अभी कोई trip उपलब्ध नहीं है
+                  </Text>
+                )
+              )}
+            </View>
+          )}
+        </View>
 
         {recentlyTakenTrips.length > 0 && (
           <View style={{ marginBottom: 16 }}>
@@ -634,6 +712,12 @@ const styles = StyleSheet.create({
   returnLoadBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
   returnLoadTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   returnLoadSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  manualSearchToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1.5 },
+  manualSearchToggleText: { flex: 1, fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  manualSearchBox: { borderRadius: 10, borderWidth: 1, padding: 12, marginTop: 8, gap: 8 },
+  manualSearchInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'Inter_400Regular' },
+  manualResultCount: { fontSize: 13, fontFamily: 'Inter_600SemiBold', marginTop: 4 },
+  manualNoResult: { fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', paddingVertical: 16 },
   addVehicleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', marginBottom: 16 },
   addVehicleTitle: { fontSize: 15, fontFamily: 'Inter_500Medium' },
   addVehicleSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
