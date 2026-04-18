@@ -27,6 +27,16 @@ export default function DriverHomeScreen() {
   const myBilties = bilties.filter((b) => b.driverId === user?.id);
   const openVyapariTrips = getOpenVyapariTrips();
   const myAcceptedVyapariTrips = user ? vyapariTrips.filter(t => t.acceptedByDriverId === user.id && (t.status === 'accepted' || t.status === 'completed')) : [];
+
+  // Return load: find last completed trip's toCity, then show open trips from that city
+  const lastCompletedVyapariTrip = [...myAcceptedVyapariTrips]
+    .filter(t => t.status === 'completed')
+    .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime())[0];
+  const returnCity = lastCompletedVyapariTrip?.toCity?.trim().toLowerCase();
+  const returnLoadTrips = returnCity
+    ? openVyapariTrips.filter(t => t.fromCity.trim().toLowerCase() === returnCity)
+    : [];
+
   const recentlyTakenTrips = vyapariTrips.filter(t => {
     if (t.status !== 'accepted') return false;
     if (t.acceptedByDriverId === user?.id) return false;
@@ -92,6 +102,35 @@ export default function DriverHomeScreen() {
           <View style={{ marginBottom: 16 }}>
             <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🚛 मेरी Accepted Trips</Text>
             {myAcceptedVyapariTrips.map((vt) => (
+              <VyapariTripCard
+                key={vt.id}
+                trip={vt}
+                colors={colors}
+                driverId={user?.id || ''}
+                driverName={currentDriver?.name || user?.name || ''}
+                hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
+                onPayCommission={addCommissionPayment}
+                onConfirmTrip={confirmVyapariTrip}
+                onCompleteTrip={completeVyapariTrip}
+              />
+            ))}
+          </View>
+        )}
+
+        {returnLoadTrips.length > 0 && lastCompletedVyapariTrip && (
+          <View style={{ marginBottom: 16 }}>
+            <View style={[styles.returnLoadBanner, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
+              <Feather name="rotate-ccw" size={16} color="#2E7D32" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.returnLoadTitle, { color: '#1B5E20' }]}>
+                  🔄 वापसी का लोड — {lastCompletedVyapariTrip.toCity} से
+                </Text>
+                <Text style={[styles.returnLoadSub, { color: '#388E3C' }]}>
+                  आपकी गाड़ी {lastCompletedVyapariTrip.toCity} में है — यहाँ से {returnLoadTrips.length} trip{returnLoadTrips.length > 1 ? 's' : ''} उपलब्ध
+                </Text>
+              </View>
+            </View>
+            {returnLoadTrips.map((vt) => (
               <VyapariTripCard
                 key={vt.id}
                 trip={vt}
@@ -592,6 +631,9 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   body: { padding: 16 },
   sectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 12, marginTop: 4 },
+  returnLoadBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
+  returnLoadTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  returnLoadSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
   addVehicleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', marginBottom: 16 },
   addVehicleTitle: { fontSize: 15, fontFamily: 'Inter_500Medium' },
   addVehicleSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
