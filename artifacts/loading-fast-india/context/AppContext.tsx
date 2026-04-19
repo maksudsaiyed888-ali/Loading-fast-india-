@@ -53,6 +53,11 @@ interface AppContextType {
   hasDriverPaidCommission: (driverId: string, vyapariTripId: string) => boolean;
   markVyapariAdvancePaid: (vyapariId: string, utr: string) => Promise<void>;
   resetVyapariAdvancePaid: (vyapariId: string) => Promise<void>;
+  blockDriver: (id: string) => Promise<void>;
+  unblockDriver: (id: string) => Promise<void>;
+  blockVyapari: (id: string) => Promise<void>;
+  unblockVyapari: (id: string) => Promise<void>;
+  resolveComplaint: (id: string) => Promise<void>;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -258,6 +263,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const resetVyapariAdvancePaid = async (vyapariId: string) => {
     await fsUpdate('vyaparis', vyapariId, { advancePaid: false, advancePaidAt: '', advanceUTR: '' });
   };
+  const blockDriver = async (id: string) => { await fsUpdate('drivers', id, { isBlocked: true }); };
+  const unblockDriver = async (id: string) => { await fsUpdate('drivers', id, { isBlocked: false }); };
+  const blockVyapari = async (id: string) => { await fsUpdate('vyaparis', id, { isBlocked: true }); };
+  const unblockVyapari = async (id: string) => { await fsUpdate('vyaparis', id, { isBlocked: false }); };
+  const resolveComplaint = async (id: string) => { await fsUpdate('complaints', id, { status: 'resolved' }); };
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open' || t.status === 'low_priority');
 
@@ -372,6 +382,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         markVyapariAdvancePaid,
         resetVyapariAdvancePaid,
+        blockDriver, unblockDriver, blockVyapari, unblockVyapari, resolveComplaint,
         currentDriver, currentVyapari,
       }}
     >

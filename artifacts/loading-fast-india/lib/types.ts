@@ -23,6 +23,7 @@ export interface Driver {
   latitude?: number;
   longitude?: number;
   lastLocationAt?: string;
+  isBlocked?: boolean;
 }
 
 export interface Vyapari {
@@ -44,6 +45,7 @@ export interface Vyapari {
   advancePaid?: boolean;
   advancePaidAt?: string;
   advanceUTR?: string;
+  isBlocked?: boolean;
 }
 
 export interface Vehicle {
