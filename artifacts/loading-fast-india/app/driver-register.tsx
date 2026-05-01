@@ -42,8 +42,7 @@ export default function DriverRegisterScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (step === 2) {
-      ImagePicker.requestCameraPermissionsAsync().catch(() => {});
+    if (step === 2 || step === 3) {
       ImagePicker.requestMediaLibraryPermissionsAsync().catch(() => {});
     }
   }, [step]);
@@ -104,12 +103,8 @@ export default function DriverRegisterScreen() {
     }
   };
 
-  const showPhotoPicker = (key: keyof typeof photos, label: string) => {
-    Alert.alert(label, 'फोटो कैसे लें?', [
-      { text: '📷 Camera से', onPress: () => pickPhoto(key, 'camera') },
-      { text: '🖼️ Gallery से', onPress: () => pickPhoto(key, 'gallery') },
-      { text: 'रहने दो', style: 'cancel' },
-    ]);
+  const showPhotoPicker = (key: keyof typeof photos, _label: string) => {
+    pickPhoto(key, 'gallery');
   };
 
   const handleRegister = async () => {
@@ -293,8 +288,8 @@ export default function DriverRegisterScreen() {
               </View>
             </View>
 
-            <Text style={[styles.selfieGuide, { color: colors.foreground }]}>📸 Selfie के नियम:</Text>
-            {['चेहरा साफ और पूरा दिखे', 'अच्छी रोशनी में लें', 'चश्मा/cap न पहनें', 'Background plain रखें'].map((tip) => (
+            <Text style={[styles.selfieGuide, { color: colors.foreground }]}>📸 Selfie कैसे लें:</Text>
+            {['पहले Camera app खोलें और Selfie लें', 'फिर नीचे बटन दबाएं और Gallery से select करें', 'चेहरा साफ और पूरा दिखे', 'अच्छी रोशनी में लें'].map((tip) => (
               <View key={tip} style={styles.tipRow}>
                 <Feather name="check-circle" size={14} color={colors.success} />
                 <Text style={[styles.tipText, { color: colors.mutedForeground }]}>{tip}</Text>
@@ -308,7 +303,7 @@ export default function DriverRegisterScreen() {
               onPress={() => showPhotoPicker('selfiePhoto', 'Selfie KYC')}
               colors={colors}
               square
-              placeholder="📷 Selfie लें"
+              placeholder="🖼️ Gallery से Selfie चुनें"
             />
 
             <View style={[styles.privacyBox, { borderColor: colors.border }]}>
@@ -385,9 +380,9 @@ function PhotoUploadBox({ label, uri, error, uploading, onPress, colors, square,
           </View>
         ) : (
           <View style={photoStyles.center}>
-            <Feather name="camera" size={28} color={colors.mutedForeground} />
-            <Text style={[photoStyles.mainText, { color: colors.mutedForeground }]}>{placeholder || 'Photo लें'}</Text>
-            <Text style={[photoStyles.subText, { color: colors.mutedForeground }]}>Camera या Gallery से</Text>
+            <Feather name="image" size={28} color={colors.mutedForeground} />
+            <Text style={[photoStyles.mainText, { color: colors.mutedForeground }]}>{placeholder || '🖼️ Gallery से Photo चुनें'}</Text>
+            <Text style={[photoStyles.subText, { color: colors.mutedForeground }]}>पहले Camera से photo लें, फिर यहाँ select करें</Text>
           </View>
         )}
       </TouchableOpacity>
