@@ -79,7 +79,23 @@ export default function DriverRegisterScreen() {
     try {
       let result;
       if (source === 'camera') {
-        result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
+        try {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) {
+            Alert.alert('Camera नहीं मिला', 'Gallery से photo चुनें।', [
+              { text: '🖼️ Gallery खोलें', onPress: () => pickPhoto(key, 'gallery') },
+              { text: 'बाद में', style: 'cancel' },
+            ]);
+            return;
+          }
+          result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
+        } catch (_camErr) {
+          Alert.alert('Camera नहीं चला', 'Gallery से photo चुनें।', [
+            { text: '🖼️ Gallery खोलें', onPress: () => pickPhoto(key, 'gallery') },
+            { text: 'बाद में', style: 'cancel' },
+          ]);
+          return;
+        }
       } else {
         result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
       }
@@ -103,8 +119,12 @@ export default function DriverRegisterScreen() {
     }
   };
 
-  const showPhotoPicker = (key: keyof typeof photos, _label: string) => {
-    pickPhoto(key, 'gallery');
+  const showPhotoPicker = (key: keyof typeof photos, label: string) => {
+    Alert.alert(label, 'फोटो कैसे लें?', [
+      { text: '📷 Camera से', onPress: () => pickPhoto(key, 'camera') },
+      { text: '🖼️ Gallery से', onPress: () => pickPhoto(key, 'gallery') },
+      { text: 'रहने दो', style: 'cancel' },
+    ]);
   };
 
   const handleRegister = async () => {
@@ -381,8 +401,8 @@ function PhotoUploadBox({ label, uri, error, uploading, onPress, colors, square,
         ) : (
           <View style={photoStyles.center}>
             <Feather name="image" size={28} color={colors.mutedForeground} />
-            <Text style={[photoStyles.mainText, { color: colors.mutedForeground }]}>{placeholder || '🖼️ Gallery से Photo चुनें'}</Text>
-            <Text style={[photoStyles.subText, { color: colors.mutedForeground }]}>पहले Camera से photo लें, फिर यहाँ select करें</Text>
+            <Text style={[photoStyles.mainText, { color: colors.mutedForeground }]}>{placeholder || '📷 Photo लें या Gallery से चुनें'}</Text>
+            <Text style={[photoStyles.subText, { color: colors.mutedForeground }]}>Camera या Gallery — दोनों से</Text>
           </View>
         )}
       </TouchableOpacity>
