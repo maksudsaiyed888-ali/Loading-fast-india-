@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import TermsModal from '@/components/TermsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +41,13 @@ export default function DriverRegisterScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (step === 2) {
+      ImagePicker.requestCameraPermissionsAsync().catch(() => {});
+      ImagePicker.requestMediaLibraryPermissionsAsync().catch(() => {});
+    }
+  }, [step]);
+
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const clearError = (k: string) => setErrors((p) => ({ ...p, [k]: '' }));
 
@@ -73,12 +80,8 @@ export default function DriverRegisterScreen() {
     try {
       let result;
       if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Camera Permission', 'Camera permission दें settings में।'); return; }
         result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
       } else {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Gallery Permission', 'Gallery permission दें settings में।'); return; }
         result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
       }
       if (result.canceled || !result.assets?.[0]) return;

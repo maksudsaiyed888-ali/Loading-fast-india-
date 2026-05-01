@@ -29,7 +29,9 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Loading Fast India को GPS चाहिए ताकि ड्राइवर की location दिखाई दे",
         "NSLocationAlwaysUsageDescription": "Loading Fast India को GPS चाहिए ताकि ट्रिप tracking हो सके",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Loading Fast India को GPS चाहिए ताकि नज़दीकी ट्रिप की notification मिले।"
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Loading Fast India को GPS चाहिए ताकि नज़दीकी ट्रिप की notification मिले।",
+        "NSCameraUsageDescription": "Loading Fast India को Camera चाहिए ताकि Aadhaar, License, RC Book और Selfie की photo ली जा सके।",
+        "NSPhotoLibraryUsageDescription": "Loading Fast India को Gallery access चाहिए ताकि document photo upload हो सके।"
       }
     },
     "android": {
@@ -49,12 +51,13 @@
         "android.permission.WAKE_LOCK",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "softwareKeyboardLayoutMode": "resize",
-      "blockedPermissions": [
-        "android.permission.CAMERA"
-      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -84,6 +87,14 @@
       ],
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Loading Fast India को Gallery access चाहिए ताकि document photo upload हो सके।",
+          "cameraPermission": "Loading Fast India को Camera चाहिए ताकि KYC documents की photo ली जा सके।",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-location",
         {
