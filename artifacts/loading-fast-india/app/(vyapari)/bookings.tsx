@@ -1,38 +1,79 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
-import TripCard from '@/components/TripCard';
-import BiltyModal from '@/components/BiltyModal';
-import ComplaintModal from '@/components/ComplaintModal';
-import ChatbotModal from '@/components/ChatbotModal';
-import RatingModal from '@/components/RatingModal';
-import FraudAlertModal from '@/components/FraudAlertModal';
-import { Bilty, Trip } from '@/lib/types';
+import { Bid, VyapariTrip } from '@/lib/types';
+const ADVANCE_UPI = 'maksudsaiyed888@oksbi';
+const ADVANCE_UPI_NAME = 'Loading%20Fast%20India';
 
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
-  const { user, getVyapariBookings, bilties, refreshAll, hasRated } = useApp();
+  const { user, getVyapariOwnTrips, refreshAll, getTripBids, acceptBid, processAdvance20, generateStartOtp, generateEndOtp } = useApp();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
-  const [showComplaint, setShowComplaint] = useState(false);
-  const [fraudTrip, setFraudTrip] = useState<Trip | null>(null);
-  const [showChatbot, setShowChatbot] = useState(false);
-  const [ratingTrip, setRatingTrip] = useState<Trip | null>(null);
-  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [tab, setTab] = useState<'active' | 'completed'>('active');
+  const [advanceModal, setAdvanceModal] = useState(false);
+  const [advanceTrip, setAdvanceTrip] = useState<VyapariTrip | null>(null);
+  const [advanceUtr, setAdvanceUtr] = useState('');
+  const [processingAdvance, setProcessingAdvance] = useState(false);
+  const [otpModal, setOtpModal] = useState(false);
+  const [otpTrip, setOtpTrip] = useState<VyapariTrip | null>(null);
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpType, setOtpType] = useState<'start' | 'end'>('start');
 
-  const myBookings = user ? getVyapariBookings(user.id) : [];
+  const myTrips = user ? getVyapariOwnTrips(user.id) : [];
+  const activeTrips = myTrips.filter(t => !['completed', 'cancelled'].includes(t.status));
+  const completedTrips = myTrips.filter(t => t.status === 'completed');
+  const displayTrips = tab === 'active' ? activeTrips : completedTrips;
+
   const onRefresh = async () => { setRefreshing(true); await refreshAll(); setRefreshing(false); };
 
-  const handleBilty = (tripId: string) => {
-    const b = bilties.find((b) => b.tripId === tripId);
-    if (b) setSelectedBilty(b);
+  const handleAcceptBid = (trip: VyapariTrip, bid: Bid) => {
+    Alert.alert(
+      'Bid Accept करें?',
+      `Driver: ${bid.driverName}\nBid Amount: ₹${bid.bidAmount.toLocaleString('en-IN')}\n\nAccept करने पर 20% advance (₹${Math.round(bid.bidAmount * 0.20).toLocaleString('en-IN')}) देना होगा।`,
+      [
+        { text: 'नहीं', style: 'cancel' },
+        {
+          text: 'हाँ, Accept करें', onPress: async () => {
+            await acceptBid(trip.id, bid);
+            Alert.alert('✅ Bid Accepted!', `अब ₹${Math.round(bid.bidAmount * 0.20).toLocaleString('en-IN')} (20%) advance pay करें।`);
+          }
+        },
+      ]
+    );
+  };
+
+  const openAdvanceModal = (trip: VyapariTrip) => {
+    setAdvanceTrip(trip);
+    setAdvanceUtr('');
+    setAdvanceModal(true);
+  };
+
+  const handleAdvancePay = async () => {
+    if (!advanceTrip || !advanceTrip.acceptedBidAmount || !advanceTrip.acceptedByDriverId) return;
+    if (!advanceUtr.trim()) { Alert.alert('UTR जरूरी है', 'Payment का UTR/Transaction ID दर्ज करें'); return; }
+    setProcessingAdvance(true);
+    try {
+      await processAdvance20(advanceTrip.id, advanceUtr, advanceTrip.acceptedBidAmount, advanceTrip.acceptedByDriverId);
+      setAdvanceModal(false);
+      Alert.alert('✅ Payment Confirmed!', `Driver का contact reveal हो गया!\n\nDriver: ${advanceTrip.acceptedByDriverName}\nPhone: ${advanceTrip.acceptedByDriverPhone}`);
+    } finally {
+      setProcessingAdvance(false);
+    }
+  };
+
+  const handleGenerateOtp = async (trip: VyapariTrip, type: 'start' | 'end') => {
+    let otp = '';
+    if (type === 'start') otp = await generateStartOtp(trip.id);
+    else otp = await generateEndOtp(trip.id);
+    setOtpTrip(trip);
+    setGeneratedOtp(otp);
+    setOtpType(type);
+    setOtpModal(true);
   };
 
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -40,8 +81,16 @@ export default function BookingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient colors={[colors.navy, '#1a4a7a']} style={[styles.header, { paddingTop: top }]}>
-        <Text style={styles.title}>मेरी बुकिंग</Text>
-        <Text style={styles.sub}>{myBookings.length} कुल बुकिंग</Text>
+        <Text style={styles.title}>मेरी Load Posts</Text>
+        <Text style={styles.sub}>{myTrips.length} कुल posts</Text>
+        <View style={styles.tabRow}>
+          <TouchableOpacity style={[styles.tab, { backgroundColor: tab === 'active' ? '#fff' : 'transparent' }]} onPress={() => setTab('active')}>
+            <Text style={[styles.tabText, { color: tab === 'active' ? colors.navy : '#fff' }]}>Active ({activeTrips.length})</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.tab, { backgroundColor: tab === 'completed' ? '#fff' : 'transparent' }]} onPress={() => setTab('completed')}>
+            <Text style={[styles.tabText, { color: tab === 'completed' ? colors.navy : '#fff' }]}>Completed ({completedTrips.length})</Text>
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
 
       <ScrollView
@@ -49,209 +98,243 @@ export default function BookingsScreen() {
         contentContainerStyle={[styles.body, { paddingBottom: 100 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />}
       >
-        {myBookings.length === 0 ? (
+        {displayTrips.length === 0 ? (
           <View style={[styles.empty, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="package" size={40} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>कोई बुकिंग नहीं</Text>
-            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>Browse Trips से ट्रिप बुक करें</Text>
+            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{tab === 'active' ? 'कोई active trip नहीं' : 'कोई completed trip नहीं'}</Text>
+            <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>Post Trip से load post करें</Text>
           </View>
         ) : (
-          myBookings.map((trip) => (
-            <View key={trip.id}>
-              <TripCard trip={trip} />
+          displayTrips.map((trip) => {
+            const bids = getTripBids(trip.id);
+            const pendingBids = bids.filter(b => b.status === 'pending');
+            const advance20 = trip.acceptedBidAmount ? Math.round(trip.acceptedBidAmount * 0.20) : 0;
+            const adv50 = trip.acceptedBidAmount ? Math.round(trip.acceptedBidAmount * 0.50) : 0;
+            const adv30 = trip.acceptedBidAmount ? Math.round(trip.acceptedBidAmount * 0.30) : 0;
+            const statusColor = trip.status === 'open' ? colors.primary : trip.status === 'advance_pending' ? '#f59e0b' : trip.status === 'accepted' ? '#16a34a' : trip.status === 'loading' ? '#2563eb' : trip.status === 'on_way' ? '#7C3AED' : '#6b7280';
+            const statusLabel = trip.status === 'open' ? '📦 Bids आ रही हैं' : trip.status === 'low_priority' ? '⬇️ Low Priority' : trip.status === 'advance_pending' ? '💰 Advance Pay करें' : trip.status === 'accepted' ? '✅ Driver Ready' : trip.status === 'loading' ? '📦 Loading' : trip.status === 'on_way' ? '🚛 On the Way' : '✅ Completed';
 
-              {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && (!trip.paymentType || trip.paymentType === 'sender') && !trip.paymentReceived && (
-                <View style={[styles.rentDueBanner, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
-                  <Text style={styles.rentDueIcon}>💰</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.rentDueTitle, { color: '#E65100' }]}>आपको driver को rent देना है!</Text>
-                    <Text style={[styles.rentDueAmount, { color: '#BF360C' }]}>
-                      कुल किराया: <Text style={{ fontFamily: 'Inter_700Bold' }}>₹{trip.totalRent?.toLocaleString('en-IN')}</Text>
-                    </Text>
-                    <Text style={[styles.rentDueSub, { color: '#BF360C' }]}>
-                      माल loading के समय driver को cash/UPI से दें
-                    </Text>
+            return (
+              <View key={trip.id} style={[styles.tripCard, { backgroundColor: colors.card, borderColor: statusColor + '40' }]}>
+                {/* Header */}
+                <View style={styles.cardRow}>
+                  <View style={[styles.badge, { backgroundColor: statusColor + '18' }]}>
+                    <Text style={[styles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
                   </View>
+                  <Text style={[styles.dateText, { color: colors.mutedForeground }]}>{trip.tripDate}</Text>
                 </View>
-              )}
 
-              {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && trip.paymentType === 'receiver' && (
-                <View>
-                  <View style={[styles.rentDueBanner, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32', marginBottom: 6 }]}>
-                    <Text style={styles.rentDueIcon}>📦</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.rentDueTitle, { color: '#2E7D32' }]}>Receiver Pay Trip</Text>
-                      <Text style={[styles.rentDueSub, { color: '#1B5E20' }]}>
-                        किराया माल पाने वाला (receiver) देगा
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={[styles.rentDueBanner, { backgroundColor: '#FFF8E1', borderColor: '#F57F17', marginBottom: 8 }]}>
-                    <Text style={styles.rentDueIcon}>⚠️</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.rentDueTitle, { color: '#E65100' }]}>महत्वपूर्ण चेतावनी</Text>
-                      <Text style={[styles.rentDueSub, { color: '#BF360C', lineHeight: 18 }]}>
-                        यदि receiver ने payment नहीं की या देरी की, तो{' '}
-                        <Text style={{ fontFamily: 'Inter_700Bold' }}>आप (माल भेजने वाले) को driver को किराया देना होगा।{'\n'}</Text>
-                        अंतिम जिम्मेदारी sender (आप) की है।
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )}
+                <Text style={[styles.route, { color: colors.foreground }]}>{trip.fromCity} → {trip.toCity}</Text>
+                <Text style={[styles.meta, { color: colors.mutedForeground }]}>{trip.goodsCategory} • {trip.weightTons} टन • {trip.vehicleTypePref}</Text>
 
-              {trip.status === 'pending_confirmation' && (
-                <View style={[styles.pendingBanner, { backgroundColor: '#eff6ff', borderColor: '#2563eb' }]}>
-                  <Text style={styles.pendingIcon}>🔑</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.pendingTitle, { color: '#1e40af' }]}>ड्राइवर को यह OTP बताएं</Text>
-                    {trip.deliveryOtp ? (
-                      <View style={[styles.otpBox, { backgroundColor: '#1e40af' }]}>
-                        <Text style={styles.otpText}>{trip.deliveryOtp}</Text>
-                      </View>
+                {/* Bids Section — show when open/low_priority */}
+                {(trip.status === 'open' || trip.status === 'low_priority') && (
+                  <View style={[styles.bidsSection, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <Text style={[styles.bidsSectionTitle, { color: colors.foreground }]}>
+                      🏷️ Bids ({bids.length}) {pendingBids.length > 0 && `— ${pendingBids.length} नई`}
+                    </Text>
+                    {bids.length === 0 ? (
+                      <Text style={[styles.noBids, { color: colors.mutedForeground }]}>अभी कोई bid नहीं आई</Text>
                     ) : (
-                      <Text style={[styles.pendingSubtitle, { color: '#1e40af' }]}>OTP लोड हो रहा है...</Text>
+                      bids.map((bid) => (
+                        <View key={bid.id} style={[styles.bidRow, { borderBottomColor: colors.border }]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.bidDriver, { color: colors.foreground }]}>{bid.driverName}</Text>
+                            <Text style={[styles.bidVehicle, { color: colors.mutedForeground }]}>{bid.vehicleTypeName} {bid.vehicleNumber ? `• ${bid.vehicleNumber}` : ''}</Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.bidAmount, { color: colors.primary }]}>₹{bid.bidAmount.toLocaleString('en-IN')}</Text>
+                            {bid.status === 'pending' && (
+                              <TouchableOpacity
+                                style={[styles.acceptBidBtn, { backgroundColor: '#16a34a' }]}
+                                onPress={() => handleAcceptBid(trip, bid)}
+                              >
+                                <Text style={styles.acceptBidText}>Accept</Text>
+                              </TouchableOpacity>
+                            )}
+                            {bid.status === 'accepted' && <Text style={{ color: '#16a34a', fontSize: 11, fontFamily: 'Inter_700Bold' }}>✅ Accepted</Text>}
+                            {bid.status === 'rejected' && <Text style={{ color: '#dc2626', fontSize: 11 }}>Rejected</Text>}
+                          </View>
+                        </View>
+                      ))
                     )}
-                    <Text style={[styles.pendingSubtitle, { color: '#3b82f6' }]}>
-                      ड्राइवर इस OTP को ऐप में डालने के बाद ट्रिप पूर्ण होगी
-                    </Text>
-                    {trip.deliveryLat ? (
-                      <Text style={[styles.pendingGps, { color: '#6b7280' }]}>
-                        📍 {trip.deliveryLat.toFixed(5)}, {trip.deliveryLng?.toFixed(5)}
-                      </Text>
-                    ) : null}
                   </View>
-                </View>
-              )}
+                )}
 
-              <View style={styles.tripActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.success + '15', borderColor: colors.success }]}
-                  onPress={() => handleBilty(trip.id)}
-                >
-                  <Feather name="file-text" size={14} color={colors.success} />
-                  <Text style={[styles.actionBtnText, { color: colors.success }]}>ई-बिलटी</Text>
-                </TouchableOpacity>
+                {/* Advance Pending — pay 20% */}
+                {trip.status === 'advance_pending' && trip.acceptedBidAmount && (
+                  <View style={[styles.advanceBox, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
+                    <Text style={[styles.advanceTitle, { color: '#B71C1C' }]}>💰 20% Advance Pay करें</Text>
+                    <Text style={[styles.advanceSub, { color: '#BF360C' }]}>
+                      Driver: {trip.acceptedByDriverName}{'\n'}
+                      Total Fare: ₹{trip.acceptedBidAmount.toLocaleString('en-IN')}{'\n'}
+                      20% Advance: <Text style={{ fontFamily: 'Inter_700Bold' }}>₹{advance20.toLocaleString('en-IN')}</Text>{'\n'}
+                      (2% admin + 18% driver wallet locked)
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.upiBtn, { backgroundColor: '#1B5E20' }]}
+                      onPress={() => Linking.openURL(`upi://pay?pa=${ADVANCE_UPI}&pn=${ADVANCE_UPI_NAME}&am=${advance20}&cu=INR&tn=LFI+Advance+${trip.id.slice(0, 8)}`)}
+                    >
+                      <Feather name="smartphone" size={14} color="#fff" />
+                      <Text style={styles.upiBtnText}>UPI से ₹{advance20.toLocaleString('en-IN')} भेजें</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.utrBtn, { borderColor: '#2E7D32' }]} onPress={() => openAdvanceModal(trip)}>
+                      <Text style={{ color: '#2E7D32', fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>✅ भेज दिया — UTR दर्ज करें</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
-                {trip.commissionPaid ? (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#0ea5e9' + '15', borderColor: '#0ea5e9' }]}
-                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
-                  >
-                    <Feather name="message-circle" size={14} color="#0ea5e9" />
-                    <Text style={[styles.actionBtnText, { color: '#0ea5e9' }]}>ड्राइवर से चैट</Text>
+                {/* Driver Details — after advance paid */}
+                {trip.driverDetailsRevealed && trip.acceptedByDriverName && (
+                  <View style={[styles.driverReveal, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                    <Text style={[styles.driverRevealTitle, { color: '#1B5E20' }]}>✅ Driver Contact Unlocked</Text>
+                    <Text style={[styles.driverRevealInfo, { color: '#2E7D32' }]}>👤 {trip.acceptedByDriverName}</Text>
+                    <Text style={[styles.driverRevealInfo, { color: '#2E7D32' }]}>📞 {trip.acceptedByDriverPhone}</Text>
+                    <Text style={[styles.walletInfo, { color: '#1565C0' }]}>
+                      🔒 Driver Wallet: ₹{(trip.driverWalletAmount || 0).toLocaleString('en-IN')} (locked until delivery){'\n'}
+                      💰 Loading Cash (50%): ₹{adv50.toLocaleString('en-IN')}{'\n'}
+                      💰 Delivery Cash (30%): ₹{adv30.toLocaleString('en-IN')}
+                    </Text>
+                    <View style={styles.contactRow}>
+                      <TouchableOpacity style={[styles.contactBtn, { backgroundColor: colors.primary }]} onPress={() => Linking.openURL(`tel:${trip.acceptedByDriverPhone}`)}>
+                        <Feather name="phone" size={13} color="#fff" /><Text style={styles.contactBtnText}>Call</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.contactBtn, { backgroundColor: '#25D366' }]} onPress={() => Linking.openURL(`whatsapp://send?phone=91${trip.acceptedByDriverPhone}`)}>
+                        <Feather name="message-circle" size={13} color="#fff" /><Text style={styles.contactBtnText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* OTP Actions */}
+                {trip.status === 'accepted' && (
+                  <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#2563eb' }]} onPress={() => handleGenerateOtp(trip, 'start')}>
+                    <Feather name="key" size={14} color="#fff" />
+                    <Text style={styles.otpBtnText}>Start Trip OTP Generate करें (Merchant देगा Driver को)</Text>
                   </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#94a3b8' + '15', borderColor: '#94a3b8' }]}
-                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
-                  >
-                    <Feather name="lock" size={14} color="#94a3b8" />
-                    <Text style={[styles.actionBtnText, { color: '#94a3b8' }]}>चैट 🔒</Text>
+                )}
+
+                {trip.status === 'loading' && (
+                  <View style={[styles.infoBox, { backgroundColor: '#E3F2FD', borderColor: '#1976D2' }]}>
+                    <Text style={{ color: '#1565C0', fontSize: 13, fontFamily: 'Inter_700Bold' }}>📦 Loading हो रही है</Text>
+                    <Text style={{ color: '#1976D2', fontSize: 12, marginTop: 4 }}>Driver ने Start OTP verify किया। ₹{adv50.toLocaleString('en-IN')} (50%) cash दें।</Text>
+                  </View>
+                )}
+
+                {trip.status === 'on_way' && (
+                  <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#7C3AED' }]} onPress={() => handleGenerateOtp(trip, 'end')}>
+                    <Feather name="check-circle" size={14} color="#fff" />
+                    <Text style={styles.otpBtnText}>Delivery OTP Generate करें (Receiver देगा Driver को)</Text>
                   </TouchableOpacity>
                 )}
 
                 {trip.status === 'completed' && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, {
-                      backgroundColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' + '15' : '#f59e0b' + '15',
-                      borderColor: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b',
-                    }]}
-                    onPress={() => setRatingTrip(trip)}
-                  >
-                    <Text style={{ fontSize: 12 }}>⭐</Text>
-                    <Text style={[styles.actionBtnText, { color: (user && hasRated(trip.id, user.id)) ? '#94a3b8' : '#f59e0b' }]}>
-                      {(user && hasRated(trip.id, user.id)) ? 'रेटिंग दी ✓' : 'रेटिंग दें'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={[styles.infoBox, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                    <Text style={{ color: '#1B5E20', fontSize: 13, fontFamily: 'Inter_700Bold' }}>✅ Trip Completed!</Text>
+                    <Text style={{ color: '#388E3C', fontSize: 12, marginTop: 4 }}>Driver wallet ₹{(trip.driverWalletAmount || 0).toLocaleString('en-IN')} unlock हो गया।</Text>
+                  </View>
                 )}
-
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: '#dc262615', borderColor: '#dc2626' }]}
-                  onPress={() => setFraudTrip(trip)}
-                >
-                  <Feather name="alert-octagon" size={14} color="#dc2626" />
-                  <Text style={[styles.actionBtnText, { color: '#dc2626' }]}>Fraud</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
-                  onPress={() => { setSelectedTrip(trip); setShowComplaint(true); }}
-                >
-                  <Feather name="alert-triangle" size={14} color={colors.primary} />
-                  <Text style={[styles.actionBtnText, { color: colors.primary }]}>शिकायत</Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        style={[styles.chatbotFab, { backgroundColor: '#E07B39' }]}
-        onPress={() => setShowChatbot(true)}
-        activeOpacity={0.85}
-      >
-        <Feather name="help-circle" size={24} color="#fff" />
-      </TouchableOpacity>
-      <ChatbotModal visible={showChatbot} onClose={() => setShowChatbot(false)} />
-      {ratingTrip && (
-        <RatingModal
-          visible={!!ratingTrip}
-          onClose={() => setRatingTrip(null)}
-          tripId={ratingTrip.id}
-          toId={ratingTrip.driverId}
-          toName={ratingTrip.driverName}
-          toRole="driver"
-        />
-      )}
-      <BiltyModal bilty={selectedBilty} visible={!!selectedBilty} onClose={() => setSelectedBilty(null)} />
-      <ComplaintModal
-        visible={showComplaint}
-        onClose={() => setShowComplaint(false)}
-        againstId={selectedTrip?.driverId}
-        againstName={selectedTrip?.driverName}
-        againstRole="driver"
-        tripId={selectedTrip?.id}
-        bookingId={selectedTrip?.id}
-        hasGST={false}
-      />
-      <FraudAlertModal
-        visible={!!fraudTrip}
-        onClose={() => setFraudTrip(null)}
-        bookingId={fraudTrip?.id}
-        targetName={fraudTrip?.driverName}
-        targetId={fraudTrip?.driverId}
-        targetRole="driver"
-        hasGST={false}
-      />
+      {/* Advance UTR Modal */}
+      <Modal visible={advanceModal} transparent animationType="slide" onRequestClose={() => setAdvanceModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+            <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 4 }}>Payment UTR दर्ज करें</Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, marginBottom: 16 }}>
+              ₹{advanceTrip?.acceptedBidAmount ? Math.round(advanceTrip.acceptedBidAmount * 0.20).toLocaleString('en-IN') : ''} का UTR/Transaction ID
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 15, color: colors.foreground, backgroundColor: colors.card, marginBottom: 12, fontFamily: 'Inter_500Medium' }}
+              placeholder="UTR123456789"
+              placeholderTextColor={colors.mutedForeground}
+              value={advanceUtr}
+              onChangeText={setAdvanceUtr}
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity
+              style={{ backgroundColor: '#1B5E20', borderRadius: 10, padding: 14, alignItems: 'center', opacity: processingAdvance ? 0.6 : 1 }}
+              onPress={handleAdvancePay}
+              disabled={processingAdvance}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' }}>{processingAdvance ? 'Process हो रहा है...' : 'Confirm Payment'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 10, alignItems: 'center' }} onPress={() => setAdvanceModal(false)}>
+              <Text style={{ color: colors.mutedForeground }}>रद्द करें</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* OTP Display Modal */}
+      <Modal visible={otpModal} transparent animationType="fade" onRequestClose={() => setOtpModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: colors.background, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center' }}>
+            <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 8 }}>
+              {otpType === 'start' ? '🔑 Start Trip OTP' : '🎯 Delivery OTP'}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+              {otpType === 'start' ? 'यह OTP Driver को दें — Loading के समय verify करेगा' : 'यह OTP Receiver को SMS जाएगा — Delivery के समय Driver को देगा'}
+            </Text>
+            <View style={{ backgroundColor: '#1B5E20', borderRadius: 14, paddingHorizontal: 32, paddingVertical: 18, marginBottom: 16 }}>
+              <Text style={{ color: '#fff', fontSize: 36, fontFamily: 'Inter_700Bold', letterSpacing: 10 }}>{generatedOtp}</Text>
+            </View>
+            <TouchableOpacity style={{ backgroundColor: colors.primary, borderRadius: 10, padding: 12, width: '100%', alignItems: 'center' }} onPress={() => setOtpModal(false)}>
+              <Text style={{ color: '#fff', fontFamily: 'Inter_700Bold' }}>बंद करें</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 20, paddingBottom: 20 },
+  header: { padding: 20, paddingBottom: 16 },
   title: { color: '#fff', fontSize: 22, fontFamily: 'Inter_700Bold' },
   sub: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 },
+  tabRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  tab: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 7 },
+  tabText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   body: { padding: 16 },
   empty: { borderRadius: 16, padding: 40, alignItems: 'center', gap: 8, borderWidth: 1, marginTop: 20 },
   emptyTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
   emptySub: { fontSize: 13, fontFamily: 'Inter_400Regular' },
-  pendingBanner: { borderRadius: 12, borderWidth: 1.5, padding: 14, flexDirection: 'row', gap: 10, marginTop: -6, marginBottom: 8, alignItems: 'flex-start' },
-  pendingIcon: { fontSize: 22, marginTop: 2 },
-  pendingTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 6 },
-  rentDueBanner: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 12, borderWidth: 2, marginTop: -6, marginBottom: 8, alignItems: 'flex-start' },
-  rentDueIcon: { fontSize: 22 },
-  rentDueTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 3 },
-  rentDueAmount: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 2 },
-  rentDueSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 16 },
-  pendingSubtitle: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  pendingGps: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 4 },
-  otpBox: { borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, alignSelf: 'flex-start', marginVertical: 6 },
-  otpText: { color: '#fff', fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: 8 },
-  tripActions: { flexDirection: 'row', gap: 8, marginTop: -4, marginBottom: 12, flexWrap: 'wrap' },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5 },
-  actionBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  chatbotFab: { position: 'absolute', bottom: 88, right: 20, width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
+  tripCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 16 },
+  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  dateText: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  route: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 3 },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 10 },
+  bidsSection: { borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 10 },
+  bidsSectionTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 8 },
+  noBids: { fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', paddingVertical: 8 },
+  bidRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
+  bidDriver: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  bidVehicle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  bidAmount: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  acceptBidBtn: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5, marginTop: 4 },
+  acceptBidText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  advanceBox: { borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 10, gap: 6 },
+  advanceTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  advanceSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  upiBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 11, borderRadius: 8, justifyContent: 'center' },
+  upiBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' },
+  utrBtn: { borderWidth: 1.5, borderRadius: 8, padding: 10, alignItems: 'center', marginTop: 4 },
+  driverReveal: { borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 10, gap: 4 },
+  driverRevealTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  driverRevealInfo: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  walletInfo: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18, marginTop: 6 },
+  contactRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  contactBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1, justifyContent: 'center', padding: 9, borderRadius: 8 },
+  contactBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  otpBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 11, borderRadius: 9, justifyContent: 'center', marginBottom: 8 },
+  otpBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold', flex: 1 },
+  infoBox: { borderRadius: 9, borderWidth: 1.5, padding: 10, marginBottom: 8 },
 });

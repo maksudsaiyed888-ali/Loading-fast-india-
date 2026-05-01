@@ -344,6 +344,20 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface Bid {
+  id: string;
+  tripId: string;
+  driverId: string;
+  driverName: string;
+  driverPhone: string;
+  vehicleType: string;
+  vehicleTypeName: string;
+  vehicleNumber?: string;
+  bidAmount: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+}
+
 export interface VyapariTrip {
   id: string;
   vyapariId: string;
@@ -359,17 +373,32 @@ export interface VyapariTrip {
   ratePerTon: number;
   tripDate: string;
   description: string;
-  status: 'open' | 'low_priority' | 'accepted' | 'completed' | 'cancelled';
+  status: 'open' | 'low_priority' | 'advance_pending' | 'accepted' | 'loading' | 'on_way' | 'completed' | 'cancelled';
   createdAt: string;
   paymentType?: 'sender' | 'receiver';
   advanceUTR?: string;
   acceptedByDriverId?: string;
   acceptedByDriverName?: string;
+  acceptedByDriverPhone?: string;
   acceptedAt?: string;
   completedAt?: string;
   receiverName?: string;
   receiverPhone?: string;
   receiverAddress?: string;
+  acceptedBidId?: string;
+  acceptedBidAmount?: number;
+  advancePaid20?: boolean;
+  advancePaid20At?: string;
+  advanceUTR20?: string;
+  driverDetailsRevealed?: boolean;
+  startOtp?: string;
+  endOtp?: string;
+  loadingCashPaid?: boolean;
+  loadingCashPaidAt?: string;
+  deliveryCashPaid?: boolean;
+  deliveryCashPaidAt?: string;
+  driverWalletAmount?: number;
+  adminCommissionAmount?: number;
 }
 
 export interface CommissionPayment {

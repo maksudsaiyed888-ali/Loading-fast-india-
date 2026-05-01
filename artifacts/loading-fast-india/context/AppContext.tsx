@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import { db } from '@/lib/firebase';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { updateDriverLocation } from '@/lib/location';
-import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip, CommissionPayment } from '@/lib/types';
+import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, AppRating, VyapariTrip, CommissionPayment, Bid } from '@/lib/types';
 
 const USER_KEY = '@lfi_user';
 
@@ -53,6 +53,16 @@ interface AppContextType {
   hasDriverPaidCommission: (driverId: string, vyapariTripId: string) => boolean;
   markVyapariAdvancePaid: (vyapariId: string, utr: string) => Promise<void>;
   resetVyapariAdvancePaid: (vyapariId: string) => Promise<void>;
+  bids: Bid[];
+  addBid: (b: Bid) => Promise<void>;
+  acceptBid: (tripId: string, bid: Bid) => Promise<void>;
+  processAdvance20: (tripId: string, utr: string, bidAmount: number, driverId: string) => Promise<void>;
+  generateStartOtp: (tripId: string) => Promise<string>;
+  verifyStartOtp: (tripId: string, otp: string, bidAmount: number) => Promise<boolean>;
+  generateEndOtp: (tripId: string) => Promise<string>;
+  verifyEndOtp: (tripId: string, otp: string, bidAmount: number, driverId: string) => Promise<boolean>;
+  getTripBids: (tripId: string) => Bid[];
+  getDriverBids: (driverId: string) => Bid[];
   blockDriver: (id: string) => Promise<void>;
   unblockDriver: (id: string) => Promise<void>;
   blockVyapari: (id: string) => Promise<void>;
@@ -109,6 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [appRatings, setAppRatings] = useState<AppRating[]>([]);
   const [vyapariTrips, setVyapariTrips] = useState<VyapariTrip[]>([]);
   const [commissionPayments, setCommissionPayments] = useState<CommissionPayment[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
@@ -137,6 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     listen<AppRating>('appRatings', setAppRatings);
     listen<VyapariTrip>('vyapariTrips', setVyapariTrips);
     listen<CommissionPayment>('commissionPayments', setCommissionPayments);
+    listen<Bid>('bids', setBids);
 
     AsyncStorage.getItem(USER_KEY).then((saved) => {
       if (saved) setUser(JSON.parse(saved));
@@ -258,6 +270,92 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const hasDriverPaidCommission = (driverId: string, vyapariTripId: string) =>
     commissionPayments.some((c) => c.driverId === driverId && c.vyapariTripId === vyapariTripId);
+
+  const addBid = async (b: Bid) => { await fsSet('bids', b); };
+
+  const acceptBid = async (tripId: string, bid: Bid) => {
+    await fsUpdate('bids', bid.id, { status: 'accepted' });
+    const otherBids = bids.filter(b => b.tripId === tripId && b.id !== bid.id);
+    for (const ob of otherBids) {
+      await fsUpdate('bids', ob.id, { status: 'rejected' });
+    }
+    await fsUpdate('vyapariTrips', tripId, {
+      status: 'advance_pending',
+      acceptedBidId: bid.id,
+      acceptedBidAmount: bid.bidAmount,
+      acceptedByDriverId: bid.driverId,
+      acceptedByDriverName: bid.driverName,
+      acceptedByDriverPhone: bid.driverPhone,
+      acceptedAt: new Date().toISOString(),
+    });
+  };
+
+  const processAdvance20 = async (tripId: string, utr: string, bidAmount: number, driverId: string) => {
+    const adminCut = Math.round(bidAmount * 0.02);
+    const driverLocked = Math.round(bidAmount * 0.18);
+    const commId = `comm_${tripId}`;
+    await fsSet('commissionPayments', {
+      id: commId,
+      driverId,
+      driverName: '',
+      vyapariTripId: tripId,
+      vyapariId: '',
+      amount: adminCut,
+      utrNumber: utr,
+      paidAt: new Date().toISOString(),
+    } as CommissionPayment);
+    await fsUpdate('vyapariTrips', tripId, {
+      status: 'accepted',
+      advancePaid20: true,
+      advancePaid20At: new Date().toISOString(),
+      advanceUTR20: utr.trim().toUpperCase(),
+      driverDetailsRevealed: true,
+      driverWalletAmount: driverLocked,
+      adminCommissionAmount: adminCut,
+    });
+  };
+
+  const generateStartOtp = async (tripId: string): Promise<string> => {
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    await fsUpdate('vyapariTrips', tripId, { startOtp: otp });
+    return otp;
+  };
+
+  const verifyStartOtp = async (tripId: string, otp: string, _bidAmount: number): Promise<boolean> => {
+    const trip = vyapariTrips.find(t => t.id === tripId);
+    if (!trip?.startOtp) return false;
+    if (trip.startOtp.trim() !== otp.trim()) return false;
+    await fsUpdate('vyapariTrips', tripId, {
+      status: 'loading',
+      loadingCashPaid: true,
+      loadingCashPaidAt: new Date().toISOString(),
+      startOtp: '',
+    });
+    return true;
+  };
+
+  const generateEndOtp = async (tripId: string): Promise<string> => {
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    await fsUpdate('vyapariTrips', tripId, { endOtp: otp, status: 'on_way' });
+    return otp;
+  };
+
+  const verifyEndOtp = async (tripId: string, otp: string, bidAmount: number, driverId: string): Promise<boolean> => {
+    const trip = vyapariTrips.find(t => t.id === tripId);
+    if (!trip?.endOtp) return false;
+    if (trip.endOtp.trim() !== otp.trim()) return false;
+    await fsUpdate('vyapariTrips', tripId, {
+      status: 'completed',
+      deliveryCashPaid: true,
+      deliveryCashPaidAt: new Date().toISOString(),
+      endOtp: '',
+      completedAt: new Date().toISOString(),
+    });
+    return true;
+  };
+
+  const getTripBids = (tripId: string) => bids.filter(b => b.tripId === tripId);
+  const getDriverBids = (driverId: string) => bids.filter(b => b.driverId === driverId);
 
   const markVyapariAdvancePaid = async (vyapariId: string, utr: string) => {
     await fsUpdate('vyaparis', vyapariId, { advancePaid: true, advancePaidAt: new Date().toISOString(), advanceUTR: utr.trim().toUpperCase() });
@@ -386,6 +484,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         markVyapariAdvancePaid,
         resetVyapariAdvancePaid,
+        bids, addBid, acceptBid, processAdvance20, generateStartOtp, verifyStartOtp, generateEndOtp, verifyEndOtp, getTripBids, getDriverBids,
         blockDriver, unblockDriver, blockVyapari, unblockVyapari, resolveComplaint, approveDriverKyc, rejectDriverKyc,
         currentDriver, currentVyapari,
       }}

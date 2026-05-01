@@ -8,16 +8,19 @@ import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import TripCard from '@/components/TripCard';
 import BiltyModal from '@/components/BiltyModal';
-import { Bilty, VyapariTrip } from '@/lib/types';
-import { formatCurrency, generateBiltyNumber, generateId, calcCommission } from '@/lib/utils';
-import { COMMISSION_UPI } from '@/lib/types';
+import { Bilty, VyapariTrip, Bid } from '@/lib/types';
+import { formatCurrency, generateId } from '@/lib/utils';
 
 type Colors = ReturnType<typeof useColors>;
 
 export default function DriverHomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, addBilty, updateTrip, getOpenVyapariTrips, vyapariTrips, addCommissionPayment, hasDriverPaidCommission, confirmVyapariTrip, completeVyapariTrip } = useApp();
+  const { user, currentDriver, getDriverTrips, getDriverVehicles, vehicles, bilties, refreshAll, getOpenVyapariTrips, vyapariTrips, addBid, getDriverBids, getTripBids } = useApp();
+  const [bidModal, setBidModal] = useState(false);
+  const [bidTrip, setBidTrip] = useState<VyapariTrip | null>(null);
+  const [bidAmount, setBidAmount] = useState('');
+  const [submittingBid, setSubmittingBid] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedBilty, setSelectedBilty] = useState<Bilty | null>(null);
   const [showManualSearch, setShowManualSearch] = useState(false);
@@ -29,11 +32,41 @@ export default function DriverHomeScreen() {
   const activeTrips = myTrips.filter((t) => t.status === 'confirmed');
   const myBilties = bilties.filter((b) => b.driverId === user?.id);
   const openVyapariTrips = getOpenVyapariTrips();
-  const myAcceptedVyapariTrips = user ? vyapariTrips.filter(t => t.acceptedByDriverId === user.id && (t.status === 'accepted' || t.status === 'completed')) : [];
+  const myBids = user ? getDriverBids(user.id) : [];
+  const myAcceptedVyapariTrips = user ? vyapariTrips.filter(t => t.acceptedByDriverId === user.id && ['advance_pending','accepted','loading','on_way'].includes(t.status)) : [];
+  const myCompletedVyapariTrips = user ? vyapariTrips.filter(t => t.acceptedByDriverId === user.id && t.status === 'completed') : [];
+
+  const handleBidSubmit = async () => {
+    if (!bidTrip || !user || !currentDriver) return;
+    const amt = parseFloat(bidAmount);
+    if (!amt || amt <= 0) { Alert.alert('गलत राशि', 'सही bid amount डालें'); return; }
+    const myVehicle = myVehicles[0];
+    const bid: Bid = {
+      id: generateId(),
+      tripId: bidTrip.id,
+      driverId: user.id,
+      driverName: currentDriver.name,
+      driverPhone: currentDriver.phone,
+      vehicleType: myVehicle?.vehicleType || '',
+      vehicleTypeName: myVehicle?.vehicleTypeName || '',
+      vehicleNumber: myVehicle?.vehicleNumber || '',
+      bidAmount: amt,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    setSubmittingBid(true);
+    try {
+      await addBid(bid);
+      setBidModal(false);
+      setBidAmount('');
+      Alert.alert('✅ Bid लगाई गई!', `आपकी ₹${amt.toLocaleString('en-IN')} की bid submit हो गई। व्यापारी जल्द ही reply करेगा।`);
+    } finally {
+      setSubmittingBid(false);
+    }
+  };
 
   // Return load: find last completed trip's toCity, then show open trips from that city
-  const lastCompletedVyapariTrip = [...myAcceptedVyapariTrips]
-    .filter(t => t.status === 'completed')
+  const lastCompletedVyapariTrip = [...myCompletedVyapariTrips]
     .sort((a, b) => new Date(b.completedAt || b.createdAt).getTime() - new Date(a.completedAt || a.createdAt).getTime())[0];
   const returnCity = lastCompletedVyapariTrip?.toCity?.trim().toLowerCase();
   const returnLoadTrips = returnCity
@@ -114,22 +147,59 @@ export default function DriverHomeScreen() {
           </TouchableOpacity>
         )}
 
+        {myBids.filter(b => b.status === 'pending').length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>⏳ मेरी Pending Bids</Text>
+            {myBids.filter(b => b.status === 'pending').slice(0, 3).map(b => {
+              const trip = vyapariTrips.find(t => t.id === b.tripId);
+              if (!trip) return null;
+              return (
+                <View key={b.id} style={[vtStyles.card, { backgroundColor: colors.card, borderColor: '#f59e0b40' }]}>
+                  <View style={vtStyles.row}>
+                    <View style={[vtStyles.badge, { backgroundColor: '#fef3c710' }]}><Text style={[vtStyles.badgeText, { color: '#d97706' }]}>⏳ Bid Pending</Text></View>
+                    <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>₹{b.bidAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+                  <Text style={[vtStyles.route, { color: colors.foreground }]}>{trip.fromCity} → {trip.toCity}</Text>
+                  <Text style={[vtStyles.detailText, { color: colors.mutedForeground }]}>{trip.goodsCategory} • {trip.weightTons} टन</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         {myAcceptedVyapariTrips.length > 0 && (
           <View style={{ marginBottom: 16 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🚛 मेरी Accepted Trips</Text>
-            {myAcceptedVyapariTrips.map((vt) => (
-              <VyapariTripCard
-                key={vt.id}
-                trip={vt}
-                colors={colors}
-                driverId={user?.id || ''}
-                driverName={currentDriver?.name || user?.name || ''}
-                hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
-                onPayCommission={addCommissionPayment}
-                onConfirmTrip={confirmVyapariTrip}
-                onCompleteTrip={completeVyapariTrip}
-              />
-            ))}
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>🚛 मेरी Active Trips</Text>
+            {myAcceptedVyapariTrips.map((vt) => {
+              const statusLabel = vt.status === 'advance_pending' ? '💰 Advance का इंतजार' : vt.status === 'accepted' ? '✅ Advance मिला — Trip शुरू करें' : vt.status === 'loading' ? '📦 Loading हो रही है' : '🚛 रास्ते में';
+              const statusColor = vt.status === 'advance_pending' ? '#f59e0b' : vt.status === 'accepted' ? '#16a34a' : '#2563eb';
+              return (
+                <View key={vt.id} style={[vtStyles.card, { backgroundColor: colors.card, borderColor: statusColor + '40' }]}>
+                  <View style={vtStyles.row}>
+                    <View style={[vtStyles.badge, { backgroundColor: statusColor + '18' }]}><Text style={[vtStyles.badgeText, { color: statusColor }]}>{statusLabel}</Text></View>
+                    <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>₹{(vt.acceptedBidAmount || 0).toLocaleString('en-IN')}</Text>
+                  </View>
+                  <Text style={[vtStyles.route, { color: colors.foreground }]}>{vt.fromCity} → {vt.toCity}</Text>
+                  <Text style={[vtStyles.detailText, { color: colors.mutedForeground }]}>{vt.goodsCategory} • {vt.weightTons} टन</Text>
+                  {vt.driverDetailsRevealed && vt.status !== 'advance_pending' && (
+                    <View style={[{ backgroundColor: '#E8F5E9', borderRadius: 8, padding: 8, marginTop: 6 }]}>
+                      <Text style={{ color: '#1B5E20', fontSize: 12, fontFamily: 'Inter_700Bold' }}>✅ Wallet: ₹{(vt.driverWalletAmount || 0).toLocaleString('en-IN')} Locked</Text>
+                      <Text style={{ color: '#388E3C', fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2 }}>Trip complete होने पर unlock होगा</Text>
+                    </View>
+                  )}
+                  {vt.driverDetailsRevealed && (
+                    <View style={vtStyles.actionRow}>
+                      <TouchableOpacity style={[vtStyles.actionBtn, { backgroundColor: colors.primary, flex: 1 }]} onPress={() => Linking.openURL(`tel:${vt.vyapariPhone}`)}>
+                        <Feather name="phone" size={14} color="#fff" /><Text style={vtStyles.actionBtnText}>Call व्यापारी</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  <Text style={{ color: colors.mutedForeground, fontSize: 11, marginTop: 6, fontFamily: 'Inter_400Regular' }}>
+                    OTP flow → My Trips tab से manage करें
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -138,26 +208,12 @@ export default function DriverHomeScreen() {
             <View style={[styles.returnLoadBanner, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
               <Feather name="rotate-ccw" size={16} color="#2E7D32" />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.returnLoadTitle, { color: '#1B5E20' }]}>
-                  🔄 वापसी का लोड — {lastCompletedVyapariTrip.toCity} से
-                </Text>
-                <Text style={[styles.returnLoadSub, { color: '#388E3C' }]}>
-                  आपकी गाड़ी {lastCompletedVyapariTrip.toCity} में है — यहाँ से {returnLoadTrips.length} trip{returnLoadTrips.length > 1 ? 's' : ''} उपलब्ध
-                </Text>
+                <Text style={[styles.returnLoadTitle, { color: '#1B5E20' }]}>🔄 वापसी का लोड — {lastCompletedVyapariTrip.toCity} से</Text>
+                <Text style={[styles.returnLoadSub, { color: '#388E3C' }]}>आपकी गाड़ी {lastCompletedVyapariTrip.toCity} में है — {returnLoadTrips.length} trip उपलब्ध</Text>
               </View>
             </View>
             {returnLoadTrips.map((vt) => (
-              <VyapariTripCard
-                key={vt.id}
-                trip={vt}
-                colors={colors}
-                driverId={user?.id || ''}
-                driverName={currentDriver?.name || user?.name || ''}
-                hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
-                onPayCommission={addCommissionPayment}
-                onConfirmTrip={confirmVyapariTrip}
-                onCompleteTrip={completeVyapariTrip}
-              />
+              <OpenTripBidCard key={vt.id} trip={vt} colors={colors} myBid={myBids.find(b => b.tripId === vt.id)} onBid={() => { setBidTrip(vt); setBidModal(true); }} />
             ))}
           </View>
         )}
@@ -201,17 +257,7 @@ export default function DriverHomeScreen() {
                       ✅ {manualResults.length} trip{manualResults.length > 1 ? 's' : ''} मिली
                     </Text>
                     {manualResults.map((vt) => (
-                      <VyapariTripCard
-                        key={vt.id}
-                        trip={vt}
-                        colors={colors}
-                        driverId={user?.id || ''}
-                        driverName={currentDriver?.name || user?.name || ''}
-                        hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
-                        onPayCommission={addCommissionPayment}
-                        onConfirmTrip={confirmVyapariTrip}
-                        onCompleteTrip={completeVyapariTrip}
-                      />
+                      <OpenTripBidCard key={vt.id} trip={vt} colors={colors} myBid={myBids.find(b => b.tripId === vt.id)} onBid={() => { setBidTrip(vt); setBidModal(true); }} />
                     ))}
                   </>
                 ) : (
@@ -250,19 +296,9 @@ export default function DriverHomeScreen() {
 
         {openVyapariTrips.length > 0 && (
           <View style={{ marginBottom: 16 }}>
-            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📦 व्यापारी की जरूरत</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>📦 व्यापारी की जरूरत — Bid लगाएं</Text>
             {openVyapariTrips.slice(0, 4).map((vt) => (
-              <VyapariTripCard
-                key={vt.id}
-                trip={vt}
-                colors={colors}
-                driverId={user?.id || ''}
-                driverName={currentDriver?.name || user?.name || ''}
-                hasPaid={hasDriverPaidCommission(user?.id || '', vt.id)}
-                onPayCommission={addCommissionPayment}
-                onConfirmTrip={confirmVyapariTrip}
-                onCompleteTrip={completeVyapariTrip}
-              />
+              <OpenTripBidCard key={vt.id} trip={vt} colors={colors} myBid={myBids.find(b => b.tripId === vt.id)} onBid={() => { setBidTrip(vt); setBidModal(true); }} />
             ))}
           </View>
         )}
@@ -286,32 +322,55 @@ export default function DriverHomeScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.commissionInfo, { backgroundColor: '#16a34a10', borderColor: '#16a34a40' }]}
-          onPress={() => Alert.alert(
-            'Commission भेजें',
-            `Loading Fast India को 2% commission UPI पर भेजें।\n\n${COMMISSION_UPI}\nनाम: Loading Fast India`,
-            [
-              { text: 'UPI App खोलें', onPress: () => Linking.openURL(`upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&cu=INR`) },
-              { text: 'बंद करें', style: 'cancel' },
-            ]
-          )}
-          activeOpacity={0.8}
-        >
-          <Feather name="credit-card" size={15} color="#16a34a" />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.commissionTitle, { color: '#16a34a' }]}>2% Commission — Loading Fast India</Text>
-            <Text style={[styles.commissionSub, { color: colors.mutedForeground }]}>{COMMISSION_UPI}</Text>
-          </View>
-          <Feather name="chevron-right" size={15} color="#16a34a" />
-        </TouchableOpacity>
-
         {myTrips.slice(-3).reverse().map((trip) => (
           <TripCard key={trip.id} trip={trip} isMyTrip onPress={() => handleViewBilty(trip.id)} />
         ))}
       </ScrollView>
 
       <BiltyModal bilty={selectedBilty} visible={!!selectedBilty} onClose={() => setSelectedBilty(null)} />
+
+      {/* Bid Modal */}
+      <Modal visible={bidModal} transparent animationType="slide" onRequestClose={() => setBidModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+            <Text style={{ fontSize: 18, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 4 }}>💰 Bid लगाएं</Text>
+            {bidTrip && (
+              <Text style={{ color: colors.mutedForeground, fontSize: 13, marginBottom: 16, fontFamily: 'Inter_400Regular' }}>
+                {bidTrip.fromCity} → {bidTrip.toCity} • {bidTrip.goodsCategory} • {bidTrip.weightTons} टन
+              </Text>
+            )}
+            <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 6 }}>Total Freight Amount (₹)</Text>
+            <TextInput
+              style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 20, fontFamily: 'Inter_700Bold', color: colors.foreground, backgroundColor: colors.card, marginBottom: 8 }}
+              placeholder="जैसे: 25000"
+              placeholderTextColor={colors.mutedForeground}
+              value={bidAmount}
+              onChangeText={setBidAmount}
+              keyboardType="numeric"
+            />
+            {bidAmount ? (
+              <View style={{ backgroundColor: '#E8F5E9', borderRadius: 8, padding: 10, marginBottom: 12 }}>
+                <Text style={{ color: '#1B5E20', fontSize: 12, fontFamily: 'Inter_500Medium' }}>
+                  आपकी Bid: ₹{parseFloat(bidAmount || '0').toLocaleString('en-IN')}{'\n'}
+                  Merchant को 20% advance देना होगा: ₹{Math.round(parseFloat(bidAmount || '0') * 0.20).toLocaleString('en-IN')}{'\n'}
+                  आपको Loading पर (50% cash): ₹{Math.round(parseFloat(bidAmount || '0') * 0.50).toLocaleString('en-IN')}{'\n'}
+                  Delivery पर (30% cash): ₹{Math.round(parseFloat(bidAmount || '0') * 0.30).toLocaleString('en-IN')}
+                </Text>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={{ backgroundColor: colors.primary, borderRadius: 10, padding: 14, alignItems: 'center', opacity: submittingBid ? 0.6 : 1 }}
+              onPress={handleBidSubmit}
+              disabled={submittingBid}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' }}>{submittingBid ? 'Submit हो रहा है...' : 'Bid Submit करें'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 10, alignItems: 'center' }} onPress={() => setBidModal(false)}>
+              <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>रद्द करें</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -346,316 +405,40 @@ const actionStyles = StyleSheet.create({
   label: { fontSize: 12, fontFamily: 'Inter_500Medium', textAlign: 'center' },
 });
 
-function VyapariTripCard({
-  trip, colors, driverId, driverName, hasPaid, onPayCommission, onConfirmTrip, onCompleteTrip,
-}: {
-  trip: VyapariTrip;
-  colors: Colors;
-  driverId: string;
-  driverName: string;
-  hasPaid: boolean;
-  onPayCommission: (c: import('@/lib/types').CommissionPayment) => Promise<void>;
-  onConfirmTrip: (tripId: string, driverId: string, driverName: string) => Promise<void>;
-  onCompleteTrip: (tripId: string) => Promise<void>;
-}) {
-  const [utr, setUtr] = useState('');
-  const [paying, setPaying] = useState(false);
-  const [showUtr, setShowUtr] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [completing, setCompleting] = useState(false);
-  const [isConfirmed, setIsConfirmed] = useState(trip.status === 'accepted' || trip.status === 'completed');
-  const [isCompleted, setIsCompleted] = useState(trip.status === 'completed');
-
-  const totalRent = trip.ratePerTon > 0 ? trip.weightTons * trip.ratePerTon : 0;
-  const commissionAmt = totalRent > 0
-    ? Math.max(50, Math.round(totalRent * 0.02))
-    : 100;
-  const advanceAmt = 1000;
-  const lfiCommission = Math.round(advanceAmt * 0.02);
-  const driverPayout = advanceAmt - lfiCommission;
-
-  const handleOpenUpi = () => {
-    const upiUrl = `upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&am=${commissionAmt}&cu=INR&tn=Commission-${trip.id.slice(0, 8)}`;
-    Linking.openURL(upiUrl).catch(() =>
-      Alert.alert('UPI App नहीं मिला', 'Google Pay, PhonePe या Paytm install करें।')
-    );
-    setShowUtr(true);
-  };
-
-  const handleUnlock = async () => {
-    if (!utr.trim()) {
-      Alert.alert('त्रुटि', 'UTR / Transaction ID दर्ज करें');
-      return;
-    }
-    setPaying(true);
-    try {
-      await onPayCommission({
-        id: generateId(),
-        driverId,
-        driverName,
-        vyapariTripId: trip.id,
-        vyapariId: trip.vyapariId,
-        amount: commissionAmt,
-        utrNumber: utr.trim(),
-        paidAt: new Date().toISOString(),
-      });
-    } finally {
-      setPaying(false);
-    }
-  };
-
-  const handleConfirm = async () => {
-    if (isConfirmed) return;
-    Alert.alert(
-      'ट्रिप Accept करें?',
-      `${trip.fromCity} → ${trip.toCity}\n${trip.goodsCategory} • ${trip.weightTons} टन\n\nयह ट्रिप accept करना चाहते हैं?`,
-      [
-        { text: 'नहीं', style: 'cancel' },
-        {
-          text: 'हाँ, Accept करें',
-          onPress: async () => {
-            setConfirming(true);
-            try {
-              await onConfirmTrip(trip.id, driverId, driverName);
-              setIsConfirmed(true);
-              Alert.alert('✅ Trip Accept', 'आपने यह ट्रिप accept कर ली है! व्यापारी से संपर्क करें।');
-            } finally {
-              setConfirming(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleComplete = async () => {
-    if (isCompleted) return;
-    Alert.alert(
-      'Trip Complete करें?',
-      `क्या यह trip पूरी हो गई?\n\n✅ Complete होने पर:\nLoading Fast India आपको ₹${driverPayout} भेजेगा\n(₹${advanceAmt} - 2% commission ₹${lfiCommission} = ₹${driverPayout})`,
-      [
-        { text: 'नहीं', style: 'cancel' },
-        {
-          text: 'हाँ, Complete करें',
-          onPress: async () => {
-            setCompleting(true);
-            try {
-              await onCompleteTrip(trip.id);
-              setIsCompleted(true);
-              Alert.alert(
-                '🎉 Trip Completed!',
-                `Trip successfully complete हो गई!\n\nLoading Fast India जल्द ही आपको ₹${driverPayout} UPI पर भेजेगा।\n\nUPI: ${COMMISSION_UPI}`
-              );
-            } finally {
-              setCompleting(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const ageMin = Math.floor((Date.now() - new Date(trip.createdAt).getTime()) / 60000);
-  const isLowPri = trip.status === 'low_priority' || (!isConfirmed && !isCompleted && ageMin >= 7);
-  const statusColor = isCompleted ? '#7C3AED' : isConfirmed ? '#16a34a' : isLowPri ? '#f97316' : colors.navy;
-  const statusLabel = isCompleted ? '✅ Completed' : isConfirmed ? '✅ Accepted' : isLowPri ? '⬇️ Low Priority' : '📦 व्यापारी लोड';
-
+function OpenTripBidCard({ trip, colors, myBid, onBid }: { trip: VyapariTrip; colors: Colors; myBid?: Bid; onBid: () => void }) {
+  const alreadyBid = !!myBid;
+  const bidStatusColor = myBid?.status === 'accepted' ? '#16a34a' : myBid?.status === 'rejected' ? '#dc2626' : '#d97706';
+  const bidStatusLabel = myBid?.status === 'accepted' ? '✅ Bid Accepted!' : myBid?.status === 'rejected' ? '❌ Bid Rejected' : '⏳ Bid Pending';
   return (
-    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: isCompleted ? '#7C3AED40' : isConfirmed ? '#16a34a40' : isLowPri ? '#f9731640' : hasPaid ? colors.primary + '40' : colors.navy + '30' }]}>
-      {/* Header */}
+    <View style={[vtStyles.card, { backgroundColor: colors.card, borderColor: alreadyBid ? bidStatusColor + '40' : colors.navy + '30' }]}>
       <View style={vtStyles.row}>
-        <View style={[vtStyles.badge, { backgroundColor: statusColor + '18' }]}>
-          <Text style={[vtStyles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+        <View style={[vtStyles.badge, { backgroundColor: colors.navy + '18' }]}>
+          <Text style={[vtStyles.badgeText, { color: colors.navy }]}>📦 Load Available</Text>
         </View>
         <Text style={[vtStyles.date, { color: colors.mutedForeground }]}>{trip.tripDate}</Text>
       </View>
-
-      {/* Route */}
-      <Text style={[vtStyles.route, { color: colors.foreground }]}>
-        {trip.fromCity} ({trip.fromState}) → {trip.toCity} ({trip.toState})
-      </Text>
-
-      {/* Full Details */}
+      <Text style={[vtStyles.route, { color: colors.foreground }]}>{trip.fromCity} → {trip.toCity}</Text>
       <View style={[vtStyles.detailBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <View style={vtStyles.detailRow}>
-          <Feather name="package" size={13} color={colors.mutedForeground} />
-          <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.goodsCategory}</Text>
-        </View>
-        <View style={vtStyles.detailRow}>
-          <Feather name="layers" size={13} color={colors.mutedForeground} />
-          <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.weightTons} टन</Text>
-        </View>
-        {trip.ratePerTon > 0 && (
-          <View style={vtStyles.detailRow}>
-            <Feather name="tag" size={13} color={colors.mutedForeground} />
-            <Text style={[vtStyles.detailText, { color: colors.foreground }]}>₹{trip.ratePerTon}/टन {totalRent > 0 ? `= ₹${totalRent.toLocaleString('en-IN')} कुल` : ''}</Text>
-          </View>
-        )}
-        {trip.vehicleTypePref ? (
-          <View style={vtStyles.detailRow}>
-            <Feather name="truck" size={13} color={colors.mutedForeground} />
-            <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.vehicleTypePref}</Text>
-          </View>
-        ) : null}
-        {trip.description ? (
-          <View style={vtStyles.detailRow}>
-            <Feather name="info" size={13} color={colors.mutedForeground} />
-            <Text style={[vtStyles.detailText, { color: colors.mutedForeground }]}>{trip.description}</Text>
-          </View>
-        ) : null}
-        <View style={vtStyles.detailRow}>
-          <Feather name="user" size={13} color={colors.mutedForeground} />
-          <Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.vyapariName}</Text>
-        </View>
+        <View style={vtStyles.detailRow}><Feather name="package" size={13} color={colors.mutedForeground} /><Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.goodsCategory}</Text></View>
+        <View style={vtStyles.detailRow}><Feather name="layers" size={13} color={colors.mutedForeground} /><Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.weightTons} टन</Text></View>
+        {trip.vehicleTypePref ? <View style={vtStyles.detailRow}><Feather name="truck" size={13} color={colors.mutedForeground} /><Text style={[vtStyles.detailText, { color: colors.foreground }]}>{trip.vehicleTypePref}</Text></View> : null}
+        {trip.description ? <View style={vtStyles.detailRow}><Feather name="info" size={13} color={colors.mutedForeground} /><Text style={[vtStyles.detailText, { color: colors.mutedForeground }]}>{trip.description}</Text></View> : null}
       </View>
-
-      {/* Settlement info (when accepted or completed) */}
-      {isConfirmed && (
-        <View style={[vtStyles.settlementBox, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
-          <Text style={[vtStyles.settlementTitle, { color: '#1B5E20' }]}>💰 Trip Settlement</Text>
-          <View style={vtStyles.settlementRow}>
-            <Text style={[vtStyles.settlementLabel, { color: '#2E7D32' }]}>व्यापारी का Advance</Text>
-            <Text style={[vtStyles.settlementVal, { color: '#1B5E20' }]}>₹{advanceAmt}</Text>
-          </View>
-          <View style={vtStyles.settlementRow}>
-            <Text style={[vtStyles.settlementLabel, { color: '#C62828' }]}>LFI Commission (2%)</Text>
-            <Text style={[vtStyles.settlementVal, { color: '#C62828' }]}>- ₹{lfiCommission}</Text>
-          </View>
-          <View style={[vtStyles.settlementRow, { borderTopWidth: 1, borderTopColor: '#4CAF5050', marginTop: 4, paddingTop: 4 }]}>
-            <Text style={[vtStyles.settlementLabel, { color: '#1B5E20', fontFamily: 'Inter_700Bold' }]}>आपको मिलेगा (LFI से)</Text>
-            <Text style={[vtStyles.settlementVal, { color: '#1B5E20', fontFamily: 'Inter_700Bold', fontSize: 16 }]}>₹{driverPayout}</Text>
-          </View>
-          {!isCompleted && (
-            <Text style={[vtStyles.settlementNote, { color: '#388E3C' }]}>Trip पूरी होने के बाद LFI UPI पर भेजेगा</Text>
-          )}
-          {isCompleted && (
-            <Text style={[vtStyles.settlementNote, { color: '#1565C0', fontFamily: 'Inter_700Bold' }]}>✅ Complete — LFI जल्द ₹{driverPayout} भेजेगा • {COMMISSION_UPI}</Text>
-          )}
+      {alreadyBid ? (
+        <View style={{ backgroundColor: bidStatusColor + '15', borderRadius: 8, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ color: bidStatusColor, fontSize: 13, fontFamily: 'Inter_700Bold' }}>{bidStatusLabel}</Text>
+          <Text style={{ color: bidStatusColor, fontSize: 12, fontFamily: 'Inter_400Regular' }}>— ₹{myBid.bidAmount.toLocaleString('en-IN')}</Text>
         </View>
+      ) : (
+        <TouchableOpacity style={{ backgroundColor: colors.primary, borderRadius: 9, padding: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }} onPress={onBid} activeOpacity={0.8}>
+          <Feather name="tag" size={14} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold' }}>Bid लगाएं</Text>
+        </TouchableOpacity>
       )}
-
-      {/* ───── ACTION PANEL ───── */}
-      <View style={[vtStyles.actionPanel, { borderColor: colors.border + '60' }]}>
-
-        {!isCompleted && (
-          <View style={vtStyles.actionRow}>
-            {/* Accept / Confirm */}
-            <TouchableOpacity
-              style={[vtStyles.actionBtn, { backgroundColor: isConfirmed ? '#16a34a' : colors.success, opacity: confirming ? 0.6 : 1, flex: 1.4 }]}
-              onPress={handleConfirm}
-              disabled={confirming || isConfirmed}
-              activeOpacity={0.8}
-            >
-              <Feather name={isConfirmed ? 'check-circle' : 'check-square'} size={15} color="#fff" />
-              <Text style={vtStyles.actionBtnText}>
-                {confirming ? 'हो रहा है...' : isConfirmed ? 'Accepted ✓' : 'Trip Accept'}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Complete Trip (only after accepted) */}
-            {isConfirmed && (
-              <TouchableOpacity
-                style={[vtStyles.actionBtn, { backgroundColor: '#7C3AED', opacity: completing ? 0.6 : 1, flex: 1.4 }]}
-                onPress={handleComplete}
-                disabled={completing}
-                activeOpacity={0.8}
-              >
-                <Feather name="flag" size={15} color="#fff" />
-                <Text style={vtStyles.actionBtnText}>{completing ? 'हो रहा है...' : 'Complete Trip'}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Contact buttons (visible after commission paid) */}
-        {hasPaid ? (
-          <View>
-            <Text style={[vtStyles.unlockedTitle, { color: '#16a34a', marginBottom: 6 }]}>
-              ✅ Contact Unlocked — 👤 {trip.vyapariName}
-            </Text>
-            <View style={vtStyles.actionRow}>
-              <TouchableOpacity
-                style={[vtStyles.actionBtn, { backgroundColor: colors.primary, flex: 1 }]}
-                onPress={() => Linking.openURL(`tel:${trip.vyapariPhone}`)}
-                activeOpacity={0.8}
-              >
-                <Feather name="phone" size={15} color="#fff" />
-                <Text style={vtStyles.actionBtnText}>Call</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[vtStyles.actionBtn, { backgroundColor: '#25D366', flex: 1 }]}
-                onPress={() => Linking.openURL(`whatsapp://send?phone=91${trip.vyapariPhone}`)}
-                activeOpacity={0.8}
-              >
-                <Feather name="message-circle" size={15} color="#fff" />
-                <Text style={vtStyles.actionBtnText}>WhatsApp</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[vtStyles.actionBtn, { backgroundColor: colors.navy, flex: 1 }]}
-                onPress={() => router.push(`/chat?tripId=${trip.id}&toId=${trip.vyapariId}&toName=${trip.vyapariName}`)}
-                activeOpacity={0.8}
-              >
-                <Feather name="message-square" size={15} color="#fff" />
-                <Text style={vtStyles.actionBtnText}>Chat</Text>
-              </TouchableOpacity>
-            </View>
-            {/* Rent collection warning */}
-            <View style={[vtStyles.rentWarning, { backgroundColor: '#FFF3E0', borderColor: '#E65100' }]}>
-              <Feather name="alert-triangle" size={14} color="#E65100" />
-              <Text style={[vtStyles.rentWarningText, { color: '#BF360C' }]}>
-                <Text style={{ fontFamily: 'Inter_700Bold' }}>⚠️ जरूरी निर्देश:{'\n'}</Text>
-                गाड़ी में माल loading के समय या उससे पहले व्यापारी से पूरा किराया लें।{'\n\n'}
-                <Text style={{ fontFamily: 'Inter_700Bold' }}>Pending किराया छोड़ा तो LFI जिम्मेदार नहीं।</Text>
-              </Text>
-            </View>
-          </View>
-        ) : (
-          /* Commission gate */
-          <View style={[vtStyles.commGate, { borderColor: colors.warning + '50', backgroundColor: colors.warning + '08' }]}>
-            <View style={vtStyles.lockedRow}>
-              <Feather name="lock" size={13} color={colors.warning} />
-              <Text style={[vtStyles.lockedText, { color: colors.warning }]}>
-                Contact unlock करें — ₹{commissionAmt} (2%)
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[vtStyles.upiBtn, { backgroundColor: colors.primary }]}
-              onPress={handleOpenUpi}
-              activeOpacity={0.8}
-            >
-              <Feather name="credit-card" size={14} color="#fff" />
-              <Text style={vtStyles.upiBtnText}>UPI से Pay करें — ₹{commissionAmt}</Text>
-            </TouchableOpacity>
-            {showUtr ? (
-              <>
-                <TextInput
-                  style={[vtStyles.utrInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.background }]}
-                  placeholder="UTR / Transaction ID दर्ज करें"
-                  placeholderTextColor={colors.mutedForeground}
-                  value={utr}
-                  onChangeText={setUtr}
-                />
-                <TouchableOpacity
-                  style={[vtStyles.upiBtn, { backgroundColor: '#16a34a', opacity: paying ? 0.6 : 1 }]}
-                  onPress={handleUnlock}
-                  disabled={paying}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="unlock" size={14} color="#fff" />
-                  <Text style={vtStyles.upiBtnText}>{paying ? 'Processing...' : 'Contact Unlock करें'}</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity onPress={() => setShowUtr(true)}>
-                <Text style={[vtStyles.alreadyPaid, { color: colors.primary }]}>पहले pay कर दिया? UTR दर्ज करें</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </View>
     </View>
   );
 }
+
 
 const takenStyles = StyleSheet.create({
   card: { borderRadius: 12, borderWidth: 1.5, padding: 12, marginBottom: 8, opacity: 0.7 },

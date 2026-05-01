@@ -17,7 +17,7 @@ import ComplaintModal from '@/components/ComplaintModal';
 import ChatbotModal from '@/components/ChatbotModal';
 import RatingModal from '@/components/RatingModal';
 import FraudAlertModal from '@/components/FraudAlertModal';
-import { Bilty, Trip, COMMISSION_UPI } from '@/lib/types';
+import { Bilty, Trip, COMMISSION_UPI, VyapariTrip } from '@/lib/types';
 
 type Filter = 'all' | 'available' | 'confirmed' | 'pending_confirmation' | 'completed';
 type TripStatus = 'loading' | 'on_the_way' | 'delivered';
@@ -35,7 +35,56 @@ export default function MyTripsScreen() {
   const {
     user, getDriverTrips, bilties, refreshAll, updateTrip, hasRated, vyaparis,
     generateDeliveryOtp, verifyDeliveryOtp,
+    getDriverBids, vyapariTrips, verifyStartOtp, verifyEndOtp,
   } = useApp();
+
+  const [vtOtpInput, setVtOtpInput] = useState('');
+  const [vtOtpTrip, setVtOtpTrip] = useState<VyapariTrip | null>(null);
+  const [vtOtpType, setVtOtpType] = useState<'start' | 'end'>('start');
+  const [vtVerifying, setVtVerifying] = useState(false);
+  const [vtOtpModal, setVtOtpModal] = useState(false);
+
+  const myVyapariTrips = user
+    ? vyapariTrips.filter(t =>
+        t.acceptedByDriverId === user.id &&
+        ['accepted', 'loading', 'on_way', 'completed'].includes(t.status)
+      )
+    : [];
+
+  const openVtOtpModal = (trip: VyapariTrip, type: 'start' | 'end') => {
+    setVtOtpTrip(trip);
+    setVtOtpType(type);
+    setVtOtpInput('');
+    setVtOtpModal(true);
+  };
+
+  const handleVtVerifyOtp = async () => {
+    if (!vtOtpTrip) return;
+    if (vtOtpInput.length !== 6) { Alert.alert('OTP गलत है', '6 अंकों का OTP डालें।'); return; }
+    setVtVerifying(true);
+    try {
+      let ok = false;
+      if (vtOtpType === 'start') {
+        ok = await verifyStartOtp(vtOtpTrip.id, vtOtpInput, vtOtpTrip.acceptedBidAmount || 0);
+      } else {
+        ok = await verifyEndOtp(vtOtpTrip.id, vtOtpInput, vtOtpTrip.acceptedBidAmount || 0, vtOtpTrip.acceptedByDriverId || '');
+      }
+      if (ok) {
+        setVtOtpModal(false);
+        Alert.alert(
+          vtOtpType === 'start' ? '✅ Loading Confirmed!' : '🎉 Delivery Complete!',
+          vtOtpType === 'start'
+            ? `Loading OTP verified!\n₹${Math.round((vtOtpTrip.acceptedBidAmount || 0) * 0.50).toLocaleString('en-IN')} (50%) cash व्यापारी से लें।`
+            : `Trip पूरी हुई!\n₹${Math.round((vtOtpTrip.acceptedBidAmount || 0) * 0.30).toLocaleString('en-IN')} (30%) cash लें। Wallet unlock हो गया।`
+        );
+      } else {
+        Alert.alert('❌ OTP गलत है', 'सही OTP डालें।');
+      }
+    } catch {
+      Alert.alert('Error', 'कुछ गड़बड़ हुई, दोबारा कोशिश करें।');
+    }
+    setVtVerifying(false);
+  };
 
   const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -405,7 +454,105 @@ export default function MyTripsScreen() {
             </View>
           ))
         )}
+
+        {/* ── VyapariTrip / Load Marketplace Section ── */}
+        {myVyapariTrips.length > 0 && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={[styles.sectionLabel, { color: colors.foreground, fontSize: 15, marginBottom: 8 }]}>🚛 Merchant Load Trips</Text>
+            {myVyapariTrips.map((vt) => {
+              const fare = vt.acceptedBidAmount || 0;
+              const cash50 = Math.round(fare * 0.50);
+              const cash30 = Math.round(fare * 0.30);
+              const wallet18 = Math.round(fare * 0.18);
+              const statusColor = vt.status === 'accepted' ? '#16a34a' : vt.status === 'loading' ? '#2563eb' : vt.status === 'on_way' ? '#7C3AED' : '#6b7280';
+              const statusLabel = vt.status === 'accepted' ? '✅ Accepted — Start करें' : vt.status === 'loading' ? '📦 Loading — On the Way' : vt.status === 'on_way' ? '🚛 On the Way — Deliver करें' : '✅ Completed';
+              return (
+                <View key={vt.id} style={[vtCardStyles.card, { backgroundColor: colors.card, borderColor: statusColor + '40' }]}>
+                  <View style={vtCardStyles.row}>
+                    <View style={[vtCardStyles.badge, { backgroundColor: statusColor + '18' }]}>
+                      <Text style={[vtCardStyles.badgeText, { color: statusColor }]}>{statusLabel}</Text>
+                    </View>
+                    <Text style={[vtCardStyles.date, { color: colors.mutedForeground }]}>{vt.tripDate}</Text>
+                  </View>
+                  <Text style={[vtCardStyles.route, { color: colors.foreground }]}>{vt.fromCity} → {vt.toCity}</Text>
+                  <Text style={[vtCardStyles.meta, { color: colors.mutedForeground }]}>{vt.goodsCategory} • {vt.weightTons} टन</Text>
+                  <View style={[vtCardStyles.fareBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <Text style={[vtCardStyles.fareTitle, { color: colors.foreground }]}>💰 Payment Schedule</Text>
+                    <Text style={[vtCardStyles.fareLine, { color: colors.mutedForeground }]}>20% Advance (paid): ₹{Math.round(fare * 0.20).toLocaleString('en-IN')}</Text>
+                    <Text style={[vtCardStyles.fareLine, { color: '#2563eb' }]}>50% Cash at Loading: ₹{cash50.toLocaleString('en-IN')}</Text>
+                    <Text style={[vtCardStyles.fareLine, { color: '#7C3AED' }]}>30% Cash at Delivery: ₹{cash30.toLocaleString('en-IN')}</Text>
+                    <Text style={[vtCardStyles.fareLine, { color: '#16a34a' }]}>18% Wallet (auto-release): ₹{wallet18.toLocaleString('en-IN')}</Text>
+                  </View>
+                  <Text style={[vtCardStyles.merchant, { color: colors.mutedForeground }]}>Merchant: {vt.vyapariName}</Text>
+                  {vt.status === 'accepted' && (
+                    <TouchableOpacity
+                      style={[vtCardStyles.otpBtn, { backgroundColor: '#2563eb' }]}
+                      onPress={() => openVtOtpModal(vt, 'start')}
+                    >
+                      <Feather name="key" size={14} color="#fff" />
+                      <Text style={vtCardStyles.otpBtnText}>Start OTP दर्ज करें (Merchant से लें)</Text>
+                    </TouchableOpacity>
+                  )}
+                  {vt.status === 'loading' && (
+                    <View style={[vtCardStyles.infoBox, { backgroundColor: '#E3F2FD', borderColor: '#1976D2' }]}>
+                      <Text style={{ color: '#1565C0', fontFamily: 'Inter_700Bold', fontSize: 13 }}>📦 माल Load हो रहा है</Text>
+                      <Text style={{ color: '#1976D2', fontSize: 12, marginTop: 4 }}>₹{cash50.toLocaleString('en-IN')} (50%) cash व्यापारी से लेकर निकलें।</Text>
+                    </View>
+                  )}
+                  {vt.status === 'on_way' && (
+                    <TouchableOpacity
+                      style={[vtCardStyles.otpBtn, { backgroundColor: '#7C3AED' }]}
+                      onPress={() => openVtOtpModal(vt, 'end')}
+                    >
+                      <Feather name="check-circle" size={14} color="#fff" />
+                      <Text style={vtCardStyles.otpBtnText}>End OTP दर्ज करें (Receiver से लें)</Text>
+                    </TouchableOpacity>
+                  )}
+                  {vt.status === 'completed' && (
+                    <View style={[vtCardStyles.infoBox, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
+                      <Text style={{ color: '#1B5E20', fontFamily: 'Inter_700Bold', fontSize: 13 }}>✅ Trip Completed!</Text>
+                      <Text style={{ color: '#388E3C', fontSize: 12, marginTop: 4 }}>Wallet ₹{wallet18.toLocaleString('en-IN')} unlock हो गया।</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
+
+      {/* VyapariTrip OTP Modal */}
+      <Modal visible={vtOtpModal} transparent animationType="slide" onRequestClose={() => setVtOtpModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+            <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 4 }}>
+              {vtOtpType === 'start' ? '🔑 Start Trip OTP' : '🎯 Delivery OTP'}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, marginBottom: 16 }}>
+              {vtOtpType === 'start' ? 'Merchant से Start OTP लेकर यहाँ डालें' : 'Receiver से Delivery OTP लेकर यहाँ डालें'}
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 14, fontSize: 24, color: colors.foreground, backgroundColor: colors.card, textAlign: 'center', letterSpacing: 8, fontFamily: 'Inter_700Bold', marginBottom: 14 }}
+              placeholder="------"
+              placeholderTextColor={colors.mutedForeground}
+              value={vtOtpInput}
+              onChangeText={setVtOtpInput}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+            <TouchableOpacity
+              style={{ backgroundColor: vtOtpType === 'start' ? '#2563eb' : '#7C3AED', borderRadius: 10, padding: 14, alignItems: 'center', opacity: vtVerifying ? 0.6 : 1 }}
+              onPress={handleVtVerifyOtp}
+              disabled={vtVerifying}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' }}>{vtVerifying ? 'Verify हो रहा है...' : 'OTP Verify करें'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 10, alignItems: 'center' }} onPress={() => setVtOtpModal(false)}>
+              <Text style={{ color: colors.mutedForeground }}>रद्द करें</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <TouchableOpacity
         style={[styles.chatbotFab, { backgroundColor: '#E07B39' }]}
@@ -717,4 +864,21 @@ const styles = StyleSheet.create({
   otpSentIcon: { fontSize: 26 },
   otpSentTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', marginBottom: 4 },
   otpSentSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+});
+
+const vtCardStyles = StyleSheet.create({
+  card: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 12 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontFamily: 'Inter_500Medium' },
+  date: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  route: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 8 },
+  fareBox: { borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 8, gap: 3 },
+  fareTitle: { fontSize: 12, fontFamily: 'Inter_700Bold', marginBottom: 4 },
+  fareLine: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  merchant: { fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 8 },
+  otpBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 11, borderRadius: 9, justifyContent: 'center', marginBottom: 4 },
+  otpBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold', flex: 1, textAlign: 'center' },
+  infoBox: { borderRadius: 9, borderWidth: 1.5, padding: 10, marginBottom: 4 },
 });
