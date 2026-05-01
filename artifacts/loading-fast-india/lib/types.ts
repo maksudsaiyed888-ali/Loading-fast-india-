@@ -24,6 +24,11 @@ export interface Driver {
   longitude?: number;
   lastLocationAt?: string;
   isBlocked?: boolean;
+  aadhaarPhoto?: string;
+  licensePhoto?: string;
+  rcBookPhoto?: string;
+  selfiePhoto?: string;
+  kycStatus?: 'pending' | 'verified' | 'rejected';
 }
 
 export interface Vyapari {

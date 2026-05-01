@@ -58,6 +58,8 @@ interface AppContextType {
   blockVyapari: (id: string) => Promise<void>;
   unblockVyapari: (id: string) => Promise<void>;
   resolveComplaint: (id: string) => Promise<void>;
+  approveDriverKyc: (id: string) => Promise<void>;
+  rejectDriverKyc: (id: string) => Promise<void>;
   getDriverVehicles: (driverId: string) => Vehicle[];
   getDriverTrips: (driverId: string) => Trip[];
   getVyapariBookings: (vyapariId: string) => Trip[];
@@ -268,6 +270,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const blockVyapari = async (id: string) => { await fsUpdate('vyaparis', id, { isBlocked: true }); };
   const unblockVyapari = async (id: string) => { await fsUpdate('vyaparis', id, { isBlocked: false }); };
   const resolveComplaint = async (id: string) => { await fsUpdate('complaints', id, { status: 'resolved' }); };
+  const approveDriverKyc = async (id: string) => { await fsUpdate('drivers', id, { kycStatus: 'verified', isVerified: true }); };
+  const rejectDriverKyc = async (id: string) => { await fsUpdate('drivers', id, { kycStatus: 'rejected', isVerified: false }); };
   const getVyapariOwnTrips = (vyapariId: string) => vyapariTrips.filter((t) => t.vyapariId === vyapariId);
   const getOpenVyapariTrips = () => vyapariTrips.filter((t) => t.status === 'open' || t.status === 'low_priority');
 
@@ -382,7 +386,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         commissionPayments, addCommissionPayment, hasDriverPaidCommission,
         markVyapariAdvancePaid,
         resetVyapariAdvancePaid,
-        blockDriver, unblockDriver, blockVyapari, unblockVyapari, resolveComplaint,
+        blockDriver, unblockDriver, blockVyapari, unblockVyapari, resolveComplaint, approveDriverKyc, rejectDriverKyc,
         currentDriver, currentVyapari,
       }}
     >

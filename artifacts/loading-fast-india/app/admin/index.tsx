@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
@@ -22,7 +22,9 @@ export default function AdminScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, login, logout, drivers, vyaparis, trips, complaints, vehicles,
-    resetVyapariAdvancePaid, blockDriver, unblockDriver, blockVyapari, unblockVyapari, resolveComplaint } = useApp();
+    resetVyapariAdvancePaid, blockDriver, unblockDriver, blockVyapari, unblockVyapari,
+    resolveComplaint, approveDriverKyc, rejectDriverKyc } = useApp();
+  const [photoModal, setPhotoModal] = useState<{ uri: string; label: string } | null>(null);
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState<Tab>('drivers');
 
@@ -126,6 +128,16 @@ export default function AdminScreen() {
         ))}
       </View>
 
+      <Modal visible={!!photoModal} transparent animationType="fade" onRequestClose={() => setPhotoModal(null)}>
+        <TouchableOpacity style={photoModal_styles.overlay} activeOpacity={1} onPress={() => setPhotoModal(null)}>
+          <View style={photoModal_styles.container}>
+            <Text style={photoModal_styles.label}>{photoModal?.label}</Text>
+            {photoModal?.uri && <Image source={{ uri: photoModal.uri }} style={photoModal_styles.image} resizeMode="contain" />}
+            <Text style={photoModal_styles.close}>✕ बंद करें</Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
 
         {/* ── DRIVERS ── */}
@@ -161,7 +173,91 @@ export default function AdminScreen() {
               <DataRow label="Aadhaar" value={maskAadhaar(d.aadhaarNumber)} />
               <DataRow label="Vehicles" value={String(vehicles.filter((v) => v.driverId === d.id).length)} />
               <DataRow label="Joined" value={formatDate(d.createdAt)} />
+
+              {/* KYC Status */}
+              <View style={styles.kycRow}>
+                <Text style={[styles.kycLabel, { color: colors.mutedForeground }]}>KYC Status:</Text>
+                <View style={[styles.tagBadge, {
+                  backgroundColor: d.kycStatus === 'verified' ? '#E8F5E9' : d.kycStatus === 'rejected' ? '#FFEBEE' : '#FFF3E0'
+                }]}>
+                  <Text style={[styles.tagText, {
+                    color: d.kycStatus === 'verified' ? '#16a34a' : d.kycStatus === 'rejected' ? '#DC2626' : '#E65100'
+                  }]}>
+                    {d.kycStatus === 'verified' ? '✅ Verified' : d.kycStatus === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Document Photos */}
+              {(d.aadhaarPhoto || d.licensePhoto || d.rcBookPhoto || d.selfiePhoto) && (
+                <View style={styles.photosSection}>
+                  <Text style={[styles.photosTitle, { color: colors.mutedForeground }]}>Documents & KYC Photos</Text>
+                  <View style={styles.photosRow}>
+                    {d.selfiePhoto && (
+                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.selfiePhoto!, label: 'Selfie (KYC)' })} style={styles.photoThumbWrap}>
+                        <Image source={{ uri: d.selfiePhoto }} style={[styles.photoThumb, { borderColor: '#1D4ED8' }]} />
+                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Selfie</Text>
+                      </TouchableOpacity>
+                    )}
+                    {d.aadhaarPhoto && (
+                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.aadhaarPhoto!, label: 'Aadhaar Card' })} style={styles.photoThumbWrap}>
+                        <Image source={{ uri: d.aadhaarPhoto }} style={[styles.photoThumb, { borderColor: '#16a34a' }]} />
+                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Aadhaar</Text>
+                      </TouchableOpacity>
+                    )}
+                    {d.licensePhoto && (
+                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.licensePhoto!, label: 'Driving License' })} style={styles.photoThumbWrap}>
+                        <Image source={{ uri: d.licensePhoto }} style={[styles.photoThumb, { borderColor: '#7C3AED' }]} />
+                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>License</Text>
+                      </TouchableOpacity>
+                    )}
+                    {d.rcBookPhoto && (
+                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.rcBookPhoto!, label: 'RC Book' })} style={styles.photoThumbWrap}>
+                        <Image source={{ uri: d.rcBookPhoto }} style={[styles.photoThumb, { borderColor: '#f97316' }]} />
+                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>RC Book</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={[styles.photosTip, { color: colors.mutedForeground }]}>📌 Photo tap करके बड़ा देखें</Text>
+                </View>
+              )}
+
               <View style={styles.actionRow}>
+                {/* KYC Actions */}
+                {(!d.kycStatus || d.kycStatus === 'pending') && (d.selfiePhoto || d.aadhaarPhoto) && (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                      onPress={() => Alert.alert('✅ KYC Approve?', `${d.name} की KYC approve करें?`, [
+                        { text: 'हाँ, Approve', onPress: () => approveDriverKyc(d.id).then(() => Alert.alert('✅ Done', 'KYC Approved!')) },
+                        { text: 'नहीं', style: 'cancel' },
+                      ])}
+                    >
+                      <Feather name="user-check" size={13} color="#fff" />
+                      <Text style={styles.actionBtnText}>KYC Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
+                      onPress={() => Alert.alert('❌ KYC Reject?', `${d.name} की KYC reject करें?`, [
+                        { text: 'हाँ, Reject', style: 'destructive', onPress: () => rejectDriverKyc(d.id).then(() => Alert.alert('Done', 'KYC Rejected')) },
+                        { text: 'नहीं', style: 'cancel' },
+                      ])}
+                    >
+                      <Feather name="user-x" size={13} color="#fff" />
+                      <Text style={styles.actionBtnText}>KYC Reject</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {d.kycStatus === 'rejected' && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                    onPress={() => approveDriverKyc(d.id).then(() => Alert.alert('✅ Done', 'KYC Approved!'))}
+                  >
+                    <Feather name="user-check" size={13} color="#fff" />
+                    <Text style={styles.actionBtnText}>Re-Approve</Text>
+                  </TouchableOpacity>
+                )}
+                {/* Block/Unblock */}
                 {d.isBlocked ? (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
@@ -175,8 +271,8 @@ export default function AdminScreen() {
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
-                    onPress={() => Alert.alert('🔴 Block करें?', `${d.name} को Block करें?\n\nDriver को login नहीं मिलेगा।`, [
+                    style={[styles.actionBtn, { backgroundColor: '#991B1B' }]}
+                    onPress={() => Alert.alert('🔴 Block करें?', `${d.name} को Block करें?`, [
                       { text: 'हाँ, Block करें', style: 'destructive', onPress: () => blockDriver(d.id).then(() => Alert.alert('✅ Done', `${d.name} अब Blocked है।`)) },
                       { text: 'रहने दो', style: 'cancel' },
                     ])}
@@ -412,4 +508,21 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
   actionBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold' },
+  kycRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  kycLabel: { fontSize: 12, fontFamily: 'Inter_500Medium' },
+  photosSection: { marginTop: 8, marginBottom: 4, padding: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.03)' },
+  photosTitle: { fontSize: 11, fontFamily: 'Inter_600SemiBold', marginBottom: 8 },
+  photosRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  photoThumbWrap: { alignItems: 'center', gap: 4 },
+  photoThumb: { width: 72, height: 72, borderRadius: 8, borderWidth: 2 },
+  photoThumbLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  photosTip: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 6 },
+});
+
+const photoModal_styles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  container: { width: '100%', maxWidth: 400, alignItems: 'center', gap: 12 },
+  label: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
+  image: { width: '100%', height: 320, borderRadius: 12 },
+  close: { color: 'rgba(255,255,255,0.7)', fontSize: 14, fontFamily: 'Inter_500Medium', marginTop: 8 },
 });
