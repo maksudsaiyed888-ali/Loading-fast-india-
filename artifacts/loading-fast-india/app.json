@@ -20,7 +20,7 @@
       "url": "https://u.expo.dev/90d24ee7-082f-4a98-b2f2-e57f8c87c9d5"
     },
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "sdkVersion"
     },
     "ios": {
       "supportsTablet": false,
