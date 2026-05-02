@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "loading-fast-india",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "cover",
@@ -40,7 +40,7 @@
         "backgroundColor": "#0A2540"
       },
       "package": "com.loadingfastindia.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "minSdkVersion": 24,
@@ -112,8 +112,7 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "eas": {
