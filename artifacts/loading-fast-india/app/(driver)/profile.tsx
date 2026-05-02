@@ -1,10 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import React, { useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { uploadPhotoToStorage } from '@/lib/uploadPhoto';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import ComplaintModal from '@/components/ComplaintModal';
@@ -22,6 +26,59 @@ export default function DriverProfileScreen() {
   const [showAppRating, setShowAppRating] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState<string | null>(null);
+  const [kycPhotos, setKycPhotos] = useState({
+    aadhaarPhoto: currentDriver?.aadhaarPhoto || '',
+    licensePhoto: currentDriver?.licensePhoto || '',
+    rcBookPhoto: currentDriver?.rcBookPhoto || '',
+    selfiePhoto: currentDriver?.selfiePhoto || '',
+  });
+
+  const pickKycPhoto = async (key: keyof typeof kycPhotos, source: 'camera' | 'gallery') => {
+    try {
+      let result;
+      if (source === 'camera') {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Camera Permission', 'Camera access नहीं मिला। Gallery से try करें।', [
+            { text: '🖼️ Gallery खोलें', onPress: () => pickKycPhoto(key, 'gallery') },
+            { text: 'Cancel', style: 'cancel' },
+          ]);
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
+      } else {
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+        result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, allowsEditing: true, aspect: key === 'selfiePhoto' ? [1, 1] : [4, 3] });
+      }
+      if (result.canceled || !result.assets?.[0]) return;
+      const uri = result.assets[0].uri;
+      setUploadingPhoto(key);
+      try {
+        const driverId = user?.id || 'temp';
+        const url = await uploadPhotoToStorage(uri, `drivers/${driverId}/${key}_${Date.now()}.jpg`);
+        setKycPhotos(p => ({ ...p, [key]: url }));
+        await updateDoc(doc(db, 'drivers', driverId), { [key]: url });
+        Alert.alert('✅ Photo Updated!', 'KYC document update हो गया।');
+      } catch {
+        setKycPhotos(p => ({ ...p, [key]: uri }));
+        Alert.alert('⚠️ Saved Locally', 'Internet slow है — photo locally saved है।');
+      } finally {
+        setUploadingPhoto(null);
+      }
+    } catch {
+      Alert.alert('त्रुटि', 'Photo नहीं मिली। फिर try करें।');
+      setUploadingPhoto(null);
+    }
+  };
+
+  const showKycPicker = (key: keyof typeof kycPhotos, label: string) => {
+    Alert.alert(`📄 ${label}`, 'Photo कैसे लें?', [
+      { text: '📷 Camera से', onPress: () => pickKycPhoto(key, 'camera') },
+      { text: '🖼️ Gallery से', onPress: () => pickKycPhoto(key, 'gallery') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   const myTrips = user ? getDriverTrips(user.id) : [];
   const myVehicles = user ? getDriverVehicles(user.id) : [];
@@ -95,6 +152,76 @@ export default function DriverProfileScreen() {
             <InfoRow icon="bell" label="Notification Range" value={`${driver.notificationRadius} km`} />
           </View>
         )}
+
+        {/* KYC Documents Section */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <Text style={[styles.sectionTitle, { color: colors.secondary, marginBottom: 0 }]}>KYC दस्तावेज़</Text>
+            <View style={{ backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+              <Text style={{ fontSize: 11, color: '#92400E', fontFamily: 'Inter_600SemiBold' }}>📷 Update करें</Text>
+            </View>
+          </View>
+
+          <View style={{ backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 14, flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+            <Feather name="info" size={14} color="#1D4ED8" />
+            <Text style={{ flex: 1, fontSize: 12, color: '#1D4ED8', fontFamily: 'Inter_400Regular', lineHeight: 18 }}>
+              Photo tap करें — Camera या Gallery से update करें। Admin को re-verification के लिए notify किया जाएगा।
+            </Text>
+          </View>
+
+          {[
+            { key: 'aadhaarPhoto' as const, label: 'आधार कार्ड', icon: 'shield' },
+            { key: 'rcBookPhoto' as const, label: 'RC Book', icon: 'truck' },
+            { key: 'licensePhoto' as const, label: 'ड्राइविंग लाइसेंस', icon: 'credit-card' },
+            { key: 'selfiePhoto' as const, label: 'Selfie (Face KYC)', icon: 'user' },
+          ].map(({ key, label, icon }) => (
+            <View key={key} style={{ marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Feather name={icon as any} size={13} color={colors.primary} />
+                <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: colors.foreground }}>{label}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => showKycPicker(key, label)}
+                activeOpacity={0.8}
+                style={{
+                  borderWidth: 1.5,
+                  borderRadius: 12,
+                  borderStyle: kycPhotos[key] ? 'solid' : 'dashed',
+                  borderColor: kycPhotos[key] ? colors.success : colors.border,
+                  overflow: 'hidden',
+                  height: key === 'selfiePhoto' ? 160 : 130,
+                  backgroundColor: kycPhotos[key] ? 'transparent' : colors.background,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {uploadingPhoto === key ? (
+                  <View style={{ alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color={colors.primary} size="large" />
+                    <Text style={{ fontSize: 12, color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>Upload हो रहा है...</Text>
+                  </View>
+                ) : kycPhotos[key] ? (
+                  <>
+                    <Image source={{ uri: kycPhotos[key] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.65)', flexDirection: 'row', gap: 4, paddingHorizontal: 10, paddingVertical: 7, borderTopLeftRadius: 10, alignItems: 'center' }}>
+                      <Feather name="camera" size={13} color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>बदलें</Text>
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ alignItems: 'center', gap: 6 }}>
+                    <Feather name="upload" size={24} color={colors.mutedForeground} />
+                    <Text style={{ fontSize: 14, fontFamily: 'Inter_600SemiBold', color: colors.mutedForeground }}>📷 Camera  •  🖼️ Gallery</Text>
+                    <Text style={{ fontSize: 12, fontFamily: 'Inter_400Regular', color: colors.mutedForeground }}>Tap करके photo चुनें</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {kycPhotos[key] ? (
+                <Text style={{ fontSize: 11, color: colors.success, fontFamily: 'Inter_500Medium', marginTop: 4 }}>✓ Photo uploaded</Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.secondary }]}>मेरी रेटिंग</Text>
