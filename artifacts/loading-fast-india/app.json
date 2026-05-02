@@ -14,7 +14,7 @@
       "backgroundColor": "#0A2540"
     },
     "updates": {
-      "fallbackToCacheTimeout": 0,
+      "fallbackToCacheTimeout": 10000,
       "checkAutomatically": "ON_LOAD",
       "enabled": true,
       "url": "https://u.expo.dev/90d24ee7-082f-4a98-b2f2-e57f8c87c9d5"
