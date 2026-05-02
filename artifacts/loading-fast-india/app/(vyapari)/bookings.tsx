@@ -253,10 +253,34 @@ export default function BookingsScreen() {
                 )}
 
                 {trip.status === 'on_way' && (
-                  <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#7C3AED' }]} onPress={() => handleGenerateOtp(trip, 'end')}>
-                    <Feather name="check-circle" size={14} color="#fff" />
-                    <Text style={styles.otpBtnText}>Delivery OTP Generate करें (Receiver देगा Driver को)</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity style={[styles.otpBtn, { backgroundColor: '#7C3AED' }]} onPress={() => handleGenerateOtp(trip, 'end')}>
+                      <Feather name="check-circle" size={14} color="#fff" />
+                      <Text style={styles.otpBtnText}>Delivery OTP Generate करें (Receiver देगा Driver को)</Text>
+                    </TouchableOpacity>
+                    {trip.driverLat && trip.driverLng ? (
+                      <View style={{ marginTop: 6 }}>
+                        <TouchableOpacity
+                          style={[styles.otpBtn, { backgroundColor: '#0f766e' }]}
+                          onPress={() => Linking.openURL(`https://maps.google.com/?q=${trip.driverLat},${trip.driverLng}`)}
+                        >
+                          <Feather name="map-pin" size={14} color="#fff" />
+                          <Text style={styles.otpBtnText}>🗺️ Driver की Live Location देखें (Google Maps)</Text>
+                        </TouchableOpacity>
+                        {trip.driverLocationAt && (
+                          <Text style={{ fontSize: 11, color: '#6b7280', fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 3 }}>
+                            अपडेट: {new Date(trip.driverLocationAt).toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={[styles.infoBox, { backgroundColor: '#FFF8E1', borderColor: '#F59E0B', marginTop: 6 }]}>
+                        <Text style={{ color: '#92400E', fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                          📍 Driver की location अभी available नहीं — जब driver रास्ते में हो तो automatically update होगी
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
 
                 {trip.status === 'completed' && (

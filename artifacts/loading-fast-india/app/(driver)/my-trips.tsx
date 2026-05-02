@@ -2,7 +2,9 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import {
   Alert, ActivityIndicator, Linking, Modal, Platform, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput,
@@ -50,6 +52,29 @@ export default function MyTripsScreen() {
         ['accepted', 'loading', 'on_way', 'completed'].includes(t.status)
       )
     : [];
+
+  const liveTrackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeOnWayTrip = myVyapariTrips.find(t => t.status === 'on_way');
+
+  useEffect(() => {
+    if (liveTrackingRef.current) clearInterval(liveTrackingRef.current);
+    if (!activeOnWayTrip) return;
+    const pushLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        await updateDoc(doc(db, 'vyapariTrips', activeOnWayTrip.id), {
+          driverLat: loc.coords.latitude,
+          driverLng: loc.coords.longitude,
+          driverLocationAt: new Date().toISOString(),
+        });
+      } catch {}
+    };
+    pushLocation();
+    liveTrackingRef.current = setInterval(pushLocation, 3 * 60 * 1000);
+    return () => { if (liveTrackingRef.current) clearInterval(liveTrackingRef.current); };
+  }, [activeOnWayTrip?.id]);
 
   const openVtOtpModal = (trip: VyapariTrip, type: 'start' | 'end') => {
     setVtOtpTrip(trip);

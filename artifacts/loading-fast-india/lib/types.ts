@@ -399,6 +399,9 @@ export interface VyapariTrip {
   deliveryCashPaidAt?: string;
   driverWalletAmount?: number;
   adminCommissionAmount?: number;
+  driverLat?: number;
+  driverLng?: number;
+  driverLocationAt?: string;
 }
 
 export interface CommissionPayment {
