@@ -138,17 +138,19 @@ export default function DriverRegisterScreen() {
     }
     setLoading(true);
     try {
-      const apiBase = `https://${process.env.EXPO_PUBLIC_DOMAIN}:8080`;
       try {
-        const checkRes = await fetch(`${apiBase}/api/otp/check-phone`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: form.phone.trim() }),
-        });
-        const checkData = await checkRes.json() as { success: boolean; canRegister?: boolean; accountCount?: number };
-        if (checkData.success && checkData.canRegister === false) {
-          Alert.alert('सीमा पार', `इस नंबर से पहले से ${checkData.accountCount} खाता बना हुआ है।`);
-          setLoading(false);
-          return;
+        const domain = process.env.EXPO_PUBLIC_DOMAIN;
+        if (domain) {
+          const checkRes = await fetch(`https://${domain}/api/otp/check-phone`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: form.phone.trim() }),
+          });
+          const checkData = await checkRes.json() as { success: boolean; canRegister?: boolean; accountCount?: number };
+          if (checkData.success && checkData.canRegister === false) {
+            Alert.alert('सीमा पार', `इस नंबर से पहले से ${checkData.accountCount} खाता बना हुआ है।`);
+            setLoading(false);
+            return;
+          }
         }
       } catch (_e) {}
       const id = generateId();
