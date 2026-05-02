@@ -1,32 +1,45 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
 import { useColors } from '@/hooks/useColors';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { maskAadhaar, formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 
 const ADMIN_PASS = 'LFI@Admin2024';
-type Tab = 'drivers' | 'vyaparis' | 'trips' | 'complaints';
+type Tab = 'drivers' | 'vyaparis' | 'trips' | 'bookings' | 'payments' | 'complaints';
 
 const isNew = (createdAt: string) => {
   const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
   return days <= 7;
 };
 
+const STATUS_COLOR: Record<string, string> = {
+  open: '#1D4ED8', accepted: '#16a34a', advance_pending: '#f97316',
+  loading: '#7C3AED', on_way: '#0891b2', completed: '#16a34a',
+  cancelled: '#DC2626', low_priority: '#6B7280',
+  available: '#1D4ED8', 'pending_confirmation': '#f97316',
+};
+
 export default function AdminScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, login, logout, drivers, vyaparis, trips, complaints, vehicles,
+  const {
+    user, login, logout, drivers, vyaparis, trips, complaints, vehicles,
+    vyapariTrips, bids, commissionPayments,
     resetVyapariAdvancePaid, blockDriver, unblockDriver, blockVyapari, unblockVyapari,
-    resolveComplaint, approveDriverKyc, rejectDriverKyc } = useApp();
+    resolveComplaint, approveDriverKyc, rejectDriverKyc,
+  } = useApp();
+
   const [photoModal, setPhotoModal] = useState<{ uri: string; label: string } | null>(null);
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState<Tab>('drivers');
+  const [driverSearch, setDriverSearch] = useState('');
+  const [vyapariSearch, setVyapariSearch] = useState('');
 
   const isAdmin = user?.role === 'admin';
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -42,6 +55,20 @@ export default function AdminScreen() {
   const handleLogout = () => {
     logout().then(() => router.replace('/')).catch(() => router.replace('/'));
   };
+
+  const filteredDrivers = useMemo(() => {
+    const q = driverSearch.toLowerCase();
+    return [...drivers]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .filter(d => !q || d.name.toLowerCase().includes(q) || d.phone.includes(q) || d.city.toLowerCase().includes(q) || d.licenseNumber?.toLowerCase().includes(q));
+  }, [drivers, driverSearch]);
+
+  const filteredVyaparis = useMemo(() => {
+    const q = vyapariSearch.toLowerCase();
+    return [...vyaparis]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .filter(v => !q || v.name.toLowerCase().includes(q) || v.phone.includes(q) || v.businessName.toLowerCase().includes(q) || v.city.toLowerCase().includes(q));
+  }, [vyaparis, vyapariSearch]);
 
   if (!isAdmin) {
     return (
@@ -63,19 +90,21 @@ export default function AdminScreen() {
   const newDrivers = drivers.filter(d => isNew(d.createdAt)).length;
   const newVyaparis = vyaparis.filter(v => isNew(v.createdAt)).length;
   const pendingComplaints = complaints.filter(c => c.status === 'pending').length;
-
-  const sortedDrivers = [...drivers].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const sortedVyaparis = [...vyaparis].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const sortedComplaints = [...complaints].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const totalRevenue = trips.filter((t) => t.commissionPaid).reduce((sum, t) => sum + t.commissionAmount, 0);
+  const totalRevenue = trips.filter(t => t.commissionPaid).reduce((sum, t) => sum + (t.commissionAmount || 0), 0)
+    + commissionPayments.reduce((sum, c) => sum + (c.amount || 0), 0);
 
   const TABS: { key: Tab; label: string; count: number; icon: string; alert?: number }[] = [
     { key: 'drivers', label: 'Drivers', count: drivers.length, icon: 'truck', alert: newDrivers },
     { key: 'vyaparis', label: 'Vyaparis', count: vyaparis.length, icon: 'briefcase', alert: newVyaparis },
     { key: 'trips', label: 'Trips', count: trips.length, icon: 'map' },
+    { key: 'bookings', label: 'Bookings', count: vyapariTrips.length, icon: 'package' },
+    { key: 'payments', label: 'Payments', count: commissionPayments.length, icon: 'credit-card' },
     { key: 'complaints', label: 'Complaints', count: complaints.length, icon: 'alert-triangle', alert: pendingComplaints },
   ];
+
+  const sortedComplaints = [...complaints].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedVyapariTrips = [...vyapariTrips].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedPayments = [...commissionPayments].sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -89,44 +118,37 @@ export default function AdminScreen() {
             <Feather name="log-out" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
-
         <View style={styles.summaryRow}>
           <SummaryCard label="Drivers" value={String(drivers.length)} sub={newDrivers > 0 ? `+${newDrivers} नए` : undefined} />
           <SummaryCard label="Vyaparis" value={String(vyaparis.length)} sub={newVyaparis > 0 ? `+${newVyaparis} नए` : undefined} />
           <SummaryCard label="Trips" value={String(trips.length)} />
           <SummaryCard label="Revenue" value={formatCurrency(totalRevenue)} />
         </View>
-
         {(newDrivers > 0 || newVyaparis > 0 || pendingComplaints > 0) && (
           <View style={styles.alertBar}>
             {newDrivers > 0 && <Text style={styles.alertText}>🆕 {newDrivers} नए Driver</Text>}
             {newVyaparis > 0 && <Text style={styles.alertText}>🆕 {newVyaparis} नए Vyapari</Text>}
-            {pendingComplaints > 0 && <Text style={styles.alertText}>⚠️ {pendingComplaints} Complaints Pending</Text>}
+            {pendingComplaints > 0 && <Text style={styles.alertText}>⚠️ {pendingComplaints} Complaints</Text>}
           </View>
         )}
       </LinearGradient>
 
-      <View style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      {/* Scrollable Tab Bar */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]} contentContainerStyle={styles.tabBarContent}>
         {TABS.map((t) => (
           <TouchableOpacity
             key={t.key}
             style={[styles.tab, { borderBottomColor: tab === t.key ? colors.primary : 'transparent', borderBottomWidth: 2 }]}
             onPress={() => setTab(t.key)}
           >
-            <Feather name={t.icon as any} size={16} color={tab === t.key ? colors.primary : colors.mutedForeground} />
+            <Feather name={t.icon as any} size={15} color={tab === t.key ? colors.primary : colors.mutedForeground} />
             <Text style={[styles.tabText, { color: tab === t.key ? colors.primary : colors.mutedForeground }]}>{t.label}</Text>
-            {(t.alert ?? 0) > 0 ? (
-              <View style={[styles.badge, { backgroundColor: '#DC2626' }]}>
-                <Text style={styles.badgeText}>{t.alert}</Text>
-              </View>
-            ) : (
-              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.badgeText}>{t.count}</Text>
-              </View>
-            )}
+            <View style={[styles.badge, { backgroundColor: (t.alert ?? 0) > 0 ? '#DC2626' : colors.primary }]}>
+              <Text style={styles.badgeText}>{(t.alert ?? 0) > 0 ? t.alert : t.count}</Text>
+            </View>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       <Modal visible={!!photoModal} transparent animationType="fade" onRequestClose={() => setPhotoModal(null)}>
         <TouchableOpacity style={photoModal_styles.overlay} activeOpacity={1} onPress={() => setPhotoModal(null)}>
@@ -142,249 +164,323 @@ export default function AdminScreen() {
 
         {/* ── DRIVERS ── */}
         {tab === 'drivers' && (
-          sortedDrivers.length === 0 ? <EmptyState label="कोई ड्राइवर नहीं" /> :
-          sortedDrivers.map((d) => (
-            <View key={d.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: d.isBlocked ? '#DC262640' : colors.border }]}>
-              <View style={styles.cardHeader}>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={[styles.cardName, { color: colors.foreground }]}>{d.name}</Text>
-                  <View style={styles.badgeRow}>
-                    {isNew(d.createdAt) && (
-                      <View style={[styles.tagBadge, { backgroundColor: '#1D4ED820' }]}>
-                        <Text style={[styles.tagText, { color: '#1D4ED8' }]}>🆕 New</Text>
+          <>
+            <SearchBar value={driverSearch} onChangeText={setDriverSearch} placeholder="नाम, फोन, शहर, लाइसेंस खोजें..." />
+            {filteredDrivers.length === 0 ? <EmptyState label="कोई ड्राइवर नहीं" /> :
+              filteredDrivers.map((d) => (
+                <View key={d.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: d.isBlocked ? '#DC262640' : colors.border }]}>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Text style={[styles.cardName, { color: colors.foreground }]}>{d.name}</Text>
+                      <View style={styles.badgeRow}>
+                        {isNew(d.createdAt) && <StatusPill label="🆕 New" color="#1D4ED8" />}
+                        {d.isBlocked && <StatusPill label="🔴 Blocked" color="#DC2626" />}
+                        <StatusPill label={d.isVerified ? 'Verified' : 'Pending'} color={d.isVerified ? '#16a34a' : '#f97316'} />
+                        <StatusPill label={d.kycStatus === 'verified' ? '✅ KYC OK' : d.kycStatus === 'rejected' ? '❌ KYC Rejected' : '⏳ KYC Pending'} color={d.kycStatus === 'verified' ? '#16a34a' : d.kycStatus === 'rejected' ? '#DC2626' : '#f97316'} />
                       </View>
-                    )}
-                    {d.isBlocked && (
-                      <View style={[styles.tagBadge, { backgroundColor: '#DC262620' }]}>
-                        <Text style={[styles.tagText, { color: '#DC2626' }]}>🔴 Blocked</Text>
-                      </View>
-                    )}
-                    <View style={[styles.tagBadge, { backgroundColor: d.isVerified ? colors.success + '20' : colors.warning + '20' }]}>
-                      <Text style={[styles.tagText, { color: d.isVerified ? colors.success : colors.warning }]}>
-                        {d.isVerified ? 'Verified' : 'Pending'}
-                      </Text>
                     </View>
                   </View>
-                </View>
-              </View>
-              <DataRow label="Phone" value={d.phone} />
-              <DataRow label="City" value={`${d.city}, ${d.state}`} />
-              <DataRow label="License" value={d.licenseNumber} />
-              <DataRow label="Aadhaar" value={maskAadhaar(d.aadhaarNumber)} />
-              <DataRow label="Vehicles" value={String(vehicles.filter((v) => v.driverId === d.id).length)} />
-              <DataRow label="Joined" value={formatDate(d.createdAt)} />
 
-              {/* KYC Status */}
-              <View style={styles.kycRow}>
-                <Text style={[styles.kycLabel, { color: colors.mutedForeground }]}>KYC Status:</Text>
-                <View style={[styles.tagBadge, {
-                  backgroundColor: d.kycStatus === 'verified' ? '#E8F5E9' : d.kycStatus === 'rejected' ? '#FFEBEE' : '#FFF3E0'
-                }]}>
-                  <Text style={[styles.tagText, {
-                    color: d.kycStatus === 'verified' ? '#16a34a' : d.kycStatus === 'rejected' ? '#DC2626' : '#E65100'
-                  }]}>
-                    {d.kycStatus === 'verified' ? '✅ Verified' : d.kycStatus === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
-                  </Text>
-                </View>
-              </View>
+                  <DataRow label="📱 Phone" value={d.phone} />
+                  <DataRow label="🏙️ City" value={`${d.city}, ${d.state}`} />
+                  <DataRow label="📍 Address" value={d.address || 'N/A'} />
+                  <DataRow label="📮 Pincode" value={d.pincode || 'N/A'} />
+                  <DataRow label="🪪 Aadhaar" value={d.aadhaarNumber || 'N/A'} />
+                  <DataRow label="🚗 License" value={d.licenseNumber || 'N/A'} />
+                  <DataRow label="📅 Expiry" value={d.licenseExpiry || 'N/A'} />
+                  <DataRow label="🚛 RC Book" value={d.rcBookNumber || 'N/A'} />
+                  <DataRow label="🚛 Vehicles" value={String(vehicles.filter(v => v.driverId === d.id).length)} />
+                  <DataRow label="📅 Joined" value={formatDate(d.createdAt)} />
+                  <DataRow label="🔔 Radius" value={d.notificationRadius ? `${d.notificationRadius} km` : 'N/A'} />
 
-              {/* Document Photos */}
-              {(d.aadhaarPhoto || d.licensePhoto || d.rcBookPhoto || d.selfiePhoto) && (
-                <View style={styles.photosSection}>
-                  <Text style={[styles.photosTitle, { color: colors.mutedForeground }]}>Documents & KYC Photos</Text>
-                  <View style={styles.photosRow}>
-                    {d.selfiePhoto && (
-                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.selfiePhoto!, label: 'Selfie (KYC)' })} style={styles.photoThumbWrap}>
-                        <Image source={{ uri: d.selfiePhoto }} style={[styles.photoThumb, { borderColor: '#1D4ED8' }]} />
-                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Selfie</Text>
+                  {/* Vehicle list */}
+                  {vehicles.filter(v => v.driverId === d.id).map(v => (
+                    <View key={v.id} style={[styles.subCard, { backgroundColor: colors.accent }]}>
+                      <Text style={[styles.subCardTitle, { color: colors.foreground }]}>🚛 {v.vehicleNumber} — {v.vehicleType}</Text>
+                      <Text style={[styles.subCardSub, { color: colors.mutedForeground }]}>{v.capacity} टन • {v.bodyType || 'N/A'}</Text>
+                    </View>
+                  ))}
+
+                  {/* Document Photos */}
+                  {(d.aadhaarPhoto || d.licensePhoto || d.rcBookPhoto || d.selfiePhoto) && (
+                    <View style={styles.photosSection}>
+                      <Text style={[styles.photosTitle, { color: colors.mutedForeground }]}>📄 Documents & KYC Photos</Text>
+                      <View style={styles.photosRow}>
+                        {d.selfiePhoto && (
+                          <TouchableOpacity onPress={() => setPhotoModal({ uri: d.selfiePhoto!, label: 'Selfie (KYC)' })} style={styles.photoThumbWrap}>
+                            <Image source={{ uri: d.selfiePhoto }} style={[styles.photoThumb, { borderColor: '#1D4ED8' }]} />
+                            <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Selfie</Text>
+                          </TouchableOpacity>
+                        )}
+                        {d.aadhaarPhoto && (
+                          <TouchableOpacity onPress={() => setPhotoModal({ uri: d.aadhaarPhoto!, label: 'Aadhaar Card' })} style={styles.photoThumbWrap}>
+                            <Image source={{ uri: d.aadhaarPhoto }} style={[styles.photoThumb, { borderColor: '#16a34a' }]} />
+                            <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Aadhaar</Text>
+                          </TouchableOpacity>
+                        )}
+                        {d.licensePhoto && (
+                          <TouchableOpacity onPress={() => setPhotoModal({ uri: d.licensePhoto!, label: 'Driving License' })} style={styles.photoThumbWrap}>
+                            <Image source={{ uri: d.licensePhoto }} style={[styles.photoThumb, { borderColor: '#7C3AED' }]} />
+                            <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>License</Text>
+                          </TouchableOpacity>
+                        )}
+                        {d.rcBookPhoto && (
+                          <TouchableOpacity onPress={() => setPhotoModal({ uri: d.rcBookPhoto!, label: 'RC Book' })} style={styles.photoThumbWrap}>
+                            <Image source={{ uri: d.rcBookPhoto }} style={[styles.photoThumb, { borderColor: '#f97316' }]} />
+                            <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>RC Book</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <Text style={[styles.photosTip, { color: colors.mutedForeground }]}>📌 Photo tap करके बड़ा देखें</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.actionRow}>
+                    {(!d.kycStatus || d.kycStatus === 'pending') && (d.selfiePhoto || d.aadhaarPhoto) && (
+                      <>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                          onPress={() => Alert.alert('✅ KYC Approve?', `${d.name} की KYC approve करें?`, [
+                            { text: 'हाँ', onPress: () => approveDriverKyc(d.id).then(() => Alert.alert('✅ Done', 'KYC Approved!')) },
+                            { text: 'नहीं', style: 'cancel' },
+                          ])}>
+                          <Feather name="user-check" size={13} color="#fff" />
+                          <Text style={styles.actionBtnText}>KYC Approve</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
+                          onPress={() => Alert.alert('❌ KYC Reject?', `${d.name} की KYC reject करें?`, [
+                            { text: 'हाँ', style: 'destructive', onPress: () => rejectDriverKyc(d.id).then(() => Alert.alert('Done', 'KYC Rejected')) },
+                            { text: 'नहीं', style: 'cancel' },
+                          ])}>
+                          <Feather name="user-x" size={13} color="#fff" />
+                          <Text style={styles.actionBtnText}>KYC Reject</Text>
+                        </TouchableOpacity>
+                      </>
+                    )}
+                    {d.kycStatus === 'rejected' && (
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                        onPress={() => approveDriverKyc(d.id).then(() => Alert.alert('✅ Done', 'KYC Approved!'))}>
+                        <Feather name="user-check" size={13} color="#fff" />
+                        <Text style={styles.actionBtnText}>Re-Approve</Text>
                       </TouchableOpacity>
                     )}
-                    {d.aadhaarPhoto && (
-                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.aadhaarPhoto!, label: 'Aadhaar Card' })} style={styles.photoThumbWrap}>
-                        <Image source={{ uri: d.aadhaarPhoto }} style={[styles.photoThumb, { borderColor: '#16a34a' }]} />
-                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Aadhaar</Text>
+                    {d.isBlocked ? (
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                        onPress={() => Alert.alert('✅ Unblock?', `${d.name} को Unblock करें?`, [
+                          { text: 'हाँ', onPress: () => unblockDriver(d.id).then(() => Alert.alert('✅ Done', `${d.name} active है।`)) },
+                          { text: 'नहीं', style: 'cancel' },
+                        ])}>
+                        <Feather name="unlock" size={13} color="#fff" />
+                        <Text style={styles.actionBtnText}>Unblock</Text>
                       </TouchableOpacity>
-                    )}
-                    {d.licensePhoto && (
-                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.licensePhoto!, label: 'Driving License' })} style={styles.photoThumbWrap}>
-                        <Image source={{ uri: d.licensePhoto }} style={[styles.photoThumb, { borderColor: '#7C3AED' }]} />
-                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>License</Text>
-                      </TouchableOpacity>
-                    )}
-                    {d.rcBookPhoto && (
-                      <TouchableOpacity onPress={() => setPhotoModal({ uri: d.rcBookPhoto!, label: 'RC Book' })} style={styles.photoThumbWrap}>
-                        <Image source={{ uri: d.rcBookPhoto }} style={[styles.photoThumb, { borderColor: '#f97316' }]} />
-                        <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>RC Book</Text>
+                    ) : (
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#991B1B' }]}
+                        onPress={() => Alert.alert('🔴 Block?', `${d.name} को Block करें?`, [
+                          { text: 'हाँ, Block', style: 'destructive', onPress: () => blockDriver(d.id).then(() => Alert.alert('✅ Done', `${d.name} Blocked।`)) },
+                          { text: 'नहीं', style: 'cancel' },
+                        ])}>
+                        <Feather name="lock" size={13} color="#fff" />
+                        <Text style={styles.actionBtnText}>Block</Text>
                       </TouchableOpacity>
                     )}
                   </View>
-                  <Text style={[styles.photosTip, { color: colors.mutedForeground }]}>📌 Photo tap करके बड़ा देखें</Text>
                 </View>
-              )}
-
-              <View style={styles.actionRow}>
-                {/* KYC Actions */}
-                {(!d.kycStatus || d.kycStatus === 'pending') && (d.selfiePhoto || d.aadhaarPhoto) && (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
-                      onPress={() => Alert.alert('✅ KYC Approve?', `${d.name} की KYC approve करें?`, [
-                        { text: 'हाँ, Approve', onPress: () => approveDriverKyc(d.id).then(() => Alert.alert('✅ Done', 'KYC Approved!')) },
-                        { text: 'नहीं', style: 'cancel' },
-                      ])}
-                    >
-                      <Feather name="user-check" size={13} color="#fff" />
-                      <Text style={styles.actionBtnText}>KYC Approve</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
-                      onPress={() => Alert.alert('❌ KYC Reject?', `${d.name} की KYC reject करें?`, [
-                        { text: 'हाँ, Reject', style: 'destructive', onPress: () => rejectDriverKyc(d.id).then(() => Alert.alert('Done', 'KYC Rejected')) },
-                        { text: 'नहीं', style: 'cancel' },
-                      ])}
-                    >
-                      <Feather name="user-x" size={13} color="#fff" />
-                      <Text style={styles.actionBtnText}>KYC Reject</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-                {d.kycStatus === 'rejected' && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
-                    onPress={() => approveDriverKyc(d.id).then(() => Alert.alert('✅ Done', 'KYC Approved!'))}
-                  >
-                    <Feather name="user-check" size={13} color="#fff" />
-                    <Text style={styles.actionBtnText}>Re-Approve</Text>
-                  </TouchableOpacity>
-                )}
-                {/* Block/Unblock */}
-                {d.isBlocked ? (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
-                    onPress={() => Alert.alert('✅ Unblock करें?', `${d.name} को Unblock करें?`, [
-                      { text: 'हाँ', onPress: () => unblockDriver(d.id).then(() => Alert.alert('✅ Done', `${d.name} अब active है।`)) },
-                      { text: 'नहीं', style: 'cancel' },
-                    ])}
-                  >
-                    <Feather name="unlock" size={13} color="#fff" />
-                    <Text style={styles.actionBtnText}>Unblock करें</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#991B1B' }]}
-                    onPress={() => Alert.alert('🔴 Block करें?', `${d.name} को Block करें?`, [
-                      { text: 'हाँ, Block करें', style: 'destructive', onPress: () => blockDriver(d.id).then(() => Alert.alert('✅ Done', `${d.name} अब Blocked है।`)) },
-                      { text: 'रहने दो', style: 'cancel' },
-                    ])}
-                  >
-                    <Feather name="lock" size={13} color="#fff" />
-                    <Text style={styles.actionBtnText}>Block करें</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          ))
+              ))
+            }
+          </>
         )}
 
         {/* ── VYAPARIS ── */}
         {tab === 'vyaparis' && (
-          sortedVyaparis.length === 0 ? <EmptyState label="कोई व्यापारी नहीं" /> :
-          sortedVyaparis.map((v) => (
-            <View key={v.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: v.isBlocked ? '#DC262640' : colors.border }]}>
-              <View style={styles.cardHeader}>
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={[styles.cardName, { color: colors.foreground }]}>{v.name}</Text>
-                  <View style={styles.badgeRow}>
-                    {isNew(v.createdAt) && (
-                      <View style={[styles.tagBadge, { backgroundColor: '#1D4ED820' }]}>
-                        <Text style={[styles.tagText, { color: '#1D4ED8' }]}>🆕 New</Text>
+          <>
+            <SearchBar value={vyapariSearch} onChangeText={setVyapariSearch} placeholder="नाम, फोन, व्यापार, शहर खोजें..." />
+            {filteredVyaparis.length === 0 ? <EmptyState label="कोई व्यापारी नहीं" /> :
+              filteredVyaparis.map((v) => (
+                <View key={v.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: v.isBlocked ? '#DC262640' : colors.border }]}>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Text style={[styles.cardName, { color: colors.foreground }]}>{v.name}</Text>
+                      <View style={styles.badgeRow}>
+                        {isNew(v.createdAt) && <StatusPill label="🆕 New" color="#1D4ED8" />}
+                        {v.isBlocked && <StatusPill label="🔴 Blocked" color="#DC2626" />}
+                        <StatusPill label={v.advancePaid ? '✅ Unlocked' : '🔒 Locked'} color={v.advancePaid ? '#16a34a' : '#f97316'} />
+                        {v.isVerified && <StatusPill label="Verified" color="#16a34a" />}
                       </View>
-                    )}
-                    {v.isBlocked && (
-                      <View style={[styles.tagBadge, { backgroundColor: '#DC262620' }]}>
-                        <Text style={[styles.tagText, { color: '#DC2626' }]}>🔴 Blocked</Text>
-                      </View>
-                    )}
-                    <View style={[styles.tagBadge, { backgroundColor: v.advancePaid ? '#E8F5E9' : '#FFF3E0' }]}>
-                      <Text style={[styles.tagText, { color: v.advancePaid ? '#2E7D32' : '#E65100' }]}>
-                        {v.advancePaid ? '✅ Unlocked' : '🔒 Locked'}
-                      </Text>
                     </View>
                   </View>
+
+                  <DataRow label="🏢 Business" value={v.businessName} />
+                  <DataRow label="📱 Phone" value={v.phone} />
+                  <DataRow label="🏙️ City" value={`${v.city}, ${v.state}`} />
+                  <DataRow label="📍 Address" value={v.address || 'N/A'} />
+                  <DataRow label="📮 Pincode" value={v.pincode || 'N/A'} />
+                  <DataRow label="🪪 Aadhaar" value={v.aadhaarNumber || 'N/A'} />
+                  <DataRow label="🧾 GST" value={v.gstNumber || 'N/A'} />
+                  <DataRow label="📅 Joined" value={formatDate(v.createdAt)} />
+                  <DataRow label="📦 Bookings" value={String(v.totalBookings || 0)} />
+                  {v.advancePaid && (
+                    <>
+                      <DataRow label="💳 Advance UTR" value={v.advanceUTR || 'N/A'} />
+                      <DataRow label="📅 Paid On" value={v.advancePaidAt ? formatDate(v.advancePaidAt) : 'N/A'} />
+                    </>
+                  )}
+
+                  {/* Aadhaar Photo */}
+                  {v.aadhaarPhoto && (
+                    <View style={styles.photosSection}>
+                      <Text style={[styles.photosTitle, { color: colors.mutedForeground }]}>📄 Aadhaar Card Photo</Text>
+                      <View style={styles.photosRow}>
+                        <TouchableOpacity onPress={() => setPhotoModal({ uri: v.aadhaarPhoto!, label: `${v.name} — Aadhaar Card` })} style={styles.photoThumbWrap}>
+                          <Image source={{ uri: v.aadhaarPhoto }} style={[styles.photoThumb, { borderColor: '#16a34a', width: 100, height: 72 }]} />
+                          <Text style={[styles.photoThumbLabel, { color: colors.mutedForeground }]}>Aadhaar Card</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={[styles.photosTip, { color: colors.mutedForeground }]}>📌 Photo tap करके बड़ा देखें</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.actionRow}>
+                    {v.isBlocked ? (
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                        onPress={() => Alert.alert('✅ Unblock?', `${v.name} को Unblock करें?`, [
+                          { text: 'हाँ', onPress: () => unblockVyapari(v.id).then(() => Alert.alert('✅ Done', `${v.name} active है।`)) },
+                          { text: 'नहीं', style: 'cancel' },
+                        ])}>
+                        <Feather name="unlock" size={13} color="#fff" />
+                        <Text style={styles.actionBtnText}>Unblock</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
+                        onPress={() => Alert.alert('🔴 Block?', `${v.name} को Block करें?`, [
+                          { text: 'हाँ, Block', style: 'destructive', onPress: () => blockVyapari(v.id).then(() => Alert.alert('✅ Done', `${v.name} Blocked।`)) },
+                          { text: 'नहीं', style: 'cancel' },
+                        ])}>
+                        <Feather name="lock" size={13} color="#fff" />
+                        <Text style={styles.actionBtnText}>Block</Text>
+                      </TouchableOpacity>
+                    )}
+                    {v.advancePaid && (
+                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#B71C1C' }]}
+                        onPress={() => Alert.alert('Advance Reset?', `${v.name} का Advance reset करें?`, [
+                          { text: 'हाँ', style: 'destructive', onPress: () => resetVyapariAdvancePaid(v.id).then(() => Alert.alert('✅ Done', 'Advance reset हो गया।')) },
+                          { text: 'नहीं', style: 'cancel' },
+                        ])}>
+                        <Feather name="refresh-ccw" size={13} color="#fff" />
+                        <Text style={styles.actionBtnText}>Advance Reset</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
-              </View>
-              <DataRow label="Business" value={v.businessName} />
-              <DataRow label="Phone" value={v.phone} />
-              <DataRow label="City" value={`${v.city}, ${v.state}`} />
-              <DataRow label="Aadhaar" value={maskAadhaar(v.aadhaarNumber)} />
-              <DataRow label="GST" value={v.gstNumber || 'N/A'} />
-              <DataRow label="Joined" value={formatDate(v.createdAt)} />
-              {v.advancePaid && (
-                <>
-                  <DataRow label="Advance UTR" value={v.advanceUTR || 'N/A'} />
-                  <DataRow label="Paid On" value={v.advancePaidAt ? formatDate(v.advancePaidAt) : 'N/A'} />
-                </>
-              )}
-              <View style={styles.actionRow}>
-                {v.isBlocked ? (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
-                    onPress={() => Alert.alert('✅ Unblock करें?', `${v.name} को Unblock करें?`, [
-                      { text: 'हाँ', onPress: () => unblockVyapari(v.id).then(() => Alert.alert('✅ Done', `${v.name} अब active है।`)) },
-                      { text: 'नहीं', style: 'cancel' },
-                    ])}
-                  >
-                    <Feather name="unlock" size={13} color="#fff" />
-                    <Text style={styles.actionBtnText}>Unblock करें</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
-                    onPress={() => Alert.alert('🔴 Block करें?', `${v.name} को Block करें?`, [
-                      { text: 'हाँ, Block करें', style: 'destructive', onPress: () => blockVyapari(v.id).then(() => Alert.alert('✅ Done', `${v.name} अब Blocked है।`)) },
-                      { text: 'रहने दो', style: 'cancel' },
-                    ])}
-                  >
-                    <Feather name="lock" size={13} color="#fff" />
-                    <Text style={styles.actionBtnText}>Block करें</Text>
-                  </TouchableOpacity>
-                )}
-                {v.advancePaid && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#B71C1C' }]}
-                    onPress={() => Alert.alert('Advance Reset?', `${v.name} का Advance reset करें?`, [
-                      { text: 'हाँ', style: 'destructive', onPress: () => resetVyapariAdvancePaid(v.id).then(() => Alert.alert('✅ Done', 'Advance reset हो गया।')) },
-                      { text: 'नहीं', style: 'cancel' },
-                    ])}
-                  >
-                    <Feather name="refresh-ccw" size={13} color="#fff" />
-                    <Text style={styles.actionBtnText}>Advance Reset</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          ))
+              ))
+            }
+          </>
         )}
 
         {/* ── TRIPS ── */}
         {tab === 'trips' && (
           trips.length === 0 ? <EmptyState label="कोई ट्रिप नहीं" /> :
-          [...trips].reverse().map((t) => (
+          [...trips].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((t) => (
             <View key={t.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.cardName, { color: colors.foreground }]}>{t.fromCity} → {t.toCity}</Text>
-                <View style={[styles.tagBadge, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={[styles.tagText, { color: colors.primary }]}>{t.status}</Text>
-                </View>
+                <StatusPill label={t.status} color={STATUS_COLOR[t.status] || '#6B7280'} />
               </View>
-              <DataRow label="Driver" value={t.driverName} />
-              <DataRow label="Vehicle" value={`${t.vehicleNumber} (${t.vehicleTypeName})`} />
-              <DataRow label="Load" value={`${t.loadTons} टन`} />
-              <DataRow label="Rent" value={formatCurrency(t.totalRent)} />
-              <DataRow label="Commission" value={formatCurrency(t.commissionAmount)} />
-              <DataRow label="Date" value={formatDate(t.createdAt)} />
+              <DataRow label="🚛 Driver" value={t.driverName || 'N/A'} />
+              <DataRow label="📱 Phone" value={t.driverPhone || 'N/A'} />
+              <DataRow label="🚗 Vehicle" value={`${t.vehicleNumber || 'N/A'} (${t.vehicleTypeName || ''})`} />
+              <DataRow label="⚖️ Load" value={`${t.loadTons} टन`} />
+              <DataRow label="📦 Goods" value={t.goodsType || 'N/A'} />
+              <DataRow label="💰 Rent" value={formatCurrency(t.totalRent)} />
+              <DataRow label="📊 Commission" value={formatCurrency(t.commissionAmount)} />
+              <DataRow label="✅ Comm Paid" value={t.commissionPaid ? 'हाँ' : 'नहीं'} />
+              <DataRow label="📅 Date" value={formatDate(t.createdAt)} />
+              {t.deliveredAt && <DataRow label="📦 Delivered" value={formatDate(t.deliveredAt)} />}
+              {t.deliveryOtp && <DataRow label="🔑 OTP" value={t.deliveryOtp} />}
             </View>
           ))
+        )}
+
+        {/* ── BOOKINGS (VyapariTrips + Bids) ── */}
+        {tab === 'bookings' && (
+          sortedVyapariTrips.length === 0 ? <EmptyState label="कोई बुकिंग नहीं" /> :
+          sortedVyapariTrips.map((vt) => {
+            const tripBids = bids.filter(b => b.tripId === vt.id);
+            const acceptedBid = tripBids.find(b => b.status === 'accepted');
+            return (
+              <View key={vt.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.cardName, { color: colors.foreground }]}>{vt.fromCity} → {vt.toCity}</Text>
+                  <StatusPill label={vt.status} color={STATUS_COLOR[vt.status] || '#6B7280'} />
+                </View>
+                <DataRow label="👤 Vyapari" value={vt.vyapariName || 'N/A'} />
+                <DataRow label="📱 Phone" value={vt.vyapariPhone || 'N/A'} />
+                <DataRow label="📦 Goods" value={`${vt.goodsCategory || ''} — ${vt.goodsWeight || ''} टन`} />
+                <DataRow label="💰 Budget" value={vt.budget ? formatCurrency(Number(vt.budget)) : 'N/A'} />
+                <DataRow label="📅 Date" value={formatDate(vt.createdAt)} />
+                {vt.acceptedByDriverName && <DataRow label="🚛 Driver" value={`${vt.acceptedByDriverName} (${vt.acceptedByDriverPhone || ''})`} />}
+                {vt.acceptedBidAmount && <DataRow label="💵 Bid Amount" value={formatCurrency(vt.acceptedBidAmount)} />}
+                {vt.advanceUTR20 && <DataRow label="💳 Advance UTR" value={vt.advanceUTR20} />}
+
+                {/* All Bids */}
+                {tripBids.length > 0 && (
+                  <View style={[styles.photosSection, { backgroundColor: colors.accent }]}>
+                    <Text style={[styles.photosTitle, { color: colors.mutedForeground }]}>📋 सभी Bids ({tripBids.length})</Text>
+                    {tripBids.map((b) => (
+                      <View key={b.id} style={[styles.bidRow, { borderColor: b.status === 'accepted' ? '#16a34a' : colors.border }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.bidDriver, { color: colors.foreground }]}>{b.driverName}</Text>
+                          <Text style={[styles.bidSub, { color: colors.mutedForeground }]}>{b.driverPhone} • {formatCurrency(b.bidAmount)}</Text>
+                        </View>
+                        <StatusPill label={b.status === 'accepted' ? '✅ Accept' : b.status === 'rejected' ? '❌ Reject' : '⏳ Pending'} color={b.status === 'accepted' ? '#16a34a' : b.status === 'rejected' ? '#DC2626' : '#f97316'} />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })
+        )}
+
+        {/* ── PAYMENTS ── */}
+        {tab === 'payments' && (
+          <>
+            <View style={[styles.paymentSummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.paymentSummaryTitle, { color: colors.foreground }]}>💰 Total Commission Collected</Text>
+              <Text style={[styles.paymentSummaryAmount, { color: '#16a34a' }]}>{formatCurrency(totalRevenue)}</Text>
+              <Text style={[styles.paymentSummaryCount, { color: colors.mutedForeground }]}>{commissionPayments.length} transactions</Text>
+            </View>
+            {sortedPayments.length === 0 ? <EmptyState label="कोई payment नहीं" /> :
+              sortedPayments.map((p) => (
+                <View key={p.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <View style={styles.cardHeader}>
+                    <Text style={[styles.cardName, { color: colors.foreground }]}>₹{formatCurrency(p.amount)}</Text>
+                    <StatusPill label="Commission" color="#16a34a" />
+                  </View>
+                  <DataRow label="🚛 Driver" value={p.driverName || 'N/A'} />
+                  <DataRow label="💳 UTR" value={p.utrNumber || 'N/A'} />
+                  <DataRow label="📅 Date" value={formatDate(p.paidAt)} />
+                  <DataRow label="🆔 Trip ID" value={p.vyapariTripId?.slice(0, 12) || 'N/A'} />
+                </View>
+              ))
+            }
+
+            {/* Vyapari Advance Payments */}
+            <Text style={[styles.sectionDivider, { color: colors.secondary }]}>🔒 Vyapari Advance Payments</Text>
+            {vyaparis.filter(v => v.advancePaid).length === 0
+              ? <EmptyState label="कोई advance payment नहीं" />
+              : vyaparis.filter(v => v.advancePaid).map(v => (
+                <View key={v.id} style={[styles.dataCard, { backgroundColor: colors.card, borderColor: '#16a34a40' }]}>
+                  <View style={styles.cardHeader}>
+                    <Text style={[styles.cardName, { color: colors.foreground }]}>{v.name}</Text>
+                    <StatusPill label="✅ Advance Paid" color="#16a34a" />
+                  </View>
+                  <DataRow label="🏢 Business" value={v.businessName} />
+                  <DataRow label="📱 Phone" value={v.phone} />
+                  <DataRow label="💳 UTR" value={v.advanceUTR || 'N/A'} />
+                  <DataRow label="📅 Date" value={v.advancePaidAt ? formatDate(v.advancePaidAt) : 'N/A'} />
+                </View>
+              ))
+            }
+          </>
         )}
 
         {/* ── COMPLAINTS ── */}
@@ -393,33 +489,25 @@ export default function AdminScreen() {
           sortedComplaints.map((c) => (
             <View key={c.id} style={[styles.dataCard, {
               backgroundColor: colors.card,
-              borderColor: c.status === 'pending' ? '#f97316' + '60' : c.status === 'resolved' ? '#16a34a40' : colors.border
+              borderColor: c.status === 'pending' ? '#f9731660' : c.status === 'resolved' ? '#16a34a40' : colors.border,
             }]}>
               <View style={styles.cardHeader}>
                 <Text style={[styles.cardName, { color: colors.foreground, flex: 1 }]}>{c.subject}</Text>
-                <View style={[styles.tagBadge, {
-                  backgroundColor: c.status === 'pending' ? '#FFF3E0' : c.status === 'resolved' ? '#E8F5E9' : '#EDE9FE'
-                }]}>
-                  <Text style={[styles.tagText, {
-                    color: c.status === 'pending' ? '#E65100' : c.status === 'resolved' ? '#16a34a' : '#7C3AED'
-                  }]}>
-                    {c.status === 'pending' ? '⏳ Pending' : c.status === 'resolved' ? '✅ Resolved' : '🔴 Escalated'}
-                  </Text>
-                </View>
+                <StatusPill label={c.status === 'pending' ? '⏳ Pending' : c.status === 'resolved' ? '✅ Resolved' : '🔴 Escalated'}
+                  color={c.status === 'pending' ? '#E65100' : c.status === 'resolved' ? '#16a34a' : '#7C3AED'} />
               </View>
-              <DataRow label="From" value={`${c.complainantName} (${c.complainantRole})`} />
-              <DataRow label="Against" value={`${c.againstName} (${c.againstRole})`} />
-              <DataRow label="Details" value={c.description} />
-              <DataRow label="Date" value={formatDate(c.createdAt)} />
+              <DataRow label="👤 From" value={`${c.complainantName} (${c.complainantRole})`} />
+              <DataRow label="📱 Phone" value={c.complainantPhone || 'N/A'} />
+              <DataRow label="⚠️ Against" value={`${c.againstName} (${c.againstRole})`} />
+              <DataRow label="📝 Details" value={c.description} />
+              <DataRow label="📅 Date" value={formatDate(c.createdAt)} />
               {c.status === 'pending' && (
                 <View style={styles.actionRow}>
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
-                    onPress={() => Alert.alert('✅ Resolve करें?', 'इस complaint को Resolved mark करें?', [
-                      { text: 'हाँ', onPress: () => resolveComplaint(c.id).then(() => Alert.alert('✅ Done', 'Complaint resolved हो गई।')) },
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]}
+                    onPress={() => Alert.alert('✅ Resolve?', 'इस complaint को Resolved mark करें?', [
+                      { text: 'हाँ', onPress: () => resolveComplaint(c.id).then(() => Alert.alert('✅ Done', 'Complaint resolved।')) },
                       { text: 'नहीं', style: 'cancel' },
-                    ])}
-                  >
+                    ])}>
                     <Feather name="check-circle" size={13} color="#fff" />
                     <Text style={styles.actionBtnText}>Mark Resolved</Text>
                   </TouchableOpacity>
@@ -435,6 +523,44 @@ export default function AdminScreen() {
   );
 }
 
+function SearchBar({ value, onChangeText, placeholder }: { value: string; onChangeText: (v: string) => void; placeholder: string }) {
+  const colors = useColors();
+  return (
+    <View style={[searchStyles.wrap, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Feather name="search" size={16} color={colors.mutedForeground} />
+      <TextInput
+        style={[searchStyles.input, { color: colors.foreground }]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.mutedForeground}
+      />
+      {value.length > 0 && (
+        <TouchableOpacity onPress={() => onChangeText('')}>
+          <Feather name="x" size={16} color={colors.mutedForeground} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const searchStyles = StyleSheet.create({
+  wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 },
+  input: { flex: 1, fontSize: 14, fontFamily: 'Inter_400Regular' },
+});
+
+function StatusPill({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={[pillStyles.pill, { backgroundColor: color + '20' }]}>
+      <Text style={[pillStyles.text, { color }]}>{label}</Text>
+    </View>
+  );
+}
+const pillStyles = StyleSheet.create({
+  pill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
+  text: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+});
+
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <View style={sumStyles.card}>
@@ -444,7 +570,6 @@ function SummaryCard({ label, value, sub }: { label: string; value: string; sub?
     </View>
   );
 }
-
 const sumStyles = StyleSheet.create({
   card: { flex: 1, alignItems: 'center' },
   value: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
@@ -456,15 +581,14 @@ function DataRow({ label, value }: { label: string; value: string }) {
   const colors = useColors();
   return (
     <View style={dataStyles.row}>
-      <Text style={[dataStyles.label, { color: colors.mutedForeground }]}>{label}:</Text>
-      <Text style={[dataStyles.value, { color: colors.foreground }]} numberOfLines={2}>{value}</Text>
+      <Text style={[dataStyles.label, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[dataStyles.value, { color: colors.foreground }]} numberOfLines={3}>{value}</Text>
     </View>
   );
 }
-
 const dataStyles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8, marginBottom: 4 },
-  label: { fontSize: 12, fontFamily: 'Inter_500Medium', width: 80 },
+  row: { flexDirection: 'row', gap: 8, marginBottom: 5 },
+  label: { fontSize: 12, fontFamily: 'Inter_500Medium', width: 100 },
   value: { fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 },
 });
 
@@ -477,6 +601,14 @@ function EmptyState({ label }: { label: string }) {
     </View>
   );
 }
+
+const photoModal_styles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  container: { width: '100%', alignItems: 'center', gap: 12 },
+  label: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
+  image: { width: '100%', height: 320, borderRadius: 12 },
+  close: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontFamily: 'Inter_500Medium' },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -493,36 +625,36 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
   alertBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   alertText: { color: '#fde68a', fontSize: 11, fontFamily: 'Inter_600SemiBold', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  tabBar: { flexDirection: 'row', borderBottomWidth: 1 },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 2, flexDirection: 'column' },
+  tabBar: { borderBottomWidth: 1, maxHeight: 60 },
+  tabBarContent: { paddingHorizontal: 4 },
+  tab: { alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 2, flexDirection: 'column' },
   tabText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  badge: { borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1 },
+  badge: { borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1, minWidth: 18, alignItems: 'center' },
   badgeText: { color: '#fff', fontSize: 9, fontFamily: 'Inter_600SemiBold' },
   body: { padding: 16 },
   dataCard: { borderRadius: 12, padding: 14, borderWidth: 1, marginBottom: 10 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  cardName: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 },
+  cardName: { fontSize: 15, fontFamily: 'Inter_700Bold', flex: 1 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  tagBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
-  tagText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
   actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
   actionBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold' },
-  kycRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  kycLabel: { fontSize: 12, fontFamily: 'Inter_500Medium' },
-  photosSection: { marginTop: 8, marginBottom: 4, padding: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.03)' },
+  photosSection: { marginTop: 8, marginBottom: 4, padding: 10, borderRadius: 10 },
   photosTitle: { fontSize: 11, fontFamily: 'Inter_600SemiBold', marginBottom: 8 },
   photosRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   photoThumbWrap: { alignItems: 'center', gap: 4 },
   photoThumb: { width: 72, height: 72, borderRadius: 8, borderWidth: 2 },
   photoThumbLabel: { fontSize: 10, fontFamily: 'Inter_500Medium' },
   photosTip: { fontSize: 10, fontFamily: 'Inter_400Regular', marginTop: 6 },
-});
-
-const photoModal_styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  container: { width: '100%', maxWidth: 400, alignItems: 'center', gap: 12 },
-  label: { color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' },
-  image: { width: '100%', height: 320, borderRadius: 12 },
-  close: { color: 'rgba(255,255,255,0.7)', fontSize: 14, fontFamily: 'Inter_500Medium', marginTop: 8 },
+  subCard: { borderRadius: 8, padding: 10, marginBottom: 6 },
+  subCardTitle: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  subCardSub: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  bidRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, borderWidth: 1, marginBottom: 6 },
+  bidDriver: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  bidSub: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  paymentSummary: { borderRadius: 12, padding: 16, borderWidth: 1, marginBottom: 12, alignItems: 'center' },
+  paymentSummaryTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 4 },
+  paymentSummaryAmount: { fontSize: 28, fontFamily: 'Inter_700Bold' },
+  paymentSummaryCount: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  sectionDivider: { fontSize: 15, fontFamily: 'Inter_700Bold', marginTop: 16, marginBottom: 10 },
 });
