@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeFirestore, getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
@@ -18,9 +18,14 @@ let db: ReturnType<typeof getFirestore>;
 try {
   db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
+    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({}) }),
   });
 } catch (_e) {
-  db = getFirestore(app);
+  try {
+    db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  } catch (_e2) {
+    db = getFirestore(app);
+  }
 }
 
 const auth = getAuth(app);

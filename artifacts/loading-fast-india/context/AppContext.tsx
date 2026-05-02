@@ -9,6 +9,36 @@ import { Driver, Trip, Vehicle, Vyapari, Complaint, Bilty, ChatMessage, Rating, 
 
 const USER_KEY = '@lfi_user';
 
+const CACHE_KEYS: Record<string, string> = {
+  drivers: '@lfi_cache_drivers',
+  vyaparis: '@lfi_cache_vyaparis',
+  vehicles: '@lfi_cache_vehicles',
+  trips: '@lfi_cache_trips',
+  bilties: '@lfi_cache_bilties',
+  complaints: '@lfi_cache_complaints',
+  chatMessages: '@lfi_cache_chatMessages',
+  ratings: '@lfi_cache_ratings',
+  appRatings: '@lfi_cache_appRatings',
+  vyapariTrips: '@lfi_cache_vyapariTrips',
+  commissionPayments: '@lfi_cache_commissionPayments',
+  bids: '@lfi_cache_bids',
+};
+
+async function loadCache<T>(key: string): Promise<T[]> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveCache(key: string, data: unknown[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(data));
+  } catch {}
+}
+
 interface AppUser {
   id: string;
   role: 'driver' | 'vyapari' | 'admin';
@@ -125,12 +155,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const unsubs: (() => void)[] = [];
 
     const listen = <T,>(col: string, setter: (v: T[]) => void) => {
+      const cacheKey = CACHE_KEYS[col];
+      if (cacheKey) {
+        loadCache<T>(cacheKey).then((cached) => {
+          if (cached.length > 0) setter(cached);
+        });
+      }
       const q = query(collection(db, col), orderBy('createdAt', 'desc'));
       const unsub = onSnapshot(q, (snap) => {
-        setter(snap.docs.map((d) => d.data() as T));
+        const data = snap.docs.map((d) => d.data() as T);
+        setter(data);
+        if (cacheKey) saveCache(cacheKey, data as unknown[]);
       }, () => {
         const fallback = onSnapshot(collection(db, col), (snap) => {
-          setter(snap.docs.map((d) => d.data() as T));
+          const data = snap.docs.map((d) => d.data() as T);
+          setter(data);
+          if (cacheKey) saveCache(cacheKey, data as unknown[]);
         });
         unsubs.push(fallback);
       });
