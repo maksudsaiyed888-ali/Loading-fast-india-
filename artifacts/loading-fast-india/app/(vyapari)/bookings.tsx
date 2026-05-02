@@ -98,6 +98,37 @@ export default function BookingsScreen() {
         contentContainerStyle={[styles.body, { paddingBottom: 100 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.navy]} />}
       >
+        {/* LFI Trust Card — हर बार visible */}
+        <View style={[styles.trustCard, { backgroundColor: '#FFF8E1', borderColor: '#F59E0B' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <Text style={{ fontSize: 18 }}>🛡️</Text>
+            <Text style={[styles.trustTitle, { color: '#78350F' }]}>LFI आपकी सुरक्षा करता है</Text>
+          </View>
+          <View style={styles.trustRow}>
+            <Text style={styles.trustIcon}>💰</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.trustHead, { color: '#92400E' }]}>20% Advance — Driver की guarantee</Text>
+              <Text style={[styles.trustSub, { color: '#B45309' }]}>
+                यह पैसा LFI के पास सुरक्षित रहता है। Driver बीच में job छोड़े तो वापस मिलेगा।
+              </Text>
+            </View>
+          </View>
+          <View style={styles.trustRow}>
+            <Text style={styles.trustIcon}>✅</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.trustHead, { color: '#92400E' }]}>50% Loading पर + 30% Delivery पर — सीधे Driver को</Text>
+              <Text style={[styles.trustSub, { color: '#B45309' }]}>
+                यह cash आप driver को देते हैं — LFI को नहीं। LFI का charge सिर्फ 2% है।
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.trustNote, { backgroundColor: '#FEF3C7', borderColor: '#D97706' }]}>
+            <Text style={[styles.trustNoteText, { color: '#78350F' }]}>
+              💡 LFI सिर्फ 2% लेता है — बाकी 98% किराया पूरा आपका और Driver का
+            </Text>
+          </View>
+        </View>
+
         {displayTrips.length === 0 ? (
           <View style={[styles.empty, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name="package" size={40} color={colors.mutedForeground} />
@@ -337,4 +368,12 @@ const styles = StyleSheet.create({
   otpBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 11, borderRadius: 9, justifyContent: 'center', marginBottom: 8 },
   otpBtnText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_700Bold', flex: 1 },
   infoBox: { borderRadius: 9, borderWidth: 1.5, padding: 10, marginBottom: 8 },
+  trustCard: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 16 },
+  trustTitle: { fontSize: 14, fontFamily: 'Inter_700Bold' },
+  trustRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  trustIcon: { fontSize: 16, lineHeight: 22 },
+  trustHead: { fontSize: 12.5, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  trustSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  trustNote: { borderRadius: 8, borderWidth: 1, padding: 9, marginTop: 4 },
+  trustNoteText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', lineHeight: 18 },
 });

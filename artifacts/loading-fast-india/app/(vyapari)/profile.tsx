@@ -89,6 +89,91 @@ export default function VyapariProfileScreen() {
           </View>
         )}
 
+        {/* LFI System Full Explainer — Merchant Transparency */}
+        <View style={[styles.lfiExplainer, { backgroundColor: '#EEF2FF', borderColor: '#4F46E5' }]}>
+          <View style={styles.lfiExHeader}>
+            <View style={[styles.lfiExLogo, { backgroundColor: '#4F46E5' }]}>
+              <Text style={styles.lfiExLogoText}>LFI</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.lfiExTitle, { color: '#1E1B4B' }]}>LFI Payment System क्या है?</Text>
+              <Text style={[styles.lfiExSub, { color: '#4338CA' }]}>पूरी जानकारी — हिंदी में</Text>
+            </View>
+          </View>
+
+          <View style={[styles.lfiExCard, { backgroundColor: '#fff', borderColor: '#C7D2FE' }]}>
+            <Text style={[styles.lfiExCardTitle, { color: '#312E81' }]}>🎯 LFI क्यों बना?</Text>
+            <Text style={[styles.lfiExCardText, { color: '#374151' }]}>
+              अनजान driver को पूरा पैसा पहले देना खतरनाक है। LFI ने 3-Step payment बनाया जिससे{' '}
+              <Text style={{ fontFamily: 'Inter_600SemiBold' }}>व्यापारी और driver दोनों safe रहें।</Text>
+            </Text>
+          </View>
+
+          <Text style={[styles.lfiExStep, { color: '#4338CA' }]}>📋 3 Steps में समझें</Text>
+
+          <View style={[styles.lfiExStep1, { backgroundColor: '#DBEAFE', borderColor: '#3B82F6' }]}>
+            <Text style={styles.lfiExStepNum}>Step 1</Text>
+            <Text style={[styles.lfiExStepTitle, { color: '#1D4ED8' }]}>20% Advance — LFI को UPI से</Text>
+            <Text style={[styles.lfiExStepText, { color: '#1E40AF' }]}>
+              • Bid accept करने के बाद{'\n'}
+              • यह पैसा LFI के पास सुरक्षित रहता है{'\n'}
+              • इसमें से 2% LFI रखता है, बाकी 18% driver को trip पूरी होने पर मिलता है{'\n'}
+              • Driver cancel करे तो आपको refund मिलेगा
+            </Text>
+          </View>
+
+          <View style={[styles.lfiExStep1, { backgroundColor: '#D1FAE5', borderColor: '#10B981' }]}>
+            <Text style={styles.lfiExStepNum}>Step 2</Text>
+            <Text style={[styles.lfiExStepTitle, { color: '#065F46' }]}>50% Loading पर — Driver को Cash</Text>
+            <Text style={[styles.lfiExStepText, { color: '#047857' }]}>
+              • माल load होने के समय{'\n'}
+              • आप driver को सीधे cash देते हैं{'\n'}
+              • LFI का इसमें कोई हिस्सा नहीं{'\n'}
+              • Start OTP से confirm होता है
+            </Text>
+          </View>
+
+          <View style={[styles.lfiExStep1, { backgroundColor: '#FEE2E2', borderColor: '#EF4444' }]}>
+            <Text style={styles.lfiExStepNum}>Step 3</Text>
+            <Text style={[styles.lfiExStepTitle, { color: '#991B1B' }]}>30% Delivery पर — Receiver से Cash</Text>
+            <Text style={[styles.lfiExStepText, { color: '#B91C1C' }]}>
+              • माल पहुंचने पर receiver देता है{'\n'}
+              • आपको कुछ नहीं देना{'\n'}
+              • End OTP से delivery confirm होती है{'\n'}
+              • Driver का locked 18% unlock होता है
+            </Text>
+          </View>
+
+          <View style={[styles.lfiExCard, { backgroundColor: '#FEF9C3', borderColor: '#EAB308' }]}>
+            <Text style={[styles.lfiExCardTitle, { color: '#78350F' }]}>💸 LFI का असली charge कितना है?</Text>
+            <View style={styles.lfiChargeRow}>
+              <Text style={[styles.lfiChargeItem, { color: '#374151' }]}>कुल किराया</Text>
+              <Text style={[styles.lfiChargeVal, { color: '#111827' }]}>100%</Text>
+            </View>
+            <View style={styles.lfiChargeRow}>
+              <Text style={[styles.lfiChargeItem, { color: '#374151' }]}>LFI commission</Text>
+              <Text style={[styles.lfiChargeVal, { color: '#DC2626', fontFamily: 'Inter_700Bold' }]}>सिर्फ 2%</Text>
+            </View>
+            <View style={styles.lfiChargeRow}>
+              <Text style={[styles.lfiChargeItem, { color: '#374151' }]}>Driver को जाता है</Text>
+              <Text style={[styles.lfiChargeVal, { color: '#16A34A', fontFamily: 'Inter_700Bold' }]}>98%</Text>
+            </View>
+            <Text style={[styles.lfiExCardText, { color: '#92400E', marginTop: 8 }]}>
+              ✅ बाकी 80% किराया (50%+30%) cash में सीधे driver को — LFI को नहीं
+            </Text>
+          </View>
+
+          <View style={[styles.lfiExCard, { backgroundColor: '#F0FDF4', borderColor: '#22C55E' }]}>
+            <Text style={[styles.lfiExCardTitle, { color: '#14532D' }]}>🔒 आपकी safety कैसे?</Text>
+            <Text style={[styles.lfiExCardText, { color: '#166534' }]}>
+              ✅ Driver का Aadhaar verified{'\n'}
+              ✅ OTP से loading और delivery confirm{'\n'}
+              ✅ Driver cancel करे → advance refund{'\n'}
+              ✅ Complaint helpline: 8401023589
+            </Text>
+          </View>
+        </View>
+
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.secondary }]}>मेरी रेटिंग</Text>
           <View style={styles.ratingOverview}>
@@ -293,6 +378,23 @@ const styles = StyleSheet.create({
   adminBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 20 },
   logoutText: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  lfiExplainer: { borderRadius: 16, borderWidth: 1.5, padding: 16, marginBottom: 12, gap: 10 },
+  lfiExHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+  lfiExLogo: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  lfiExLogoText: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+  lfiExTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', marginBottom: 2 },
+  lfiExSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  lfiExCard: { borderRadius: 12, borderWidth: 1, padding: 12 },
+  lfiExCardTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  lfiExCardText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  lfiExStep: { fontSize: 13, fontFamily: 'Inter_700Bold', marginTop: 4, marginBottom: 4 },
+  lfiExStep1: { borderRadius: 12, borderWidth: 1, padding: 12 },
+  lfiExStepNum: { fontSize: 11, fontFamily: 'Inter_700Bold', textTransform: 'uppercase', letterSpacing: 1, color: '#6B7280', marginBottom: 3 },
+  lfiExStepTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', marginBottom: 6 },
+  lfiExStepText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 21 },
+  lfiChargeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#E5E7EB' },
+  lfiChargeItem: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+  lfiChargeVal: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   ratingOverview: { flexDirection: 'row', gap: 16, marginBottom: 10 },
   ratingBig: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
   ratingNumber: { fontSize: 36, fontFamily: 'Inter_700Bold', lineHeight: 40 },

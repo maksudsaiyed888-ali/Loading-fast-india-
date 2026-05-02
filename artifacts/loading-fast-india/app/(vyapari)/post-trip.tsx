@@ -471,6 +471,41 @@ export default function VyapariPostTripScreen() {
               <Input label="Receiver का मोबाइल नंबर *" placeholder="10 अंकों का नंबर" value={form.receiverPhone} onChangeText={(v) => set('receiverPhone', v)} keyboardType="phone-pad" maxLength={10} />
               <Input label="Receiver का पता (वैकल्पिक)" placeholder="गोदाम / दुकान का पता..." value={form.receiverAddress} onChangeText={(v) => set('receiverAddress', v)} />
 
+              {/* LFI Payment System Info — before posting */}
+              <View style={[styles.lfiInfoBox, { backgroundColor: '#E8F5E9', borderColor: '#2E7D32' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <Feather name="shield" size={16} color="#1B5E20" />
+                  <Text style={[styles.lfiInfoTitle, { color: '#1B5E20' }]}>LFI Payment System — आपकी सुरक्षा</Text>
+                </View>
+                <View style={styles.lfiRow}>
+                  <Text style={styles.lfiStep}>1️⃣</Text>
+                  <Text style={[styles.lfiText, { color: '#2E7D32' }]}>
+                    <Text style={{ fontFamily: 'Inter_700Bold' }}>20% Advance (LFI को):</Text> Driver confirm होने पर{'\n'}
+                    यह LFI के पास रहता है — Driver की guarantee
+                  </Text>
+                </View>
+                <View style={styles.lfiRow}>
+                  <Text style={styles.lfiStep}>2️⃣</Text>
+                  <Text style={[styles.lfiText, { color: '#2E7D32' }]}>
+                    <Text style={{ fontFamily: 'Inter_700Bold' }}>50% Loading पर (Driver को Cash):</Text>{'\n'}
+                    माल load होने पर आप driver को सीधे दें
+                  </Text>
+                </View>
+                <View style={styles.lfiRow}>
+                  <Text style={styles.lfiStep}>3️⃣</Text>
+                  <Text style={[styles.lfiText, { color: '#2E7D32' }]}>
+                    <Text style={{ fontFamily: 'Inter_700Bold' }}>30% Delivery पर (Driver को Cash):</Text>{'\n'}
+                    माल पहुंचने पर Receiver driver को देगा
+                  </Text>
+                </View>
+                <View style={[styles.lfiGuarantee, { backgroundColor: '#C8E6C9', borderColor: '#388E3C' }]}>
+                  <Feather name="check-circle" size={13} color="#1B5E20" />
+                  <Text style={[styles.lfiGuaranteeText, { color: '#1B5E20' }]}>
+                    20% advance से Driver बीच में नहीं छोड़ेगा — LFI की guarantee
+                  </Text>
+                </View>
+              </View>
+
               <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
               <View style={{ height: 30 }} />
             </ScrollView>
@@ -712,6 +747,13 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   rateHint: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 7, padding: 7, marginBottom: 10 },
   rateHintText: { fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 },
+  lfiInfoBox: { borderRadius: 14, borderWidth: 1.5, padding: 14, marginBottom: 14, marginTop: 4 },
+  lfiInfoTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  lfiRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
+  lfiStep: { fontSize: 16, lineHeight: 22 },
+  lfiText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 19, flex: 1 },
+  lfiGuarantee: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, marginTop: 4 },
+  lfiGuaranteeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', flex: 1, lineHeight: 18 },
   distSuggestBox: { borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 10, gap: 8 },
   distSuggestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   distSuggestTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
