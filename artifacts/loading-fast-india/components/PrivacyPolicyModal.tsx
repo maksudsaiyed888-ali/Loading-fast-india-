@@ -71,8 +71,21 @@ const sections: Section[] = [
     items: [
       'GPS केवल ट्रिप active होने पर इस्तेमाल होता है।',
       'Location data किसी तीसरे पक्ष को नहीं दिया जाता।',
-      'आप कभी भी Location permission बंद कर सकते हैं।',
       'Location history 30 दिन बाद automatically delete होती है।',
+    ],
+  },
+  {
+    icon: 'navigation',
+    title: 'Driver के लिए GPS — कड़ा निर्देश',
+    color: colors.red,
+    items: [
+      '🔴 ट्रिप के दौरान Driver का GPS और Mobile हर हाल में चालू रहना अनिवार्य है।',
+      '🔴 GPS या Mobile बंद करना — माल की सुरक्षा से समझौता माना जाएगा।',
+      '⚠️ GPS बंद पाए जाने पर Driver को माल छुपाने या चोरी का अपराधी माना जाएगा।',
+      '📌 GPS बंद रहने पर Driver के विरुद्ध IPC 406 (विश्वासघात) और IPC 378 (चोरी) के तहत FIR दर्ज होगी।',
+      '🔴 "Battery खत्म थी" या "Signal नहीं था" — कोई भी बहाना मान्य नहीं होगा।',
+      '✅ Trip accept करने का मतलब है Driver GPS चालू रखने की शर्त से पूरी तरह सहमत है।',
+      '📌 Loading Fast India GPS data को trip proof के रूप में court में पेश कर सकता है।',
     ],
   },
   {
