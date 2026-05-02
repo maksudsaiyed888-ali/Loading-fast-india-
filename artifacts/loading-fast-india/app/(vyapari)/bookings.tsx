@@ -12,7 +12,7 @@ const ADVANCE_UPI_NAME = 'Loading%20Fast%20India';
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, getVyapariOwnTrips, refreshAll, getTripBids, acceptBid, processAdvance20, generateStartOtp, generateEndOtp } = useApp();
+  const { user, getVyapariOwnTrips, refreshAll, getTripBids, acceptBid, processAdvance20, generateStartOtp, generateEndOtp, updateVyapariTrip } = useApp();
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<'active' | 'completed'>('active');
   const [advanceModal, setAdvanceModal] = useState(false);
@@ -23,6 +23,10 @@ export default function BookingsScreen() {
   const [otpTrip, setOtpTrip] = useState<VyapariTrip | null>(null);
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpType, setOtpType] = useState<'start' | 'end'>('start');
+  const [delivery30Modal, setDelivery30Modal] = useState(false);
+  const [delivery30Trip, setDelivery30Trip] = useState<VyapariTrip | null>(null);
+  const [delivery30Utr, setDelivery30Utr] = useState('');
+  const [processingDelivery30, setProcessingDelivery30] = useState(false);
 
   const myTrips = user ? getVyapariOwnTrips(user.id) : [];
   const activeTrips = myTrips.filter(t => !['completed', 'cancelled'].includes(t.status));
@@ -67,13 +71,37 @@ export default function BookingsScreen() {
   };
 
   const handleGenerateOtp = async (trip: VyapariTrip, type: 'start' | 'end') => {
-    let otp = '';
-    if (type === 'start') otp = await generateStartOtp(trip.id);
-    else otp = await generateEndOtp(trip.id);
+    if (type === 'end') {
+      setDelivery30Trip(trip);
+      setDelivery30Utr('');
+      setDelivery30Modal(true);
+      return;
+    }
+    const otp = await generateStartOtp(trip.id);
     setOtpTrip(trip);
     setGeneratedOtp(otp);
-    setOtpType(type);
+    setOtpType('start');
     setOtpModal(true);
+  };
+
+  const handleDelivery30Confirm = async () => {
+    if (!delivery30Trip) return;
+    if (!delivery30Utr.trim()) { Alert.alert('UTR जरूरी है', '30% payment का UTR/Transaction ID दर्ज करें।'); return; }
+    setProcessingDelivery30(true);
+    try {
+      await updateVyapariTrip(delivery30Trip.id, {
+        deliveryUTR30: delivery30Utr.trim().toUpperCase(),
+        deliveryUTR30At: new Date().toISOString(),
+      });
+      const otp = await generateEndOtp(delivery30Trip.id);
+      setDelivery30Modal(false);
+      setOtpTrip(delivery30Trip);
+      setGeneratedOtp(otp);
+      setOtpType('end');
+      setOtpModal(true);
+    } finally {
+      setProcessingDelivery30(false);
+    }
   };
 
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
@@ -319,6 +347,63 @@ export default function BookingsScreen() {
               <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' }}>{processingAdvance ? 'Process हो रहा है...' : 'Confirm Payment'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={{ marginTop: 10, alignItems: 'center' }} onPress={() => setAdvanceModal(false)}>
+              <Text style={{ color: colors.mutedForeground }}>रद्द करें</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 30% Delivery Payment UTR Modal */}
+      <Modal visible={delivery30Modal} transparent animationType="slide" onRequestClose={() => { if (!processingDelivery30) setDelivery30Modal(false); }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
+            <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 4 }}>
+              💰 30% Delivery Payment Proof
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, marginBottom: 6 }}>
+              Delivery OTP से पहले 30% payment का proof दें
+            </Text>
+
+            {delivery30Trip?.acceptedBidAmount ? (
+              <View style={{ backgroundColor: '#FFF8E1', borderRadius: 10, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: '#F59E0B' }}>
+                <Text style={{ color: '#92400E', fontFamily: 'Inter_700Bold', fontSize: 14 }}>
+                  30% Amount: ₹{Math.round(delivery30Trip.acceptedBidAmount * 0.30).toLocaleString('en-IN')}
+                </Text>
+                <Text style={{ color: '#92400E', fontSize: 12, marginTop: 4, fontFamily: 'Inter_400Regular' }}>
+                  यह amount Driver को cash में दें और UTR/reference नीचे दर्ज करें
+                </Text>
+              </View>
+            ) : null}
+
+            <Text style={{ fontSize: 13, fontFamily: 'Inter_600SemiBold', color: colors.foreground, marginBottom: 6 }}>
+              Payment Reference / UTR Number
+            </Text>
+            <TextInput
+              style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 15, color: colors.foreground, backgroundColor: colors.card, marginBottom: 14, fontFamily: 'Inter_500Medium' }}
+              placeholder="जैसे: CASH300000 या UTR123456"
+              placeholderTextColor={colors.mutedForeground}
+              value={delivery30Utr}
+              onChangeText={setDelivery30Utr}
+              autoCapitalize="characters"
+            />
+
+            <View style={{ backgroundColor: '#E8F5E9', borderRadius: 10, padding: 10, marginBottom: 14, flexDirection: 'row', gap: 8 }}>
+              <Text style={{ fontSize: 13 }}>🔒</Text>
+              <Text style={{ flex: 1, fontSize: 12, color: '#1B5E20', fontFamily: 'Inter_400Regular', lineHeight: 18 }}>
+                UTR दर्ज करने के बाद Delivery OTP generate होगा। Driver को OTP तभी दें जब 30% cash मिल जाए।
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={{ backgroundColor: '#7C3AED', borderRadius: 10, padding: 14, alignItems: 'center', opacity: processingDelivery30 ? 0.6 : 1 }}
+              onPress={handleDelivery30Confirm}
+              disabled={processingDelivery30}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Inter_700Bold' }}>
+                {processingDelivery30 ? 'Process हो रहा है...' : '✅ Confirm करें — Delivery OTP Generate करें'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={{ marginTop: 10, alignItems: 'center' }} onPress={() => { if (!processingDelivery30) setDelivery30Modal(false); }}>
               <Text style={{ color: colors.mutedForeground }}>रद्द करें</Text>
             </TouchableOpacity>
           </View>

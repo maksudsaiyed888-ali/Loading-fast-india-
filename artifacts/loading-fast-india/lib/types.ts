@@ -402,6 +402,8 @@ export interface VyapariTrip {
   driverLat?: number;
   driverLng?: number;
   driverLocationAt?: string;
+  deliveryUTR30?: string;
+  deliveryUTR30At?: string;
 }
 
 export interface CommissionPayment {
