@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ActivityIndicator, Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import TermsModal from '@/components/TermsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
@@ -11,6 +12,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { generateId } from '@/lib/utils';
 import { validateAadhaar, formatAadhaarInput } from '@/lib/verhoeff';
+import { uploadPhotoToStorage } from '@/lib/uploadPhoto';
 
 export default function VyapariRegisterScreen() {
   const colors = useColors();
@@ -19,6 +21,8 @@ export default function VyapariRegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [aadhaarPhoto, setAadhaarPhoto] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [form, setForm] = useState({
     name: '', businessName: '', phone: '',
@@ -29,6 +33,57 @@ export default function VyapariRegisterScreen() {
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
   const clearError = (k: string) => setErrors((p) => ({ ...p, [k]: '' }));
 
+  const pickPhoto = async (source: 'camera' | 'gallery') => {
+    try {
+      let result;
+      if (source === 'camera') {
+        try {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) {
+            Alert.alert('Camera नहीं मिला', 'Gallery से photo चुनें।', [
+              { text: '🖼️ Gallery खोलें', onPress: () => pickPhoto('gallery') },
+              { text: 'बाद में', style: 'cancel' },
+            ]);
+            return;
+          }
+          result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: [4, 3] });
+        } catch (_camErr) {
+          Alert.alert('Camera नहीं चला', 'Gallery से photo चुनें।', [
+            { text: '🖼️ Gallery खोलें', onPress: () => pickPhoto('gallery') },
+            { text: 'बाद में', style: 'cancel' },
+          ]);
+          return;
+        }
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, base64: false, allowsEditing: true, aspect: [4, 3] });
+      }
+      if (result.canceled || !result.assets?.[0]) return;
+      const uri = result.assets[0].uri;
+      setUploadingPhoto(true);
+      try {
+        const phone = form.phone || 'temp';
+        const url = await uploadPhotoToStorage(uri, `vyaparis/${phone}/aadhaarPhoto_${Date.now()}.jpg`);
+        setAadhaarPhoto(url);
+      } catch (_e) {
+        setAadhaarPhoto(uri);
+      } finally {
+        setUploadingPhoto(false);
+      }
+      clearError('aadhaarPhoto');
+    } catch (_e) {
+      Alert.alert('त्रुटि', 'फोटो नहीं मिली। फिर कोशिश करें।');
+      setUploadingPhoto(false);
+    }
+  };
+
+  const showPhotoPicker = () => {
+    Alert.alert('आधार कार्ड फोटो', 'फोटो कैसे लें?', [
+      { text: '📷 Camera से', onPress: () => pickPhoto('camera') },
+      { text: '🖼️ Gallery से', onPress: () => pickPhoto('gallery') },
+      { text: 'रहने दो', style: 'cancel' },
+    ]);
+  };
+
   const handleRegister = async () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'नाम आवश्यक है';
@@ -36,6 +91,7 @@ export default function VyapariRegisterScreen() {
     if (!form.phone || form.phone.length !== 10) e.phone = 'सही फोन नंबर दर्ज करें';
     const aadhaarResult = validateAadhaar(form.aadhaarNumber);
     if (!aadhaarResult.valid) e.aadhaarNumber = aadhaarResult.error;
+    if (!aadhaarPhoto) e.aadhaarPhoto = 'आधार कार्ड की फोटो आवश्यक है';
     if (!form.address.trim()) e.address = 'पता आवश्यक है';
     if (!form.city.trim()) e.city = 'शहर आवश्यक है';
     setErrors(e);
@@ -72,6 +128,7 @@ export default function VyapariRegisterScreen() {
         businessName: form.businessName.trim(),
         phone: form.phone.trim(),
         aadhaarNumber: form.aadhaarNumber.trim(),
+        aadhaarPhoto: aadhaarPhoto || undefined,
         gstNumber: form.gstNumber.trim() || undefined,
         address: form.address.trim(),
         city: form.city.trim(),
@@ -118,6 +175,7 @@ export default function VyapariRegisterScreen() {
           <Feather name="file-text" size={15} color={colors.primary} />
           <Text style={[styles.docNoteText, { color: colors.primary }]}>Aadhaar Card अनिवार्य • GST वैकल्पिक है</Text>
         </View>
+
         <Input
           label="आधार कार्ड नंबर"
           placeholder="XXXX XXXX XXXX"
@@ -133,6 +191,46 @@ export default function VyapariRegisterScreen() {
           icon="shield"
           required
         />
+
+        {/* Aadhaar Photo Upload */}
+        <View style={styles.photoSection}>
+          <Text style={[styles.photoLabel, { color: colors.foreground }]}>
+            आधार कार्ड फोटो <Text style={{ color: colors.destructive }}>*</Text>
+          </Text>
+          <TouchableOpacity
+            style={[styles.photoBox, {
+              borderColor: errors.aadhaarPhoto ? colors.destructive : aadhaarPhoto ? colors.primary : colors.border,
+              backgroundColor: aadhaarPhoto ? 'transparent' : colors.accent,
+            }]}
+            onPress={showPhotoPicker}
+            activeOpacity={0.8}
+          >
+            {uploadingPhoto ? (
+              <View style={styles.photoPlaceholder}>
+                <ActivityIndicator color={colors.primary} />
+                <Text style={[styles.photoHint, { color: colors.mutedForeground }]}>Upload हो रहा है...</Text>
+              </View>
+            ) : aadhaarPhoto ? (
+              <View style={styles.photoPreviewWrap}>
+                <Image source={{ uri: aadhaarPhoto }} style={styles.photoPreview} resizeMode="cover" />
+                <View style={[styles.changePhotoBtn, { backgroundColor: colors.primary }]}>
+                  <Feather name="edit-2" size={12} color="#fff" />
+                  <Text style={styles.changePhotoText}>बदलें</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.photoPlaceholder}>
+                <Feather name="camera" size={28} color={colors.mutedForeground} />
+                <Text style={[styles.photoHint, { color: colors.mutedForeground }]}>📷 Camera या 🖼️ Gallery से</Text>
+                <Text style={[styles.photoSubHint, { color: colors.mutedForeground }]}>Tap करें</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {errors.aadhaarPhoto ? (
+            <Text style={[styles.errorText, { color: colors.destructive }]}>{errors.aadhaarPhoto}</Text>
+          ) : null}
+        </View>
+
         <Input label="GST नंबर (वैकल्पिक)" placeholder="GSTIN नंबर (यदि है)" value={form.gstNumber} onChangeText={(v) => set('gstNumber', v)} autoCapitalize="characters" icon="file" />
 
         <Text style={[styles.sectionTitle, { color: colors.secondary, marginTop: 4 }]}>पता</Text>
@@ -183,6 +281,17 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', marginBottom: 14, marginTop: 4 },
   docNote: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16, alignItems: 'center' },
   docNoteText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium' },
+  photoSection: { marginBottom: 16 },
+  photoLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 8 },
+  photoBox: { borderWidth: 2, borderStyle: 'dashed', borderRadius: 12, overflow: 'hidden', minHeight: 140 },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
+  photoHint: { fontSize: 14, fontFamily: 'Inter_500Medium' },
+  photoSubHint: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  photoPreviewWrap: { position: 'relative' },
+  photoPreview: { width: '100%', height: 160 },
+  changePhotoBtn: { position: 'absolute', bottom: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
+  changePhotoText: { color: '#fff', fontSize: 12, fontFamily: 'Inter_500Medium' },
+  errorText: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 },
   legalBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 12 },
   legalText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
   privacyBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
