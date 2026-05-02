@@ -506,9 +506,13 @@ export default function VyapariPostTripScreen() {
                 </View>
               </View>
 
-              <Button title="ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
-              <View style={{ height: 30 }} />
+              <View style={{ height: 16 }} />
             </ScrollView>
+
+            {/* Sticky bottom button — हमेशा दिखेगा */}
+            <View style={[styles.stickyFooter, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+              <Button title="✅ ट्रिप पोस्ट करें" onPress={handlePost} loading={posting} />
+            </View>
           </View>
         </View>
       </Modal>
@@ -754,6 +758,7 @@ const styles = StyleSheet.create({
   lfiText: { fontSize: 12.5, fontFamily: 'Inter_400Regular', lineHeight: 19, flex: 1 },
   lfiGuarantee: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10, marginTop: 4 },
   lfiGuaranteeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', flex: 1, lineHeight: 18 },
+  stickyFooter: { padding: 16, paddingBottom: 20, borderTopWidth: 1 },
   distSuggestBox: { borderRadius: 10, borderWidth: 1.5, padding: 12, marginBottom: 10, gap: 8 },
   distSuggestRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   distSuggestTitle: { fontSize: 13, fontFamily: 'Inter_700Bold' },
