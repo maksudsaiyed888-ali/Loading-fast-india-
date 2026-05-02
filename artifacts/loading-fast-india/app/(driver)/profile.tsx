@@ -269,7 +269,7 @@ export default function DriverProfileScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.secondary }]}>Commission Info</Text>
           <InfoRow icon="percent" label="Commission" value="2% per trip" />
-          <InfoRow icon="credit-card" label="UPI" value={COMMISSION_UPI} />
+          <InfoRow icon="credit-card" label="Payment" value="Loading Fast India" />
           <Text style={[styles.commNote, { color: colors.mutedForeground }]}>
             Trip confirm होने के बाद 2% commission भेजें
           </Text>

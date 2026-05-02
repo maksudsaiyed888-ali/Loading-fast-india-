@@ -70,14 +70,14 @@ export default function BrowseTripsScreen() {
   const openUpiPayment = () => {
     const upiUrl = `upi://pay?pa=${ADVANCE_UPI}&pn=${ADVANCE_UPI_NAME}&am=${ADVANCE_AMOUNT}&cu=INR&tn=LFI+Advance`;
     Linking.openURL(upiUrl).catch(() => {
-      Alert.alert('UPI App नहीं मिला', `UPI ID पर manually ₹${ADVANCE_AMOUNT} bhejein:\n${ADVANCE_UPI}`);
+      Alert.alert('UPI App नहीं मिला', `Loading Fast India को manually ₹${ADVANCE_AMOUNT} bhejein — UPI app se "Loading Fast India" search karein.`);
     });
   };
 
   const handleAdvanceDone = () => {
     Alert.alert(
       '₹1000 Advance Confirm करें',
-      `क्या आपने Loading Fast India (${ADVANCE_UPI}) को ₹1000 advance भेज दिया?`,
+      `क्या आपने Loading Fast India को ₹1000 advance भेज दिया?`,
       [
         { text: 'हाँ, भेज दिया', onPress: () => { setAdvancePaid(true); setStep(2); } },
         { text: 'नहीं', style: 'cancel' },
