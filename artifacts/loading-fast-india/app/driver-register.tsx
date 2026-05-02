@@ -22,6 +22,7 @@ export default function DriverRegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [gpsAgreed, setGpsAgreed] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
   const [form, setForm] = useState({
@@ -130,6 +131,10 @@ export default function DriverRegisterScreen() {
   const handleRegister = async () => {
     if (!photos.selfiePhoto) {
       Alert.alert('Selfie आवश्यक', 'KYC के लिए अपनी selfie लें।');
+      return;
+    }
+    if (!gpsAgreed) {
+      Alert.alert('GPS निर्देश अनिवार्य', 'GPS चालू रखने की शर्त से सहमति देना अनिवार्य है।');
       return;
     }
     if (!termsAgreed) {
@@ -328,6 +333,32 @@ export default function DriverRegisterScreen() {
               placeholder="🖼️ Gallery से Selfie चुनें"
             />
 
+            {/* GPS Strict Warning */}
+            <View style={[styles.gpsWarningBox, { backgroundColor: '#DC262608', borderColor: '#DC2626' }]}>
+              <View style={styles.gpsWarningHeader}>
+                <Feather name="navigation" size={18} color="#DC2626" />
+                <Text style={styles.gpsWarningTitle}>⚠️ GPS — कड़ा निर्देश (अनिवार्य)</Text>
+              </View>
+              {[
+                '🔴 ट्रिप के दौरान GPS और Mobile हर हाल में चालू रखना अनिवार्य है।',
+                '🔴 GPS बंद = माल छुपाने/चोरी का अपराधी माना जाएगा।',
+                '📌 GPS बंद पर IPC 406 (विश्वासघात) + IPC 378 (चोरी) के तहत FIR होगी।',
+                '🔴 "Battery खत्म थी" या "Signal नहीं था" — कोई बहाना मान्य नहीं।',
+                '📌 Loading Fast India GPS data को court proof के रूप में पेश कर सकता है।',
+              ].map((line, i) => (
+                <Text key={i} style={styles.gpsWarningLine}>{line}</Text>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.termsRow} onPress={() => setGpsAgreed(!gpsAgreed)} activeOpacity={0.8}>
+              <View style={[styles.checkbox, { borderColor: gpsAgreed ? '#DC2626' : colors.border, backgroundColor: gpsAgreed ? '#DC2626' : 'transparent' }]}>
+                {gpsAgreed && <Feather name="check" size={12} color="#fff" />}
+              </View>
+              <Text style={[styles.termsText, { color: '#DC2626', fontFamily: 'Inter_600SemiBold' }]}>
+                मैं समझता/समझती हूं कि ट्रिप के दौरान GPS और Mobile हर हाल में चालू रखना मेरी जिम्मेदारी है। उल्लंघन पर IPC कार्रवाई मंजूर है।
+              </Text>
+            </TouchableOpacity>
+
             <View style={[styles.privacyBox, { borderColor: colors.border }]}>
               <Feather name="lock" size={14} color={colors.mutedForeground} />
               <Text style={[styles.privacyText, { color: colors.mutedForeground }]}>
@@ -455,4 +486,8 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16 },
   checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
   termsText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+  gpsWarningBox: { borderWidth: 1.5, borderRadius: 12, padding: 14, marginBottom: 14 },
+  gpsWarningHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  gpsWarningTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#DC2626', flex: 1 },
+  gpsWarningLine: { fontSize: 12.5, fontFamily: 'Inter_500Medium', color: '#DC2626', lineHeight: 20, marginBottom: 4 },
 });

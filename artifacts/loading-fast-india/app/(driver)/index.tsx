@@ -128,6 +128,16 @@ export default function DriverHomeScreen() {
         </View>
       </LinearGradient>
 
+      {/* GPS Strict Warning Banner — Always Visible */}
+      <View style={[gpsBanner.box, { backgroundColor: '#DC262610', borderColor: '#DC2626' }]}>
+        <View style={gpsBanner.row}>
+          <Feather name="navigation" size={16} color="#DC2626" />
+          <Text style={gpsBanner.title}>🔴 GPS अनिवार्य निर्देश</Text>
+        </View>
+        <Text style={gpsBanner.line}>ट्रिप के दौरान GPS और Mobile हर हाल में चालू रखें।</Text>
+        <Text style={gpsBanner.line}>GPS बंद = IPC 406/378 के तहत FIR। कोई बहाना मान्य नहीं।</Text>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.body, { paddingBottom: 100 }]}
@@ -509,4 +519,11 @@ const styles = StyleSheet.create({
   commissionInfo: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
   commissionTitle: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 2 },
   commissionSub: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 },
+});
+
+const gpsBanner = StyleSheet.create({
+  box: { borderWidth: 1.5, borderLeftWidth: 4, marginHorizontal: 16, marginTop: 10, marginBottom: 4, borderRadius: 10, padding: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  title: { fontSize: 14, fontFamily: 'Inter_700Bold', color: '#DC2626' },
+  line: { fontSize: 12, fontFamily: 'Inter_500Medium', color: '#DC2626', lineHeight: 18 },
 });
