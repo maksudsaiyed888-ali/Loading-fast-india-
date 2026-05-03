@@ -493,6 +493,39 @@ export default function AdminScreen() {
               ))
             }
 
+            {/* Driver Payout Pending — 18% bhejne wale */}
+            <Text style={[styles.sectionDivider, { color: '#DC2626' }]}>🚨 Driver को 18% भेजना बाकी है</Text>
+            {(() => {
+              const pendingPayouts = vyapariTrips.filter(vt => vt.status === 'completed' && vt.acceptedBidAmount && vt.acceptedByDriverName);
+              if (pendingPayouts.length === 0) return <EmptyState label="कोई pending payout नहीं ✅" />;
+              return pendingPayouts.map(vt => {
+                const fare = vt.acceptedBidAmount || 0;
+                const payout = Math.round(fare * 0.18);
+                const commission = Math.round(fare * 0.02);
+                return (
+                  <View key={vt.id} style={[styles.dataCard, { backgroundColor: '#FFF5F5', borderColor: '#DC262640', borderWidth: 1.5 }]}>
+                    <View style={styles.cardHeader}>
+                      <Text style={[styles.cardName, { color: '#DC2626' }]}>₹{payout.toLocaleString('en-IN')} भेजना है</Text>
+                      <StatusPill label="⏳ Pending" color="#DC2626" />
+                    </View>
+                    <DataRow label="🚛 Driver" value={vt.acceptedByDriverName || 'N/A'} />
+                    <DataRow label="📱 Driver Phone" value={vt.acceptedByDriverPhone || 'N/A'} />
+                    <DataRow label="🛣️ Route" value={`${vt.fromCity} → ${vt.toCity}`} />
+                    <DataRow label="💵 Total Fare" value={`₹${fare.toLocaleString('en-IN')}`} />
+                    <DataRow label="✂️ 2% Commission (रखें)" value={`₹${commission.toLocaleString('en-IN')}`} />
+                    <DataRow label="💸 18% Driver को भेजें" value={`₹${payout.toLocaleString('en-IN')}`} />
+                    <DataRow label="📅 Completed" value={formatDate(vt.createdAt)} />
+                    <View style={{ backgroundColor: '#FEE2E2', borderRadius: 8, padding: 8, marginTop: 6 }}>
+                      <Text style={{ color: '#991B1B', fontSize: 12, fontFamily: 'Inter_700Bold' }}>
+                        👉 {vt.acceptedByDriverName} को UPI से ₹{payout.toLocaleString('en-IN')} भेजें
+                      </Text>
+                      <Text style={{ color: '#DC2626', fontSize: 11, marginTop: 2 }}>Phone: {vt.acceptedByDriverPhone}</Text>
+                    </View>
+                  </View>
+                );
+              });
+            })()}
+
             {/* Vyapari Advance Payments */}
             <Text style={[styles.sectionDivider, { color: colors.secondary }]}>🔒 Vyapari Advance Payments</Text>
             {vyaparis.filter(v => v.advancePaid).length === 0

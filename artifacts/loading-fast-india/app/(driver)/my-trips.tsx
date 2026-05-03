@@ -419,31 +419,13 @@ export default function MyTripsScreen() {
                     <Text style={[styles.actionBtnText, { color: colors.destructive }]}>रद्द करें</Text>
                   </TouchableOpacity>
                 )}
-                {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && trip.commissionPaid && (
+                {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#0ea5e915', borderColor: '#0ea5e9' }]}
                     onPress={() => router.push(`/chat?tripId=${trip.id}`)}
                   >
                     <Feather name="message-circle" size={14} color="#0ea5e9" />
                     <Text style={[styles.actionBtnText, { color: '#0ea5e9' }]}>चैट</Text>
-                  </TouchableOpacity>
-                )}
-                {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && !trip.commissionPaid && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#16a34a15', borderColor: '#16a34a' }]}
-                    onPress={() => Linking.openURL(`upi://pay?pa=${COMMISSION_UPI}&pn=Loading%20Fast%20India&am=${trip.commissionAmount?.toFixed(0) ?? '0'}&cu=INR`)}
-                  >
-                    <Feather name="credit-card" size={14} color="#16a34a" />
-                    <Text style={[styles.actionBtnText, { color: '#16a34a' }]}>₹{trip.commissionAmount?.toFixed(0)} Commission भेजें</Text>
-                  </TouchableOpacity>
-                )}
-                {(trip.status === 'confirmed' || trip.status === 'pending_confirmation') && !trip.commissionPaid && (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#94a3b815', borderColor: '#94a3b8' }]}
-                    onPress={() => router.push(`/chat?tripId=${trip.id}`)}
-                  >
-                    <Feather name="lock" size={14} color="#94a3b8" />
-                    <Text style={[styles.actionBtnText, { color: '#94a3b8' }]}>चैट 🔒</Text>
                   </TouchableOpacity>
                 )}
                 {trip.status === 'completed' && trip.confirmedBy && (
@@ -536,7 +518,8 @@ export default function MyTripsScreen() {
                   {vt.status === 'completed' && (
                     <View style={[vtCardStyles.infoBox, { backgroundColor: '#E8F5E9', borderColor: '#4CAF50' }]}>
                       <Text style={{ color: '#1B5E20', fontFamily: 'Inter_700Bold', fontSize: 13 }}>✅ Trip Completed!</Text>
-                      <Text style={{ color: '#388E3C', fontSize: 12, marginTop: 4 }}>Wallet ₹{wallet18.toLocaleString('en-IN')} unlock हो गया।</Text>
+                      <Text style={{ color: '#388E3C', fontSize: 12, marginTop: 4 }}>LFI आपको ₹{wallet18.toLocaleString('en-IN')} (18%) आपके UPI पर भेजेगा।</Text>
+                      <Text style={{ color: '#4CAF50', fontSize: 11, marginTop: 2 }}>2% commission 20% advance में से ही काट लिया गया है।</Text>
                     </View>
                   )}
                 </View>
