@@ -29,3 +29,9 @@ id = "vZh-f4vVQF24jNnzTkQEu"
 uri = "file://artifacts/loading-fast-india/PLAY_STORE_LISTING.md"
 type = "text"
 title = "Play Store Listing — Loading Fast India"
+
+[[outputs]]
+id = "z7rd7gNO7Cc60w90tEaI2"
+uri = "file://artifacts/loading-fast-india/PLAY_STORE_GUIDE.md"
+type = "text"
+title = "Play Store — Pura Method (Copy-Paste Ready)"
