@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '@/context/AppContext';
@@ -35,13 +35,26 @@ export default function AdminScreen() {
     resolveComplaint, approveDriverKyc, rejectDriverKyc,
   } = useApp();
 
+  const isAdmin = user?.role === 'admin';
+
   const [photoModal, setPhotoModal] = useState<{ uri: string; label: string } | null>(null);
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState<Tab>('drivers');
   const [driverSearch, setDriverSearch] = useState('');
   const [vyapariSearch, setVyapariSearch] = useState('');
+  const [smsBalance, setSmsBalance] = useState<{ balance: number; isLow: boolean; message: string } | null>(null);
 
-  const isAdmin = user?.role === 'admin';
+  const fetchSmsBalance = useCallback(async () => {
+    try {
+      const res = await fetch('/api/otp/sms-balance');
+      const data = await res.json() as { success: boolean; balance: number; isLow: boolean; message: string };
+      if (data.success) setSmsBalance({ balance: data.balance, isLow: data.isLow, message: data.message });
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) fetchSmsBalance();
+  }, [isAdmin, fetchSmsBalance]);
   const top = insets.top + (Platform.OS === 'web' ? 67 : 0);
 
   const handleAdminLogin = async () => {
@@ -131,6 +144,23 @@ export default function AdminScreen() {
             {pendingComplaints > 0 && <Text style={styles.alertText}>⚠️ {pendingComplaints} Complaints</Text>}
           </View>
         )}
+        {/* SMS Balance Card */}
+        <TouchableOpacity onPress={fetchSmsBalance} style={[styles.smsBalanceCard, { backgroundColor: smsBalance?.isLow ? '#7f1d1d' : '#14532d' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name="message-square" size={15} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.smsBalanceTitle}>Fast2SMS Balance</Text>
+              {smsBalance ? (
+                <Text style={[styles.smsBalanceAmt, { color: smsBalance.isLow ? '#fca5a5' : '#86efac' }]}>
+                  ₹{smsBalance.balance.toFixed(2)} {smsBalance.isLow ? '— ⚠️ कम है! Recharge करें' : '— ✅ OK'}
+                </Text>
+              ) : (
+                <Text style={styles.smsBalanceAmt}>Tap to check...</Text>
+              )}
+            </View>
+            <Feather name="refresh-cw" size={13} color="#fff" />
+          </View>
+        </TouchableOpacity>
       </LinearGradient>
 
       {/* Scrollable Tab Bar */}
@@ -625,6 +655,9 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
   alertBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   alertText: { color: '#fde68a', fontSize: 11, fontFamily: 'Inter_600SemiBold', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  smsBalanceCard: { marginTop: 10, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
+  smsBalanceTitle: { color: '#fff', fontSize: 11, fontFamily: 'Inter_600SemiBold', opacity: 0.8 },
+  smsBalanceAmt: { color: '#fff', fontSize: 13, fontFamily: 'Inter_700Bold', marginTop: 1 },
   tabBar: { borderBottomWidth: 1, maxHeight: 60 },
   tabBarContent: { paddingHorizontal: 4 },
   tab: { alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 2, flexDirection: 'column' },

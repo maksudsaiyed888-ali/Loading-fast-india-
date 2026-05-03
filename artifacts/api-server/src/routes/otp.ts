@@ -80,6 +80,22 @@ async function fsQuery(collection: string, field: string, value: string): Promis
   return rows.filter((r) => r.document).map((r) => parseFsDoc(r.document!));
 }
 
+const LOW_BALANCE_THRESHOLD = 20;
+
+async function getSmsBalance(): Promise<number | null> {
+  if (!FAST2SMS_KEY) return null;
+  try {
+    const res = await fetch("https://www.fast2sms.com/dev/wallet", {
+      headers: { authorization: FAST2SMS_KEY },
+    });
+    const data = await res.json() as { return?: boolean; wallet?: string };
+    if (data.return && data.wallet) return parseFloat(data.wallet);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function sendSms(phone: string, otp: string): Promise<boolean> {
   if (!FAST2SMS_KEY) return false;
   try {
@@ -129,7 +145,18 @@ router.post("/otp/send", async (req, res) => {
     const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MS);
     const docId = `${phone}_${role}`;
 
-    const smsSent = await sendSms(phone, otp);
+    const [smsSent, balance] = await Promise.all([
+      sendSms(phone, otp),
+      getSmsBalance(),
+    ]);
+
+    if (balance !== null && balance < LOW_BALANCE_THRESHOLD) {
+      await fsSet("adminAlerts", "smsBalance", {
+        balance: balance,
+        updatedAt: new Date().toISOString(),
+        isLow: true,
+      });
+    }
 
     await fsSet("loginOtps", docId, {
       phone,
@@ -243,6 +270,25 @@ router.post("/otp/check-phone", async (req, res) => {
     });
   } catch (err) {
     console.error("Check phone error:", err);
+    return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+router.get("/otp/sms-balance", async (_req, res) => {
+  try {
+    const balance = await getSmsBalance();
+    if (balance === null) {
+      return res.status(503).json({ success: false, error: "Balance check failed" });
+    }
+    return res.json({
+      success: true,
+      balance,
+      isLow: balance < LOW_BALANCE_THRESHOLD,
+      message: balance < LOW_BALANCE_THRESHOLD
+        ? `⚠️ Low balance! ₹${balance.toFixed(2)} बचा है। अभी Recharge करें।`
+        : `✅ Balance OK — ₹${balance.toFixed(2)}`,
+    });
+  } catch (err) {
     return res.status(500).json({ success: false, error: "Server error" });
   }
 });
