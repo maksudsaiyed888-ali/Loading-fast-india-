@@ -40,7 +40,7 @@
         "backgroundColor": "#0A2540"
       },
       "package": "com.loadingfastindia.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "compileSdkVersion": 35,
       "targetSdkVersion": 35,
       "minSdkVersion": 24,
