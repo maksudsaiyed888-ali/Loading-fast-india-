@@ -414,17 +414,41 @@ export default function BookingsScreen() {
       <Modal visible={otpModal} transparent animationType="fade" onRequestClose={() => setOtpModal(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ backgroundColor: colors.background, borderRadius: 20, padding: 24, width: '100%', alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 8 }}>
-              {otpType === 'start' ? '🔑 Start Trip OTP' : '🎯 Delivery OTP'}
+            <Text style={{ fontSize: 16, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 4 }}>
+              {otpType === 'start' ? '🔑 Loading शुरू करने का OTP' : '🎯 Delivery का OTP'}
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
-              {otpType === 'start' ? 'यह OTP Driver को दें — Loading के समय verify करेगा' : 'यह OTP Receiver को SMS जाएगा — Delivery के समय Driver को देगा'}
-            </Text>
-            <View style={{ backgroundColor: '#1B5E20', borderRadius: 14, paddingHorizontal: 32, paddingVertical: 18, marginBottom: 16 }}>
-              <Text style={{ color: '#fff', fontSize: 36, fontFamily: 'Inter_700Bold', letterSpacing: 10 }}>{generatedOtp}</Text>
+
+            {/* OTP Number — Big & Clear */}
+            <View style={{ backgroundColor: otpType === 'start' ? '#1B5E20' : '#4C1D95', borderRadius: 14, paddingHorizontal: 32, paddingVertical: 18, marginVertical: 16, width: '100%', alignItems: 'center' }}>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 4 }}>
+                {otpType === 'start' ? 'यह OTP Driver को बोलें' : 'यह OTP Receiver को SMS गया है'}
+              </Text>
+              <Text style={{ color: '#fff', fontSize: 40, fontFamily: 'Inter_700Bold', letterSpacing: 10 }}>{generatedOtp}</Text>
             </View>
+
+            {/* Guide Box */}
+            <View style={{ backgroundColor: otpType === 'start' ? '#F0FDF4' : '#FAF5FF', borderRadius: 12, padding: 12, marginBottom: 16, width: '100%', borderWidth: 1, borderColor: otpType === 'start' ? '#BBF7D0' : '#E9D5FF' }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Inter_700Bold', color: otpType === 'start' ? '#15803D' : '#7C3AED', marginBottom: 6 }}>
+                📋 आगे क्या करें:
+              </Text>
+              {otpType === 'start' ? (
+                <>
+                  <Text style={{ fontSize: 12, color: '#166534', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>① ऊपर दिखा <Text style={{ fontFamily: 'Inter_700Bold' }}>6 अंकों का OTP</Text> याद करें या screen दिखाएं</Text>
+                  <Text style={{ fontSize: 12, color: '#166534', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>② Driver से कहें — <Text style={{ fontFamily: 'Inter_700Bold' }}>"यह OTP अपनी app में डालो"</Text></Text>
+                  <Text style={{ fontSize: 12, color: '#166534', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>③ Driver verify करेगा → Loading शुरू होगी ✅</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>① Receiver के phone पर <Text style={{ fontFamily: 'Inter_700Bold' }}>SMS में OTP गया है</Text></Text>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>② Receiver वो OTP Driver को बोलेगा</Text>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>③ Driver app में डालेगा → Delivery complete ✅</Text>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_700Bold', lineHeight: 20, marginTop: 4 }}>⚠️ Driver को OTP खुद मत बताएं — Receiver को बताने दें</Text>
+                </>
+              )}
+            </View>
+
             <TouchableOpacity style={{ backgroundColor: colors.primary, borderRadius: 10, padding: 12, width: '100%', alignItems: 'center' }} onPress={() => setOtpModal(false)}>
-              <Text style={{ color: '#fff', fontFamily: 'Inter_700Bold' }}>बंद करें</Text>
+              <Text style={{ color: '#fff', fontFamily: 'Inter_700Bold' }}>समझ गया — बंद करें</Text>
             </TouchableOpacity>
           </View>
         </View>

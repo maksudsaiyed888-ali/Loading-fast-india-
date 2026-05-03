@@ -551,11 +551,29 @@ export default function MyTripsScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 }}>
             <Text style={{ fontSize: 17, fontFamily: 'Inter_700Bold', color: colors.foreground, marginBottom: 4 }}>
-              {vtOtpType === 'start' ? '🔑 Start Trip OTP' : '🎯 Delivery OTP'}
+              {vtOtpType === 'start' ? '🔑 Loading शुरू करें — OTP डालें' : '🎯 Delivery Complete करें — OTP डालें'}
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 13, marginBottom: 16 }}>
-              {vtOtpType === 'start' ? 'Merchant से Start OTP लेकर यहाँ डालें' : 'Receiver से Delivery OTP लेकर यहाँ डालें'}
-            </Text>
+
+            {/* Guide Box */}
+            <View style={{ backgroundColor: vtOtpType === 'start' ? '#EFF6FF' : '#F5F3FF', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: vtOtpType === 'start' ? '#BFDBFE' : '#DDD6FE' }}>
+              <Text style={{ fontSize: 12, fontFamily: 'Inter_700Bold', color: vtOtpType === 'start' ? '#1D4ED8' : '#7C3AED', marginBottom: 6 }}>
+                {vtOtpType === 'start' ? '📋 कैसे करें — Step by Step' : '📋 Delivery OTP कैसे लें'}
+              </Text>
+              {vtOtpType === 'start' ? (
+                <>
+                  <Text style={{ fontSize: 12, color: '#1e40af', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>① व्यापारी ने अपनी app में <Text style={{ fontFamily: 'Inter_700Bold' }}>"Start Trip" button</Text> दबाया होगा</Text>
+                  <Text style={{ fontSize: 12, color: '#1e40af', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>② उनकी screen पर <Text style={{ fontFamily: 'Inter_700Bold' }}>6 अंकों का OTP दिखेगा</Text></Text>
+                  <Text style={{ fontSize: 12, color: '#1e40af', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>③ वो OTP आपको बोलेंगे — नीचे डालें ✅</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>① माल पहुँचाने की जगह पहुँचें</Text>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>② Receiver के <Text style={{ fontFamily: 'Inter_700Bold' }}>phone पर SMS आया होगा</Text> (OTP)</Text>
+                  <Text style={{ fontSize: 12, color: '#6D28D9', fontFamily: 'Inter_400Regular', lineHeight: 20 }}>③ Receiver से वो OTP माँगें — नीचे डालें ✅</Text>
+                </>
+              )}
+            </View>
+
             <TextInput
               style={{ borderWidth: 1.5, borderColor: colors.border, borderRadius: 10, padding: 14, fontSize: 24, color: colors.foreground, backgroundColor: colors.card, textAlign: 'center', letterSpacing: 8, fontFamily: 'Inter_700Bold', marginBottom: 14 }}
               placeholder="------"
