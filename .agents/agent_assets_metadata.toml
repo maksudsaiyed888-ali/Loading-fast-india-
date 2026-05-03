@@ -23,3 +23,9 @@ id = "Q0EY6BJw1HNDhLbiab94k"
 uri = "file://artifacts/loading-fast-india/KEYSTORE-CREDENTIALS.txt"
 type = "text"
 title = "Keystore Passwords & Credentials Info"
+
+[[outputs]]
+id = "vZh-f4vVQF24jNnzTkQEu"
+uri = "file://artifacts/loading-fast-india/PLAY_STORE_LISTING.md"
+type = "text"
+title = "Play Store Listing — Loading Fast India"
